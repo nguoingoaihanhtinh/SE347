@@ -1,0 +1,82 @@
+import { User } from "@/models/user.model";
+import { UserQueryParams } from "@/types/user.query-params";
+import { NotFoundError } from "@/utils/errors";
+import { connectMongo } from "@/config/mongodb";
+import { ObjectId } from "mongodb";
+
+export class UserRepository {
+  private collectionName = "users";
+
+  async findAll(input: UserQueryParams) {
+    const db = await connectMongo();
+    const page = input.page || 1;
+    const limit = input.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const filter: any = {};
+    if (input.user_id) filter._id = new ObjectId(input.user_id);
+    if (input.email) filter.email = input.email;
+    if (input.first_name) filter.firstName = input.first_name;
+    if (input.last_name) filter.lastName = input.last_name;
+    if (input.role) filter.role = input.role;
+
+    const data = await db.collection(this.collectionName).find(filter).skip(skip).limit(limit).toArray();
+
+    const total = await db.collection(this.collectionName).countDocuments(filter);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(input: UserQueryParams) {
+    const db = await connectMongo();
+    const filter: any = {};
+    if (input.user_id) filter._id = new ObjectId(input.user_id);
+    if (input.email) filter.email = input.email;
+
+    const user = await db.collection(this.collectionName).findOne(filter);
+    return user;
+  }
+
+  async create(input: { userData: Omit<User, "id"> }) {
+    const db = await connectMongo();
+    // Remove undefined fields for MongoDB compatibility
+    const doc: any = {};
+    for (const key in input.userData) {
+      if (input.userData[key as keyof User] !== undefined) {
+        doc[key] = input.userData[key as keyof User];
+      }
+    }
+    const result = await db.collection(this.collectionName).insertOne(doc);
+    return { ...doc, _id: result.insertedId };
+  }
+
+  async update(input: { userId: string; userData: Partial<User> }) {
+    const db = await connectMongo();
+    const result = await db
+      .collection(this.collectionName)
+      .findOneAndUpdate({ _id: new ObjectId(input.userId) }, { $set: input.userData }, { returnDocument: "after" });
+    if (!result || !result.value) {
+      throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
+    }
+    return result.value;
+  }
+
+  async delete(userId: string) {
+    const db = await connectMongo();
+    const result = await db.collection(this.collectionName).findOneAndDelete({ _id: new ObjectId(userId) });
+    if (!result || !result.value) {
+      throw new NotFoundError({ message: `User with ID ${userId} not found` });
+    }
+    return result.value;
+  }
+}
+
+export default new UserRepository();
