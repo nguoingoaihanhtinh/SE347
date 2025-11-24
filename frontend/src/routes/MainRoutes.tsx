@@ -1,15 +1,42 @@
 import { BrowserRouter, Route, Routes, Outlet } from "react-router-dom";
 
 import ThemeProvider from "../providers/ThemeProvider";
-import MainLayout from "../layouts/MainLayout";
 import PageNotFound from "../layouts/PageNotFound";
+import AdminLayout from "../layouts/AdminLayout";
+import DefaultLayout from "../layouts/DefaultLayout";
+import ProjectLayout from "../layouts/ProjectLayout";
 
-// Component wrapper cho MainLayout
-function LayoutWrapper() {
+// Inline sample pages (replace with real pages later)
+const Home = () => <div>Home</div>;
+const AdminDashboard = () => <div>Admin Dashboard</div>;
+const ProjectBoard = () => <div>Project Board</div>;
+
+// Wrappers
+function DefaultLayoutWrapper() {
   return (
-    <MainLayout>
+    <DefaultLayout title="SEJobs">
       <Outlet />
-    </MainLayout>
+    </DefaultLayout>
+  );
+}
+
+function AdminLayoutWrapper() {
+  return (
+    <AdminLayout title="Admin Panel">
+      <Outlet />
+    </AdminLayout>
+  );
+}
+
+function ProjectLayoutWrapper() {
+  return (
+    <ProjectLayout
+      projectName="Sample Project"
+      projectCode="PRJ-001"
+      breadcrumb={[{ label: "Projects", path: "/projects" }, { label: "Board" }]}
+    >
+      <Outlet />
+    </ProjectLayout>
   );
 }
 
@@ -18,24 +45,20 @@ export default function MainRoutes() {
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-          {/* <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} /> */}
-          <Route path="/" element={<LayoutWrapper />}>
-            {/* <Route index element={<Home />} /> */}
+          {/* Public / Default layout */}
+          <Route path="/" element={<DefaultLayoutWrapper />}>
+            <Route index element={<Home />} />
+            {/* Example nested project layout */}
+            <Route path="projects/:id" element={<ProjectLayoutWrapper />}>
+              <Route index element={<ProjectBoard />} />
+            </Route>
             <Route path="*" element={<PageNotFound />} />
           </Route>
-          {/* Admin routes */}
-          {/* <Route
-            path="/admin"
-            element={
-              <AdminLayout>
-                <Outlet />
-              </AdminLayout>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="company" element={<CompanyProfile />} />
-          </Route> */}
+
+          {/* Admin layout */}
+          <Route path="/admin" element={<AdminLayoutWrapper />}>
+            <Route index element={<AdminDashboard />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
