@@ -3,12 +3,11 @@ export interface Project {
   id?: string;
   name: string;
   key: string;
-  access: any; // Replace 'any' with ProjectAccess enum/type if defined
-  type: any; // Replace 'any' with ProjectType enum/type if defined
-  ownerId: string;
+  access: "public" | "private"; // replace with enum if you have one
+  type: "scrum" | "kanban"; // replace with enum if you have one
+  ownerId: string; // references User.id
   createdAt: Date;
   updatedAt: Date;
-  projectMembers?: ProjectMember[];
 }
 
 // ProjectColumnDomain model

@@ -1,26 +1,28 @@
-// IssueDomain model
+// src/models/issue.model.ts
+export type IssueType = "task" | "story" | "bug" | "epic";
+export type IssuePriority = "low" | "medium" | "high" | "critical";
+
 export interface Issue {
   id?: string;
   title: string;
-  projectId: string;
-  sprintId?: string;
-  creatorId?: string;
-  teamId?: string;
-  assigneeId?: string;
-  parentId: string;
-  reporterId: string;
-  type?: any; // Replace 'any' with IssueType enum/type if defined
-  columnId: string;
-  column?: any; // Replace 'any' with ProjectColumn type if defined
-  priority?: any; // Replace 'any' with IssuePriority enum/type if defined
+  key: string;
   summary: string;
   description: string;
   storyPoint: number;
+  type?: IssueType;
+  priority?: IssuePriority;
+  projectId: string;
+  sprintId?: string;
+  columnId: string;
+  creatorId?: string;
+  reporterId: string;
+  assigneeId?: string;
+  parentId?: string;
+  teamId?: string;
   attachments: string[];
+  dueDateFrom?: Date;
+  dueDateTo?: Date;
+  completedAt?: Date;
   createdAt: Date;
-  completedAt: Date;
   updatedAt: Date;
-  dueDateFrom: Date;
-  dueDateTo: Date;
-  key: string;
 }
