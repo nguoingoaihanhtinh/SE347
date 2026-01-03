@@ -1,4 +1,3 @@
-// repositories/project.repository.ts
 import { Project } from "@/models/project.model";
 import { connectMongo } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
@@ -9,17 +8,12 @@ export class ProjectRepository {
   async findAll(filters: any = {}, page: number = 1, limit: number = 10) {
     const db = await connectMongo();
     const skip = (page - 1) * limit;
-
-    // Convert string IDs to ObjectId if filtering by ownerId, etc.
     const mongoFilter: any = { ...filters };
     if (mongoFilter.ownerId) {
       mongoFilter.ownerId = new ObjectId(mongoFilter.ownerId);
     }
-
     const data = await db.collection(this.collectionName).find(mongoFilter).skip(skip).limit(limit).toArray();
     const total = await db.collection(this.collectionName).countDocuments(mongoFilter);
-
-    // Convert _id → id
     const mappedData = data.map((doc) => ({
       id: doc._id.toString(),
       name: doc.name,
@@ -30,7 +24,6 @@ export class ProjectRepository {
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     }));
-
     return {
       data: mappedData,
       pagination: {
@@ -45,17 +38,10 @@ export class ProjectRepository {
   async findOne(filter: { id?: string; key?: string }) {
     const db = await connectMongo();
     const mongoFilter: any = {};
-
-    if (filter.id) {
-      mongoFilter._id = new ObjectId(filter.id);
-    }
-    if (filter.key) {
-      mongoFilter.key = filter.key;
-    }
-
+    if (filter.id) mongoFilter._id = new ObjectId(filter.id);
+    if (filter.key) mongoFilter.key = filter.key;
     const doc = await db.collection(this.collectionName).findOne(mongoFilter);
     if (!doc) return null;
-
     return {
       id: doc._id.toString(),
       name: doc.name,
@@ -70,7 +56,6 @@ export class ProjectRepository {
 
   async create(projectData: Omit<Project, "id" | "createdAt" | "updatedAt">) {
     const db = await connectMongo();
-
     const doc = {
       name: projectData.name,
       key: projectData.key,
@@ -80,7 +65,6 @@ export class ProjectRepository {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
     const result = await db.collection(this.collectionName).insertOne(doc);
     return {
       id: result.insertedId.toString(),
@@ -91,18 +75,15 @@ export class ProjectRepository {
 
   async update(id: string, updateData: Partial<Omit<Project, "id" | "createdAt" | "updatedAt">>) {
     const db = await connectMongo();
-
+    console.log("Updating project ID:", id);
+    console.log("Update data received:", updateData);
     const updateDoc: any = { ...updateData, updatedAt: new Date() };
-    if (updateDoc.ownerId) {
-      updateDoc.ownerId = new ObjectId(updateDoc.ownerId);
-    }
-
+    if (updateDoc.ownerId) updateDoc.ownerId = new ObjectId(updateDoc.ownerId);
+    console.log("Final updateDoc:", updateDoc);
     const result = await db
       .collection(this.collectionName)
       .findOneAndUpdate({ _id: new ObjectId(id) }, { $set: updateDoc }, { returnDocument: "after" });
-
     if (!result?.value) return null;
-
     const doc = result.value;
     return {
       id: doc._id.toString(),

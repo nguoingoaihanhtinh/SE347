@@ -22,7 +22,11 @@ export async function getProjectById(req: Request, res: Response) {
 
 export async function createProject(req: Request, res: Response) {
   const data = validate.schema_validate(createProjectSchema, req.body);
-  const project = await ProjectService.create(data);
+  const projectData = {
+    ...data,
+    ownerId: req.user!.userId,
+  };
+  const project = await ProjectService.create(projectData);
   res.status(201).json({ success: true, data: project });
 }
 

@@ -2,6 +2,7 @@
 import "express-async-errors";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import userRoutes from "./routes/users.route";
 import authRoutes from "./routes/auth.route";
 import projectRoutes from "./routes/project.route";
@@ -25,6 +26,7 @@ export const createApp = async () => {
       exposedHeaders: ["Authorization"],
     })
   );
+  app.use(cookieParser());
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
 

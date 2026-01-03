@@ -1,3 +1,4 @@
+// middlewares/auth.middleware.ts
 import { Request, Response, NextFunction } from "express";
 import { verifyToken, JWTPayload } from "@/utils/jwt.util";
 import { UnauthorizedError } from "@/utils/errors";
@@ -12,16 +13,17 @@ declare global {
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new UnauthorizedError({
-        message: "No token provided",
-        status: "NO_TOKEN",
-      });
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
     }
 
-    const token = authHeader.split(" ")[1];
+    if (!token && req.cookies?.token) {
+      token = req.cookies.token;
+    }
+
     if (!token) {
       throw new UnauthorizedError({
         message: "No token provided",
