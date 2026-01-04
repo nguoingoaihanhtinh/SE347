@@ -1,20 +1,20 @@
+// src/routes/MainRoutes.tsx
 import { BrowserRouter, Route, Routes, Outlet } from "react-router-dom";
-
 import ThemeProvider from "../providers/ThemeProvider";
 import PageNotFound from "../layouts/PageNotFound";
 import AdminLayout from "../layouts/AdminLayout";
 import DefaultLayout from "../layouts/DefaultLayout";
-import ProjectLayout from "../layouts/ProjectLayout";
-
-// Inline sample pages (replace with real pages later)
-const Home = () => <div>Home</div>;
-const AdminDashboard = () => <div>Admin Dashboard</div>;
-const ProjectBoard = () => <div>Project Board</div>;
+import ProtectedRoute from "../components/ProtectedRoute";
+import ProjectLayoutWrapper from "../components/ProjectLayoutWrapper";
+const LoginPage = <div> Login</div>;
+const RegisterPage = <div> Register</div>;
+const ProjectsPage = <div> Projects</div>;
+const BoardPage = <div> Board</div>;
 
 // Wrappers
 function DefaultLayoutWrapper() {
   return (
-    <DefaultLayout title="SEJobs">
+    <DefaultLayout title="Project Manager">
       <Outlet />
     </DefaultLayout>
   );
@@ -28,36 +28,45 @@ function AdminLayoutWrapper() {
   );
 }
 
-function ProjectLayoutWrapper() {
-  return (
-    <ProjectLayout
-      projectName="Sample Project"
-      projectCode="PRJ-001"
-      breadcrumb={[{ label: "Projects", path: "/projects" }, { label: "Board" }]}
-    >
-      <Outlet />
-    </ProjectLayout>
-  );
-}
-
 export default function MainRoutes() {
   return (
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public / Default layout */}
-          <Route path="/" element={<DefaultLayoutWrapper />}>
-            <Route index element={<Home />} />
-            {/* Example nested project layout */}
-            <Route path="projects/:id" element={<ProjectLayoutWrapper />}>
-              <Route index element={<ProjectBoard />} />
+          {/* Public Routes - No Layout */}
+          <Route path="/login" element={LoginPage} />
+          <Route path="/register" element={RegisterPage} />
+
+          {/* Protected Routes - Default Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DefaultLayoutWrapper />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={ProjectsPage} />
+            <Route path="projects" element={ProjectsPage} />
+
+            {/* Project Board - Nested in Project Layout */}
+            <Route path="projects/:projectId" element={<ProjectLayoutWrapper />}>
+              <Route path="board" element={BoardPage} />
             </Route>
+
             <Route path="*" element={<PageNotFound />} />
           </Route>
 
-          {/* Admin layout */}
-          <Route path="/admin" element={<AdminLayoutWrapper />}>
-            <Route index element={<AdminDashboard />} />
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminLayoutWrapper />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<div>Admin Dashboard</div>} />
           </Route>
         </Routes>
       </BrowserRouter>

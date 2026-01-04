@@ -34,7 +34,7 @@ export async function updateProject(req: Request, res: Response) {
   const { id } = req.params;
   if (!id) throw new BadRequestError({ message: "Missing project ID" });
   const data = validate.schema_validate(updateProjectSchema, req.body);
-  const project = await ProjectService.update(id, data as any);
+  const project = await ProjectService.update(id, data as any, req.user!.userId);
   res.status(200).json({ success: true, data: project });
 }
 

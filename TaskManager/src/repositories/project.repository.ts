@@ -83,8 +83,8 @@ export class ProjectRepository {
     const result = await db
       .collection(this.collectionName)
       .findOneAndUpdate({ _id: new ObjectId(id) }, { $set: updateDoc }, { returnDocument: "after" });
-    if (!result?.value) return null;
-    const doc = result.value;
+    if (!result) return null;
+    const doc = result;
     return {
       id: doc._id.toString(),
       name: doc.name,

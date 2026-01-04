@@ -43,6 +43,17 @@ export async function getIssueById(req: Request, res: Response) {
 export async function createIssue(req: Request, res: Response) {
   const rawData = validate.schema_validate(createIssueSchema, req.body);
   const data = parseDateFields(rawData);
+
+  // Set defaults for missing fields
+  if (!data.summary) {
+    data.summary = data.title; // Use title as summary if not provided
+  }
+
+  // Set reporterId from authenticated user if not provided
+  if (!data.reporterId && req.user) {
+    data.reporterId = req.user.userId;
+  }
+
   const issue = await IssueService.create(data);
   res.status(201).json({ success: true, issue });
 }

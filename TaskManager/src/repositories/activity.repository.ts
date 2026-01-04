@@ -25,7 +25,9 @@ export class ActivityRepository {
     if (userId) doc.userId = new ObjectId(userId);
     if (userName) doc.userName = userName;
 
+    console.log("Creating activity with doc:", doc);
     const result = await db.collection(this.collectionName).insertOne(doc);
+    console.log("Activity created with result:", result);
     return {
       id: result.insertedId.toString(),
       projectId,

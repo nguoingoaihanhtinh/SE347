@@ -37,7 +37,7 @@ export class ProjectService {
     return project;
   }
 
-  async update(id: string, updateData: Partial<Project>) {
+  async update(id: string, updateData: Partial<Project>, currentUserId: string) {
     const existing = await this.findOneById(id);
     if (!existing) throw new NotFoundError({ message: `Project with ID ${id} not found` });
 
@@ -49,12 +49,17 @@ export class ProjectService {
     const updated = await projectRepository.update(id, updateData);
     if (!updated) throw new BadRequestError({ message: `Failed to update project ${id}` });
 
-    await ActivityService.log({
-      projectId: id,
-      issueId: id,
-      userId: updateData.ownerId || existing.ownerId,
-      actionType: ActivityAction.PROJECT_UPDATED,
-    });
+    try {
+      await ActivityService.log({
+        projectId: id,
+        issueId: id, // Use project ID for project-level activities
+        userId: currentUserId,
+        actionType: ActivityAction.PROJECT_UPDATED,
+      });
+    } catch (error) {
+      console.error("Failed to log project update activity:", error);
+      // Don't throw error to prevent affecting the main update operation
+    }
 
     return updated;
   }
