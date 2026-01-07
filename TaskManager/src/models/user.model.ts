@@ -1,13 +1,22 @@
-// User model for MongoDB
+// src/models/user.model.ts
 export interface User {
   _id?: string;
   email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
+  passwordHash: string;
   avatar?: string | null;
-  role: "student" | "company" | "admin" | "user";
-  is_verified?: boolean;
-  created_at?: Date;
-  updated_at?: Date;
+  role: "user" | "admin" | "super_admin";
+  isEmailVerified: boolean;
+
+  notifications?: {
+    email?: boolean;
+    push?: boolean;
+    projectUpdates?: boolean;
+    issueAssignments?: boolean;
+  } | null;
+  lastLoginAt?: Date | null;
+  isActive?: boolean;
+  deactivatedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }

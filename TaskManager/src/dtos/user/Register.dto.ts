@@ -1,8 +1,9 @@
+// src/dtos/user/Register.dto.ts
 import { z } from "zod";
 
 export const registerSchema = z
   .object({
-    email: z.email("Invalid email address"),
+    email: z.string().email("Invalid email address"),
     first_name: z.string().min(1, "First name is required"),
     last_name: z.string().min(1, "Last name is required"),
     password: z

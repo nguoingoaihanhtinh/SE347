@@ -54,7 +54,7 @@ export async function createIssue(req: Request, res: Response) {
     data.reporterId = req.user.userId;
   }
 
-  const issue = await IssueService.create(data);
+  const issue = await IssueService.create(data, req.user!.userId);
   res.status(201).json({ success: true, issue });
 }
 
@@ -63,13 +63,13 @@ export async function updateIssue(req: Request, res: Response) {
   if (!id) throw new BadRequestError({ message: "Missing issue ID" });
   const rawData = validate.schema_validate(updateIssueSchema, req.body);
   const data = parseDateFields(rawData);
-  const issue = await IssueService.update(id, data);
+  const issue = await IssueService.update(id, data, req.user!.userId);
   res.status(200).json({ success: true, issue });
 }
 
 export async function deleteIssue(req: Request, res: Response) {
   const { id } = req.params;
   if (!id) throw new BadRequestError({ message: "Missing issue ID" });
-  await IssueService.delete(id);
+  await IssueService.delete(id, req.user!.userId);
   res.status(200).json({ success: true });
 }

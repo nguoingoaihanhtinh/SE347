@@ -60,7 +60,7 @@ export class IssueRepository {
     }));
 
     return {
-      mapped,
+      data: mapped,
       pagination: { page, limit, total, total_pages: Math.ceil(total / limit) },
     };
   }

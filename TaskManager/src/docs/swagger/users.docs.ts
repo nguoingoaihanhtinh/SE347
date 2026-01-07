@@ -1,37 +1,168 @@
+// src/docs/swagger/users.docs.ts
+
 /**
  * @swagger
- * tags:
- *   name: Users
- *   description: User management endpoints
+ * components:
+ *   schemas:
+ *     UpdateUserRequest:
+ *       type: object
+ *       properties:
+ *         fullName:
+ *           type: string
+ *           minLength: 2
+ *           maxLength: 100
+ *           description: User's full name
+ *           example: "John Smith"
+ *         avatar:
+ *           type: string
+ *           description: Avatar image URL
+ *           example: "https://example.com/avatars/newavatar.jpg"
+ *         bio:
+ *           type: string
+ *           maxLength: 500
+ *           description: User's bio/description
+ *           example: "Senior software developer with 5+ years experience"
+ *         timezone:
+ *           type: string
+ *           description: User's timezone
+ *           example: "America/New_York"
+ *         language:
+ *           type: string
+ *           enum: ["en", "es", "fr", "de", "ja", "ko", "zh"]
+ *           description: Preferred language
+ *           example: "en"
+ *         notifications:
+ *           type: object
+ *           description: Notification preferences
+ *           properties:
+ *             email:
+ *               type: boolean
+ *               example: true
+ *             push:
+ *               type: boolean
+ *               example: false
+ *             projectUpdates:
+ *               type: boolean
+ *               example: true
+ *             issueAssignments:
+ *               type: boolean
+ *               example: true
+ *
+ *     ChangePasswordRequest:
+ *       type: object
+ *       required:
+ *         - currentPassword
+ *         - newPassword
+ *         - confirmPassword
+ *       properties:
+ *         currentPassword:
+ *           type: string
+ *           format: password
+ *           description: Current password for verification
+ *           example: "CurrentPass123!"
+ *         newPassword:
+ *           type: string
+ *           format: password
+ *           minLength: 8
+ *           description: New password (must meet security requirements)
+ *           example: "NewSecurePass456!"
+ *         confirmPassword:
+ *           type: string
+ *           format: password
+ *           description: Confirmation of new password
+ *           example: "NewSecurePass456!"
+ *
+ *     UserProfile:
+ *       allOf:
+ *         - $ref: '#/components/schemas/User'
+ *         - type: object
+ *           properties:
+ *             bio:
+ *               type: string
+ *               description: User's bio/description
+ *               example: "Senior software developer"
+ *             timezone:
+ *               type: string
+ *               example: "America/New_York"
+ *             language:
+ *               type: string
+ *               example: "en"
+ *             notifications:
+ *               type: object
+ *               properties:
+ *                 email:
+ *                   type: boolean
+ *                 push:
+ *                   type: boolean
+ *                 projectUpdates:
+ *                   type: boolean
+ *                 issueAssignments:
+ *                   type: boolean
+ *             stats:
+ *               type: object
+ *               properties:
+ *                 totalProjects:
+ *                   type: integer
+ *                   example: 5
+ *                 activeIssues:
+ *                   type: integer
+ *                   example: 12
+ *                 completedIssues:
+ *                   type: integer
+ *                   example: 34
+ *                 joinedAt:
+ *                   type: string
+ *                   format: date-time
+ *
+ *     UserSearchResult:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "507f1f77bcf86cd799439013"
+ *         email:
+ *           type: string
+ *           format: email
+ *           example: "john.doe@example.com"
+ *         fullName:
+ *           type: string
+ *           example: "John Doe"
+ *         avatar:
+ *           type: string
+ *           example: "https://example.com/avatar.jpg"
  */
 
 /**
  * @swagger
  * /api/users:
  *   get:
- *     summary: Get all users
+ *     summary: Search and list users
+ *     description: |
+ *       Search for users by name or email. Useful for project member invitations.
+ *       Returns basic user information without sensitive data.
  *     tags: [Users]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
+ *       - cookieAuth: []
  *     parameters:
  *       - in: query
- *         name: page
+ *         name: search
  *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *         description: Page number
+ *           type: string
+ *           minLength: 2
+ *         description: Search term for user's name or email
+ *         example: "john"
  *       - in: query
- *         name: limit
+ *         name: exclude
  *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 10
- *         description: Number of items per page
+ *           type: string
+ *         description: Comma-separated list of user IDs to exclude from results
+ *         example: "507f1f77bcf86cd799439013,507f1f77bcf86cd799439014"
+ *       - $ref: '#/components/parameters/PageParam'
+ *       - $ref: '#/components/parameters/LimitParam'
  *     responses:
  *       200:
- *         description: List of users with pagination
+ *         description: Users found successfully
  *         content:
  *           application/json:
  *             schema:
@@ -40,52 +171,325 @@
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Users retrieved successfully"
  *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       user_id:
- *                         type: integer
- *                         format: int64
- *                       email:
- *                         type: string
- *                         format: email
- *                       first_name:
- *                         type: string
- *                       last_name:
- *                         type: string
- *                       avatar:
- *                         type: string
- *                         nullable: true
- *                       role:
- *                         type: string
- *                         enum: [student, company, admin]
- *                       created_at:
- *                         type: string
- *                         format: date-time
- *                       updated_at:
- *                         type: string
- *                         format: date-time
- *                 pagination:
  *                   type: object
  *                   properties:
- *                     page:
- *                       type: integer
- *                     limit:
- *                       type: integer
- *                     total:
- *                       type: integer
- *                     total_pages:
- *                       type: integer
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/UserSearchResult'
+ *                     pagination:
+ *                       $ref: '#/components/schemas/Pagination'
+ *       400:
+ *         description: Invalid search parameters
  *       401:
- *         description: Unauthorized - Invalid or missing token
- *
- *   post:
- *     summary: Create new user
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+
+/**
+ * @swagger
+ * /api/users/{userId}:
+ *   get:
+ *     summary: Get user profile by ID
+ *     description: |
+ *       Retrieves detailed profile information for a specific user.
+ *       Returns more information if viewing own profile.
  *     tags: [Users]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *         example: "507f1f77bcf86cd799439013"
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User profile retrieved successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/UserProfile'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ */
+
+/**
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: Get own user profile
+ *     description: Retrieves the complete profile information of the currently authenticated user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Profile retrieved successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/UserProfile'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *
+ *   put:
+ *     summary: Update own user profile
+ *     description: Updates the profile information of the currently authenticated user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateUserRequest'
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Profile updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/UserProfile'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+
+/**
+ * @swagger
+ * /api/users/change-password:
+ *   post:
+ *     summary: Change user password
+ *     description: |
+ *       Changes the password for the currently authenticated user.
+ *       Requires current password for verification.
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ChangePasswordRequest'
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Password changed successfully"
+ *       400:
+ *         description: |
+ *           Password change failed. Possible reasons:
+ *           - Current password is incorrect
+ *           - New password doesn't meet security requirements
+ *           - New password confirmation doesn't match
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               wrong_current_password:
+ *                 summary: Current password is incorrect
+ *                 value:
+ *                   success: false
+ *                   message: "Current password is incorrect"
+ *                   error:
+ *                     code: "INVALID_CURRENT_PASSWORD"
+ *               weak_password:
+ *                 summary: New password doesn't meet requirements
+ *                 value:
+ *                   success: false
+ *                   message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+ *                   error:
+ *                     code: "WEAK_PASSWORD"
+ *               password_mismatch:
+ *                 summary: Password confirmation doesn't match
+ *                 value:
+ *                   success: false
+ *                   message: "New password and confirmation don't match"
+ *                   error:
+ *                     code: "PASSWORD_MISMATCH"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       429:
+ *         description: Too many password change attempts (rate limited)
+ */
+
+/**
+ * @swagger
+ * /api/users/upload-avatar:
+ *   post:
+ *     summary: Upload user avatar image
+ *     description: |
+ *       Uploads and sets a new avatar image for the current user.
+ *       Supports JPEG, PNG, and WebP formats. Maximum file size: 5MB.
+ *       Image will be automatically resized to 256x256 pixels.
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - avatar
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: Avatar image file (JPEG, PNG, or WebP, max 5MB)
+ *     responses:
+ *       200:
+ *         description: Avatar uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Avatar uploaded successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     avatarUrl:
+ *                       type: string
+ *                       description: URL of the uploaded avatar
+ *                       example: "https://cdn.taskmanager.com/avatars/507f1f77bcf86cd799439013.jpg"
+ *       400:
+ *         description: |
+ *           Upload failed. Possible reasons:
+ *           - No file provided
+ *           - Invalid file format
+ *           - File too large
+ *           - Invalid image dimensions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               no_file:
+ *                 summary: No file provided
+ *                 value:
+ *                   success: false
+ *                   message: "No avatar file provided"
+ *                   error:
+ *                     code: "NO_FILE"
+ *               invalid_format:
+ *                 summary: Invalid file format
+ *                 value:
+ *                   success: false
+ *                   message: "Avatar must be JPEG, PNG, or WebP format"
+ *                   error:
+ *                     code: "INVALID_FORMAT"
+ *               file_too_large:
+ *                 summary: File too large
+ *                 value:
+ *                   success: false
+ *                   message: "Avatar file size must be less than 5MB"
+ *                   error:
+ *                     code: "FILE_TOO_LARGE"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+
+/**
+ * @swagger
+ * /api/users/delete-avatar:
+ *   delete:
+ *     summary: Delete user avatar
+ *     description: Removes the current user's avatar image and sets it back to default
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Avatar deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Avatar deleted successfully"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+
+/**
+ * @swagger
+ * /api/users/deactivate-account:
+ *   post:
+ *     summary: Deactivate user account
+ *     description: |
+ *       Deactivates the current user's account. This is a soft delete operation.
+ *       The account will be hidden from searches and removed from projects,
+ *       but data is retained for 30 days for potential recovery.
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -93,82 +497,27 @@
  *           schema:
  *             type: object
  *             required:
- *               - email
- *               - first_name
- *               - last_name
  *               - password
- *               - role
+ *               - reason
  *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               first_name:
- *                 type: string
- *               last_name:
- *                 type: string
  *               password:
  *                 type: string
  *                 format: password
- *                 minLength: 8
- *               role:
+ *                 description: Current password for verification
+ *                 example: "CurrentPassword123!"
+ *               reason:
  *                 type: string
- *                 enum: [student, company, admin]
- *               avatar:
+ *                 enum: ["not_using", "privacy_concerns", "found_alternative", "temporary_break", "other"]
+ *                 description: Reason for deactivation
+ *                 example: "temporary_break"
+ *               feedback:
  *                 type: string
- *     responses:
- *       201:
- *         description: User created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     user_id:
- *                       type: integer
- *                       format: int64
- *                     email:
- *                       type: string
- *                       format: email
- *                     first_name:
- *                       type: string
- *                     last_name:
- *                       type: string
- *                     role:
- *                       type: string
- *                       enum: [student, company, admin]
- *       400:
- *         description: Invalid input data
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       409:
- *         description: Email already exists
- */
-
-/**
- * @swagger
- * /api/users/{id}:
- *   get:
- *     summary: Get user by ID
- *     tags: [Users]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *           format: int64
- *         description: User ID
+ *                 maxLength: 1000
+ *                 description: Optional feedback about the service
+ *                 example: "Great service, just taking a break from project management"
  *     responses:
  *       200:
- *         description: User details
+ *         description: Account deactivated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -177,146 +526,20 @@
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Account deactivated successfully. You have 30 days to reactivate if you change your mind."
  *                 data:
  *                   type: object
  *                   properties:
- *                     user_id:
- *                       type: integer
- *                       format: int64
- *                     email:
- *                       type: string
- *                       format: email
- *                     first_name:
- *                       type: string
- *                     last_name:
- *                       type: string
- *                     avatar:
- *                       type: string
- *                       nullable: true
- *                     role:
- *                       type: string
- *                       enum: [student, company, admin]
- *                     created_at:
+ *                     deactivatedAt:
  *                       type: string
  *                       format: date-time
- *                     updated_at:
- *                       type: string
- *                       format: date-time
- *       404:
- *         description: User not found
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *
- *   put:
- *     summary: Update user
- *     tags: [Users]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *           format: int64
- *         description: User ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             minProperties: 1
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               first_name:
- *                 type: string
- *               last_name:
- *                 type: string
- *               role:
- *                 type: string
- *                 enum: [student, company, admin]
- *               avatar:
- *                 type: string
- *                 nullable: true
- *               updated_at:
- *                 type: string
- *                 format: date-time
- *                 description: Current record timestamp for optimistic locking
- *     responses:
- *       200:
- *         description: User updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     user_id:
- *                       type: integer
- *                       format: int64
- *                     email:
- *                       type: string
- *                       format: email
- *                     first_name:
- *                       type: string
- *                     last_name:
- *                       type: string
- *                     avatar:
- *                       type: string
- *                       nullable: true
- *                     role:
- *                       type: string
- *                       enum: [student, company, admin]
- *                     updated_at:
+ *                     reactivationDeadline:
  *                       type: string
  *                       format: date-time
  *       400:
- *         description: |
- *           Invalid input data or concurrent modification error.
- *           Possible errors:
- *           - At least one field must be provided for update
- *           - Record was modified by another user
+ *         description: Incorrect password or validation error
  *       401:
- *         description: Unauthorized - Invalid or missing token
- *       404:
- *         description: User not found
- *       409:
- *         description: Email already exists
- *
- *   delete:
- *     summary: Delete user
- *     tags: [Users]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *           format: int64
- *         description: User ID
- *     responses:
- *       200:
- *         description: User deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *       404:
- *         description: User not found
+ *         $ref: '#/components/responses/UnauthorizedError'
  */

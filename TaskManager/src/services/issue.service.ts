@@ -1,6 +1,7 @@
 import { NotFoundError, BadRequestError } from "@/utils/errors";
 import IssueRepository from "@/repositories/issue.repository";
 import ProjectService from "@/services/project.service";
+import ValidationService from "@/services/validation.service";
 import { Issue } from "@/models/issue.model";
 import ActivityService from "@/services/activity.service";
 import { ActivityAction } from "@/enums";
@@ -19,7 +20,17 @@ export class IssueService {
     return issue;
   }
 
-  async create(data: CreateIssueInput) {
+  async create(data: CreateIssueInput, currentUserId: string) {
+    await ValidationService.validateIssueData(
+      {
+        projectId: data.projectId,
+        sprintId: data.sprintId,
+        reporterId: data.reporterId,
+        assigneeId: data.assigneeId,
+      },
+      currentUserId
+    );
+
     const project = await ProjectService.findOneById(data.projectId);
     if (!project) throw new BadRequestError({ message: "Invalid projectId" });
 
@@ -33,39 +44,55 @@ export class IssueService {
     await ActivityService.log({
       projectId: data.projectId,
       issueId: issue.id,
-      userId: data.reporterId,
+      userId: currentUserId,
       actionType: ActivityAction.ISSUE_CREATED,
     });
 
     return issue;
   }
 
-  async update(id: string, data: UpdateIssueInput) {
+  async update(id: string, data: UpdateIssueInput, currentUserId: string) {
     const existing = await this.findOneById(id);
     if (!existing) throw new NotFoundError({ message: "Issue not found" });
+
+    await ValidationService.validateProjectMemberPermission(existing.projectId, currentUserId);
+
+    if (data.sprintId !== undefined) {
+      await ValidationService.validateIssueSprintRelation(existing.projectId, data.sprintId);
+    }
+    if (data.assigneeId !== undefined) {
+      await ValidationService.validateIssueAssignee(existing.projectId, data.assigneeId);
+    }
 
     const updated = await IssueRepository.update(id, data);
 
     await ActivityService.log({
       projectId: existing.projectId,
       issueId: id,
-      userId: data.assigneeId || existing.assigneeId,
+      userId: currentUserId,
       actionType: ActivityAction.ISSUE_UPDATED,
     });
 
     return updated;
   }
 
-  async delete(id: string) {
+  async delete(id: string, currentUserId: string) {
     const exists = await this.findOneById(id);
     if (!exists) throw new NotFoundError({ message: "Issue not found" });
+
+    await ValidationService.validateProjectMemberPermission(exists.projectId, currentUserId, [
+      "owner",
+      "admin",
+      "member",
+    ]);
+
     const deleted = await IssueRepository.delete(id);
     if (!deleted) throw new BadRequestError({ message: "Failed to delete issue" });
 
     await ActivityService.log({
       projectId: exists.projectId,
       issueId: id,
-      userId: exists.assigneeId || exists.reporterId,
+      userId: currentUserId,
       actionType: ActivityAction.ISSUE_DELETED,
     });
 

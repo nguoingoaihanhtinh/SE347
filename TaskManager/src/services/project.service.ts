@@ -1,5 +1,6 @@
 import { NotFoundError, BadRequestError } from "@/utils/errors";
 import projectRepository from "@/repositories/project.repository";
+import projectColumnService from "@/services/project-column.service";
 import { Project } from "@/models/project.model";
 import ActivityService from "@/services/activity.service";
 import { ActivityAction } from "@/enums";
@@ -27,6 +28,12 @@ export class ProjectService {
 
     const project = await projectRepository.create(projectData);
 
+    try {
+      await projectColumnService.initializeDefaultColumns(project.id!, project.ownerId);
+    } catch (error) {
+      console.error("Failed to create default columns for project:", error);
+    }
+
     await ActivityService.log({
       projectId: project.id,
       issueId: project.id,
@@ -52,13 +59,12 @@ export class ProjectService {
     try {
       await ActivityService.log({
         projectId: id,
-        issueId: id, // Use project ID for project-level activities
+        issueId: id,
         userId: currentUserId,
         actionType: ActivityAction.PROJECT_UPDATED,
       });
     } catch (error) {
       console.error("Failed to log project update activity:", error);
-      // Don't throw error to prevent affecting the main update operation
     }
 
     return updated;

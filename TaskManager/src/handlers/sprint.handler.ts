@@ -37,7 +37,7 @@ export async function getSprintById(req: Request, res: Response) {
 export async function createSprint(req: Request, res: Response) {
   const rawData = validate.schema_validate(createSprintSchema, req.body);
   const data = parseDateFields(rawData);
-  const sprint = await SprintService.create(data);
+  const sprint = await SprintService.create(data, req.user!.userId);
   res.status(201).json({ success: true, data: sprint });
 }
 
@@ -46,13 +46,13 @@ export async function updateSprint(req: Request, res: Response) {
   if (!id) throw new BadRequestError({ message: "Missing sprint ID" });
   const rawData = validate.schema_validate(updateSprintSchema, req.body);
   const data = parseDateFields(rawData);
-  const sprint = await SprintService.update(id, data);
+  const sprint = await SprintService.update(id, data, req.user!.userId);
   res.json({ success: true, data: sprint });
 }
 
 export async function deleteSprint(req: Request, res: Response) {
   const { id } = req.params;
   if (!id) throw new BadRequestError({ message: "Missing sprint ID" });
-  await SprintService.delete(id);
+  await SprintService.delete(id, req.user!.userId);
   res.json({ success: true });
 }

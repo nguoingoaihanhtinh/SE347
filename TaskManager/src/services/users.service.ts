@@ -1,3 +1,4 @@
+// src/services/user.service.ts
 import _ from "lodash";
 import * as bcrypt from "bcrypt";
 import { BadRequestError, NotFoundError } from "@/utils/errors";
@@ -8,74 +9,142 @@ import { LoginDto } from "@/dtos/user/Login.dto";
 import { UserQueryParams } from "@/types/user.query-params";
 import { RegisterDto } from "@/dtos/user/Register.dto";
 import { generateToken } from "@/utils/jwt.util";
+import otpService from "@/services/otp.service";
 
 export class UserService {
   async login(input: { loginData: LoginDto }) {
     const { loginData } = input;
 
-    const curUser = await userRepository.findOne({
-      email: loginData.email,
-    });
-
+    const curUser = await userRepository.findOne({ email: loginData.email });
     if (!curUser) {
-      throw new BadRequestError({ message: `Invalid email or password` });
+      throw new BadRequestError({ message: "Invalid email or password" });
     }
 
-    const isValidPassword = await bcrypt.compare(loginData.password, curUser.password);
-
+    const isValidPassword = await bcrypt.compare(loginData.password, curUser.passwordHash);
     if (!isValidPassword) {
-      throw new BadRequestError({ message: `Invalid email or password` });
+      throw new BadRequestError({ message: "Invalid email or password" });
     }
 
-    const { password, ...user } = curUser;
+    if (!curUser.isEmailVerified) {
+      throw new BadRequestError({
+        message: "Please verify your account first. Check your email for verification instructions.",
+      });
+    }
 
+    const { passwordHash, ...user } = curUser;
     const token = generateToken({
       userId: user._id?.toString() ?? "",
       email: user.email,
       role: user.role,
     });
 
-    return {
-      user,
-      token,
-    };
+    return { user, token };
   }
 
   async register(input: { registerData: RegisterDto }) {
     const { registerData } = input;
 
-    if (registerData.password !== registerData.confirm_password) {
-      throw new BadRequestError({ message: `Confirm password is not correct` });
+    const existingUser = await userRepository.findOne({ email: registerData.email });
+    if (existingUser) {
+      throw new BadRequestError({ message: `User with email ${registerData.email} already exists` });
     }
 
     const hashedPassword = await bcrypt.hash(registerData.password, 10);
-    const { confirm_password, ...userData } = registerData;
+    const fullName = `${registerData.first_name} ${registerData.last_name}`.trim();
 
     const newUser = await userRepository.create({
       userData: {
-        email: userData.email,
-        password: hashedPassword,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
+        email: registerData.email,
+        fullName,
+        passwordHash: hashedPassword,
         role: "user",
+        isEmailVerified: false,
+        avatar: null,
+
+        notifications: null,
+        isActive: true,
+        lastLoginAt: null,
+        deactivatedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 
-    return newUser;
+    // Use first_name from DTO for email
+    const otpResult = await otpService.generateAndSendOtp(
+      newUser._id?.toString() || "",
+      registerData.email,
+      registerData.first_name
+    );
+
+    if (!otpResult.success) {
+      throw new BadRequestError({ message: otpResult.message });
+    }
+
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
+    return {
+      ...userWithoutPassword,
+      message: "Registration successful. Please check your email for verification code.",
+    };
   }
 
-  async findAll(input: UserQueryParams) {
-    const data = await userRepository.findAll(input);
-    return data;
+  async verifyOtp(input: { userId: string; otpCode: string }) {
+    const { userId, otpCode } = input;
+
+    const user = await userRepository.findOne({ user_id: userId });
+    if (!user) throw new NotFoundError({ message: "User not found" });
+    if (user.isEmailVerified) throw new BadRequestError({ message: "Account is already verified" });
+
+    const otpResult = await otpService.verifyOtp(userId, otpCode);
+    if (!otpResult.success) throw new BadRequestError({ message: otpResult.message });
+
+    const updatedUser = await userRepository.update({
+      userId,
+      userData: {
+        isEmailVerified: true,
+        updatedAt: new Date(),
+      },
+    });
+
+    const { passwordHash, ...userWithoutPassword } = updatedUser;
+    return {
+      ...userWithoutPassword,
+      message: "Account verified successfully",
+    };
   }
 
-  async findOne(input: { userId: string }) {
+  async resendOtp(input: { userId: string }) {
     const { userId } = input;
 
     const user = await userRepository.findOne({ user_id: userId });
-    if (!user) {
-      throw new NotFoundError({ message: `User with ID ${userId} not found` });
+    if (!user) throw new NotFoundError({ message: "User not found" });
+    if (user.isEmailVerified) throw new BadRequestError({ message: "Account is already verified" });
+
+    const canResend = await otpService.canRequestOtp(userId);
+    if (!canResend.canRequest) {
+      const waitMinutes = Math.ceil((canResend.waitTime || 0) / 60);
+      throw new BadRequestError({
+        message: `Please wait ${waitMinutes} minutes before requesting another OTP`,
+      });
     }
+
+    const firstName = user.fullName.split(" ")[0];
+    const otpResult = await otpService.generateAndSendOtp(userId, user.email, firstName);
+
+    if (!otpResult.success) {
+      throw new BadRequestError({ message: otpResult.message });
+    }
+
+    return { message: "OTP sent successfully" };
+  }
+
+  async findAll(input: UserQueryParams) {
+    return await userRepository.findAll(input);
+  }
+
+  async findOne(input: { userId: string }) {
+    const user = await userRepository.findOne({ user_id: input.userId });
+    if (!user) throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
     return user;
   }
 
@@ -86,11 +155,17 @@ export class UserService {
     const newUser = await userRepository.create({
       userData: {
         email: userData.email,
-        password: hashedPassword,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
+        fullName: userData.fullName,
+        passwordHash: hashedPassword,
         role: userData.role,
-        avatar: _.get(userData, "avatar", null),
+        avatar: userData.avatar ?? null,
+        isEmailVerified: false,
+        notifications: null,
+        isActive: true,
+        lastLoginAt: null,
+        deactivatedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 
@@ -99,13 +174,8 @@ export class UserService {
 
   async updateUser(input: { userId: string; userData: UpdateUserDto }) {
     const { userId, userData } = input;
-
     const existingUser = await this.findOne({ userId });
-    if (!existingUser) {
-      throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
-    }
 
-    // Check email uniqueness if email is being updated
     if (userData.email) {
       const userWithEmail = await userRepository.findOne({ email: userData.email });
       if (userWithEmail && userWithEmail._id?.toString() !== userId) {
@@ -113,45 +183,18 @@ export class UserService {
       }
     }
 
-    // Check optimistic concurrency if updated_at is provided
-    if (
-      userData.updated_at &&
-      existingUser.updated_at &&
-      userData.updated_at !== new Date(existingUser.updated_at).toISOString()
-    ) {
-      throw new BadRequestError({
-        message: "Record was modified by another user. Please refresh and try again.",
-      });
-    }
+    const updateData = {
+      ..._.pickBy(userData, (v) => v !== undefined),
+      updatedAt: new Date(),
+    };
 
-    // Prepare update data
-    const updateData = _.pickBy(
-      {
-        avatar: userData.avatar ?? null,
-        email: userData.email,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
-        role: userData.role,
-        updated_at: new Date(),
-      },
-      (value) => value !== undefined
-    );
-
-    const updatedUser = await userRepository.update({
-      userId,
-      userData: updateData,
-    });
-
+    const updatedUser = await userRepository.update({ userId, userData: updateData });
     return updatedUser;
   }
 
   async deleteUser(userId: string) {
     const deletedUser = await userRepository.delete(userId);
-
-    if (!deletedUser) {
-      throw new NotFoundError({ message: `User with ID ${userId} not found` });
-    }
-
+    if (!deletedUser) throw new NotFoundError({ message: `User with ID ${userId} not found` });
     return deletedUser;
   }
 }

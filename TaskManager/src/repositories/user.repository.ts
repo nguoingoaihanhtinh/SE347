@@ -47,13 +47,14 @@ export class UserRepository {
 
   async create(input: { userData: Omit<User, "id"> }) {
     const db = await connectMongo();
-    // Remove undefined fields for MongoDB compatibility
+
     const doc: any = {};
     for (const key in input.userData) {
       if (input.userData[key as keyof User] !== undefined) {
         doc[key] = input.userData[key as keyof User];
       }
     }
+    console.log("Inserting user doc:", JSON.stringify(doc, null, 2));
     const result = await db.collection(this.collectionName).insertOne(doc);
     return { ...doc, _id: result.insertedId };
   }

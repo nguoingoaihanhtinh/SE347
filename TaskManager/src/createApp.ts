@@ -6,6 +6,8 @@ import cookieParser from "cookie-parser";
 import userRoutes from "./routes/users.route";
 import authRoutes from "./routes/auth.route";
 import projectRoutes from "./routes/project.route";
+import projectMemberRoutes from "./routes/project-member.route";
+import projectColumnRoutes from "./routes/project-column.route";
 import issueRoutes from "./routes/issue.route";
 import sprintRoutes from "./routes/sprint.route";
 import { requestLogger, errorHandler } from "@/middlewares";
@@ -40,6 +42,8 @@ export const createApp = async () => {
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/projects", projectRoutes);
+  app.use("/api/project-members", projectMemberRoutes);
+  app.use("/api/projects", projectColumnRoutes);
   app.use("/api/issues", issueRoutes);
   app.use("/api/sprints", sprintRoutes);
 
