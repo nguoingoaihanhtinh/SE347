@@ -108,7 +108,7 @@ class ProjectMemberService {
         throw new BadRequestError({ message: "User already has a pending invitation for this project" });
       }
 
-      const inviter = await userRepository.findOne({ user_id: inviterUserId });
+      const inviter = await userRepository.findOne({ userId: inviterUserId });
       if (!inviter) {
         throw new NotFoundError({ message: "Inviter not found" });
       }
@@ -176,7 +176,7 @@ class ProjectMemberService {
         throw new BadRequestError({ message: "Invitation has expired" });
       }
 
-      const user = await userRepository.findOne({ user_id: userId });
+      const user = await userRepository.findOne({ userId: userId });
       if (!user) {
         throw new NotFoundError({ message: "User not found" });
       }

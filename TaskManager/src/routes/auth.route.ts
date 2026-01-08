@@ -9,5 +9,5 @@ router.post("/register", register);
 router.post("/verify-otp", verifyOtp);
 router.post("/resend-otp", resendOtp);
 router.get("/me", authenticate, getMe);
-
+// console.log("✅ Auth routes loaded");
 export default router;

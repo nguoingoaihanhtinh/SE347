@@ -38,7 +38,6 @@ export async function register(req: Request, res: Response) {
 
 export async function getMe(req: Request, res: Response) {
   const user = await UsersService.findOne({ userId: req.user!.userId });
-
   res.status(200).json({
     success: true,
     data: user,

@@ -43,7 +43,7 @@ export const createApp = async () => {
   app.use("/api/users", userRoutes);
   app.use("/api/projects", projectRoutes);
   app.use("/api/project-members", projectMemberRoutes);
-  app.use("/api/projects", projectColumnRoutes);
+  app.use("/api/project-columns", projectColumnRoutes);
   app.use("/api/issues", issueRoutes);
   app.use("/api/sprints", sprintRoutes);
 

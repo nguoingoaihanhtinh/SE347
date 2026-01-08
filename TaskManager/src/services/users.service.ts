@@ -6,10 +6,11 @@ import userRepository from "@/repositories/user.repository";
 import { CreateUserDto } from "@/dtos/user/CreateUser.dto";
 import { UpdateUserDto } from "@/dtos/user/UpdateUser.dto";
 import { LoginDto } from "@/dtos/user/Login.dto";
-import { UserQueryParams } from "@/types/user.query-params";
+
 import { RegisterDto } from "@/dtos/user/Register.dto";
 import { generateToken } from "@/utils/jwt.util";
 import otpService from "@/services/otp.service";
+import { UserQueryParams } from "@/types/query-param";
 
 export class UserService {
   async login(input: { loginData: LoginDto }) {
@@ -91,7 +92,7 @@ export class UserService {
   async verifyOtp(input: { userId: string; otpCode: string }) {
     const { userId, otpCode } = input;
 
-    const user = await userRepository.findOne({ user_id: userId });
+    const user = await userRepository.findOne({ userId: userId });
     if (!user) throw new NotFoundError({ message: "User not found" });
     if (user.isEmailVerified) throw new BadRequestError({ message: "Account is already verified" });
 
@@ -116,7 +117,7 @@ export class UserService {
   async resendOtp(input: { userId: string }) {
     const { userId } = input;
 
-    const user = await userRepository.findOne({ user_id: userId });
+    const user = await userRepository.findOne({ userId: userId });
     if (!user) throw new NotFoundError({ message: "User not found" });
     if (user.isEmailVerified) throw new BadRequestError({ message: "Account is already verified" });
 
@@ -143,7 +144,8 @@ export class UserService {
   }
 
   async findOne(input: { userId: string }) {
-    const user = await userRepository.findOne({ user_id: input.userId });
+    const user = await userRepository.findOne({ userId: input.userId });
+    console.log("findOne user:", JSON.stringify(user, null, 2));
     if (!user) throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
     return user;
   }
