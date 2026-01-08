@@ -75,11 +75,8 @@ export class ProjectRepository {
 
   async update(id: string, updateData: Partial<Omit<Project, "id" | "createdAt" | "updatedAt">>) {
     const db = await connectMongo();
-    console.log("Updating project ID:", id);
-    console.log("Update data received:", updateData);
     const updateDoc: any = { ...updateData, updatedAt: new Date() };
     if (updateDoc.ownerId) updateDoc.ownerId = new ObjectId(updateDoc.ownerId);
-    console.log("Final updateDoc:", updateDoc);
     const result = await db
       .collection(this.collectionName)
       .findOneAndUpdate({ _id: new ObjectId(id) }, { $set: updateDoc }, { returnDocument: "after" });

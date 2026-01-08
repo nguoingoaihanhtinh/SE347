@@ -36,8 +36,6 @@ class OtpRepository {
       createdAt: now,
       updatedAt: now,
     };
-    console.log("Inserting OTP doc:", JSON.stringify(dbDoc, null, 2));
-    console.log("Keys:", Object.keys(dbDoc));
     const result = await collection.insertOne(dbDoc);
 
     return {

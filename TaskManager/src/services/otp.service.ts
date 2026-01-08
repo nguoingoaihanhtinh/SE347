@@ -5,6 +5,7 @@ import { env } from "@/config/env";
 import otpRepository from "@/repositories/otp.repository";
 import emailService from "@/services/email.service";
 import { OtpToken } from "@/models/otp-token.model";
+import { Otp } from "@/models/otp.model";
 import logger from "@/utils/logger";
 
 export interface OtpGenerationResult {
@@ -237,6 +238,86 @@ class OtpService {
     }
 
     return { canRequest: true };
+  }
+
+  async sendOtpByEmail(email: string): Promise<OtpGenerationResult> {
+    try {
+      // Delete any existing OTP for this email
+      await Otp.deleteMany({ email: email.toLowerCase() });
+
+      // Generate new OTP
+      const otpCode = this.generateOtpCode();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
+
+      await Otp.create({
+        email: email.toLowerCase(),
+        code: otpCode,
+        expiresAt,
+      });
+
+      // Extract first name from email (use part before @)
+      const firstName = email.split("@")[0] || "User";
+
+      // Send OTP email via SMTP
+      const emailSent = await emailService.sendOTPEmail(email, firstName, otpCode);
+
+      if (!emailSent) {
+        // Rollback: delete OTP if email sending failed
+        await Otp.deleteMany({ email: email.toLowerCase() });
+        throw new Error("Failed to send OTP email. Please check your email configuration.");
+      }
+
+      logger.info(`OTP sent successfully to: ${email}`);
+
+      return {
+        success: true,
+        message: "OTP sent successfully",
+      };
+    } catch (error) {
+      logger.error("Error sending OTP by email:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to send OTP. Please try again.",
+      };
+    }
+  }
+
+  async verifyOtpByEmail(email: string, otpCode: string): Promise<OtpVerificationResult> {
+    try {
+      const otpRecord = await Otp.findOne({ email: email.toLowerCase(), code: otpCode });
+
+      if (!otpRecord) {
+        return {
+          success: false,
+          message: "Invalid or expired OTP",
+        };
+      }
+
+      if (otpRecord.expiresAt < new Date()) {
+        await Otp.deleteOne({ _id: otpRecord._id });
+        return {
+          success: false,
+          message: "OTP has expired. Please request a new one.",
+        };
+      }
+
+      // Delete OTP after successful verification
+      await Otp.deleteOne({ _id: otpRecord._id });
+
+      logger.info(`OTP verified successfully for email: ${email}`);
+
+      return {
+        success: true,
+        message: "OTP verified successfully",
+      };
+    } catch (error) {
+      logger.error("Error verifying OTP by email:", error);
+      return {
+        success: false,
+        message: "Internal server error. Please try again.",
+      };
+    }
   }
 }
 

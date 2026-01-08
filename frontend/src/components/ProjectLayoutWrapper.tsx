@@ -1,4 +1,3 @@
-// src/components/ProjectLayoutWrapper.tsx
 import { useEffect } from "react";
 import { useParams, Outlet } from "react-router-dom";
 import { useProjectStore } from "../stores/projectStore";

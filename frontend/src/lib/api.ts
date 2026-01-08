@@ -19,10 +19,10 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Important: Send cookies with requests
+  withCredentials: true,
 });
 
-// Request interceptor to add auth token from localStorage (fallback)
+// Thêm token vào header nếu có
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -31,7 +31,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor for error handling
+// Xử lý lỗi từ server
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -49,8 +49,24 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email: string, password: string) => api.post<AuthResponse>("/api/auth/login", { email, password }),
 
-  register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
-    api.post<AuthResponse>("/api/auth/register", data),
+  sendOtp: (email: string) => api.post<ApiResponse<{ message: string }>>("/api/auth/send-otp", { email }),
+
+  register: (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    confirmPassword: string;
+    otp: string;
+  }) =>
+    api.post<AuthResponse>("/api/auth/register", {
+      email: data.email,
+      password: data.password,
+      first_name: data.firstName,
+      last_name: data.lastName,
+      confirm_password: data.confirmPassword,
+      otp: data.otp,
+    }),
 
   getCurrentUser: () => api.get<ApiResponse<User>>("/api/auth/me"),
 
