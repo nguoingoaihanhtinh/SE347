@@ -31,9 +31,9 @@ class EmailService {
   private async verifyConnection(): Promise<void> {
     try {
       await this.transporter.verify();
-      logger.info("📧 Email service connected successfully");
+      logger.info("Email service connected successfully");
     } catch (error) {
-      logger.error("❌ Email service connection failed:", error);
+      logger.error("Email service connection failed:", error);
     }
   }
 
@@ -48,10 +48,10 @@ class EmailService {
       };
 
       const info = await this.transporter.sendMail(mailOptions);
-      logger.info(`📧 Email sent successfully: ${info.messageId}`);
+      logger.info(`Email sent successfully: ${info.messageId}`);
       return true;
     } catch (error) {
-      logger.error("❌ Failed to send email:", error);
+      logger.error("Failed to send email:", error);
       return false;
     }
   }
@@ -63,46 +63,73 @@ class EmailService {
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Verify Your Account</title>
+          <title>Xac thuc tai khoan</title>
           <style>
-            .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
-            .header { background-color: #007bff; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; }
-            .otp-code { 
-              background-color: #f8f9fa; 
-              border: 2px solid #007bff; 
-              padding: 15px; 
-              text-align: center; 
-              font-size: 24px; 
-              font-weight: bold; 
-              margin: 20px 0; 
-              letter-spacing: 3px;
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif; }
+            .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; }
+            .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+            .content { padding: 40px 30px; }
+            .greeting { font-size: 18px; color: #333; margin-bottom: 20px; font-weight: 600; }
+            .message { color: #666; line-height: 1.6; margin-bottom: 30px; }
+            .otp-box { 
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              border-radius: 8px;
+              padding: 20px;
+              text-align: center;
+              margin: 30px 0;
             }
-            .footer { background-color: #f8f9fa; padding: 15px; text-align: center; color: #6c757d; }
+            .otp-label { color: #fff; font-size: 14px; margin-bottom: 10px; opacity: 0.9; }
+            .otp-code { 
+              color: #fff;
+              font-size: 36px; 
+              font-weight: bold; 
+              letter-spacing: 8px;
+              font-family: 'Courier New', monospace;
+            }
+            .warning { 
+              background-color: #fff3cd; 
+              border-left: 4px solid #ffc107; 
+              padding: 15px; 
+              margin: 20px 0; 
+              border-radius: 4px;
+            }
+            .warning-title { color: #856404; font-weight: bold; margin: 0 0 10px 0; }
+            .warning-list { margin: 0; padding-left: 20px; color: #856404; }
+            .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #999; font-size: 12px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>TaskManager - Verify Your Account</h1>
+              <h1>TaskManager</h1>
             </div>
             <div class="content">
-              <h2>Hello ${firstName}!</h2>
-              <p>Thank you for registering with TaskManager. Please use the following OTP code to verify your account:</p>
+              <div class="greeting">Chao mung ban den voi TaskManager!</div>
+              <div class="message">
+                Xin chao ${firstName}, cam on ban da dang ky tai khoan. Vui long su dung ma OTP duoi day de xac thuc tai khoan cua ban:
+              </div>
               
-              <div class="otp-code">${otp}</div>
+              <div class="otp-box">
+                <div class="otp-label">MA XAC THUC CUA BAN</div>
+                <div class="otp-code">${otp}</div>
+              </div>
               
-              <p><strong>Important:</strong></p>
-              <ul>
-                <li>This OTP will expire in ${Math.floor(env.OTP_EXPIRES_IN / 60)} minutes</li>
-                <li>Do not share this code with anyone</li>
-                <li>If you didn't request this, please ignore this email</li>
-              </ul>
+              <div class="warning">
+                <div class="warning-title">Luu y quan trong:</div>
+                <ul class="warning-list">
+                  <li>Ma nay se het han sau 5 phut</li>
+                  <li><strong>TUYET DOI khong chia se ma nay voi bat ky ai</strong></li>
+                  <li>Neu ban khong yeu cau ma nay, vui long bo qua email</li>
+                </ul>
+              </div>
               
-              <p>If you have any questions, please contact our support team.</p>
+              <div class="message" style="margin-top: 30px; font-size: 14px;">
+                Neu ban gap van de gi, vui long lien he doi ngu ho tro cua chung toi.
+              </div>
             </div>
             <div class="footer">
-              <p>&copy; 2024 TaskManager. All rights reserved.</p>
+              <p>&copy; 2026 TaskManager Team.</p>
             </div>
           </div>
         </body>
@@ -111,11 +138,9 @@ class EmailService {
 
     return this.sendEmail({
       to: email,
-      subject: "Verify Your TaskManager Account",
+      subject: "[TaskManager] Xac thuc tai khoan cua ban",
       html,
-      text: `Hello ${firstName}! Your OTP code is: ${otp}. This code will expire in ${Math.floor(
-        env.OTP_EXPIRES_IN / 60
-      )} minutes.`,
+      text: `Chao mung ban den voi TaskManager! Xin chao ${firstName}, ma OTP cua ban la: ${otp}. Ma nay se het han sau 5 phut. TUYET DOI khong chia se ma nay voi bat ky ai.`,
     });
   }
 
@@ -182,7 +207,7 @@ class EmailService {
               <p>If you don't want to join this project, you can safely ignore this email.</p>
             </div>
             <div class="footer">
-              <p>&copy; 2024 TaskManager. All rights reserved.</p>
+              <p>&copy; 2026 TaskManager Team.</p>
             </div>
           </div>
         </body>
@@ -246,7 +271,7 @@ class EmailService {
               <p>You have been assigned a new issue by <strong>${assignedBy}</strong>.</p>
               
               <div class="issue-details">
-                <h3>🎯 Issue Details:</h3>
+                <h3>Issue Details:</h3>
                 <p><strong>Issue:</strong> ${issueKey}</p>
                 <p><strong>Title:</strong> ${issueTitle}</p>
                 <p><strong>Project:</strong> ${projectName}</p>
@@ -261,7 +286,7 @@ class EmailService {
               ${issueLink}</small></p>
             </div>
             <div class="footer">
-              <p>&copy; 2024 TaskManager. All rights reserved.</p>
+              <p>&copy; 2026 TaskManager Team.</p>
             </div>
           </div>
         </body>
@@ -319,7 +344,7 @@ class EmailService {
               <p>We received a request to reset your TaskManager account password.</p>
               
               <div class="warning">
-                <p><strong>⚠️ Important Security Notice:</strong></p>
+                <p><strong>Important Security Notice:</strong></p>
                 <ul>
                   <li>This reset link will expire in 1 hour</li>
                   <li>If you didn't request this reset, please ignore this email</li>
@@ -337,7 +362,7 @@ class EmailService {
               <p>If you continue to have problems, please contact our support team.</p>
             </div>
             <div class="footer">
-              <p>&copy; 2024 TaskManager. All rights reserved.</p>
+              <p>&copy; 2026 TaskManager Team.</p>
             </div>
           </div>
         </body>

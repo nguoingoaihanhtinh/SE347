@@ -10,13 +10,14 @@ import projectMemberRoutes from "./routes/project-member.route";
 import projectColumnRoutes from "./routes/project-column.route";
 import issueRoutes from "./routes/issue.route";
 import sprintRoutes from "./routes/sprint.route";
+import commentRoutes from "./routes/comment.route";
+import projectTeamRoutes from "./routes/project-team.route";
 import { requestLogger, errorHandler } from "@/middlewares";
 
 import { specs, swaggerUi } from "./config/swagger";
 import logger from "./utils/logger";
 
 import { connectMongo } from "./config/mongodb";
-import { issue } from "zod/v4/core/util.cjs";
 
 export const createApp = async () => {
   await connectMongo();
@@ -25,6 +26,8 @@ export const createApp = async () => {
   // Middlewares
   app.use(
     cors({
+      origin: "http://localhost:5173",
+      credentials: true,
       exposedHeaders: ["Authorization"],
     })
   );
@@ -36,7 +39,7 @@ export const createApp = async () => {
 
   // API Documentation
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
-  logger.info("📚 Swagger API documentation is available at http://localhost:3000/api-docs");
+  logger.info("Swagger API documentation is available at http://localhost:3000/api-docs");
 
   // Routes
   app.use("/api/auth", authRoutes);
@@ -46,6 +49,8 @@ export const createApp = async () => {
   app.use("/api/project-columns", projectColumnRoutes);
   app.use("/api/issues", issueRoutes);
   app.use("/api/sprints", sprintRoutes);
+  app.use("/api/comments", commentRoutes);
+  app.use("/api/project-teams", projectTeamRoutes);
 
   // Error handler
   app.use(errorHandler);

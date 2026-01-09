@@ -6,6 +6,8 @@ import UsersService from "@/services/users.service";
 import { registerSchema } from "@/dtos/user/Register.dto";
 import { verifyOtpSchema } from "@/dtos/user/VerifyOtp.dto";
 import { resendOtpSchema } from "@/dtos/user/ResendOtp.dto";
+import { sendOtpSchema } from "@/dtos/user/SendOtp.dto";
+import otpService from "@/services/otp.service";
 
 export async function login(req: Request, res: Response) {
   const loginData = validate.schema_validate(loginSchema, req.body);
@@ -28,11 +30,18 @@ export async function login(req: Request, res: Response) {
 export async function register(req: Request, res: Response) {
   const registerData = validate.schema_validate(registerSchema, req.body);
 
-  const user = await UsersService.register({ registerData });
+  const { user, token } = await UsersService.register({ registerData });
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
 
   res.status(200).json({
     success: true,
-    data: user,
+    data: { user },
   });
 }
 
@@ -68,5 +77,24 @@ export async function resendOtp(req: Request, res: Response) {
   res.status(200).json({
     success: true,
     data: result,
+  });
+}
+
+export async function sendOtp(req: Request, res: Response) {
+  const sendOtpData = validate.schema_validate(sendOtpSchema, req.body);
+
+  const result = await otpService.sendOtpByEmail(sendOtpData.email);
+
+  if (!result.success) {
+    res.status(400).json({
+      success: false,
+      message: result.message,
+    });
+    return;
+  }
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
   });
 }

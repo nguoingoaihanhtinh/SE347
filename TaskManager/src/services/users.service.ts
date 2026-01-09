@@ -45,6 +45,12 @@ export class UserService {
   async register(input: { registerData: RegisterDto }) {
     const { registerData } = input;
 
+    // Verify OTP first
+    const otpVerification = await otpService.verifyOtpByEmail(registerData.email, registerData.otp);
+    if (!otpVerification.success) {
+      throw new BadRequestError({ message: otpVerification.message });
+    }
+
     const existingUser = await userRepository.findOne({ email: registerData.email });
     if (existingUser) {
       throw new BadRequestError({ message: `User with email ${registerData.email} already exists` });
@@ -59,9 +65,8 @@ export class UserService {
         fullName,
         passwordHash: hashedPassword,
         role: "user",
-        isEmailVerified: false,
+        isEmailVerified: true,
         avatar: null,
-
         notifications: null,
         isActive: true,
         lastLoginAt: null,
@@ -71,21 +76,16 @@ export class UserService {
       },
     });
 
-    // Use first_name from DTO for email
-    const otpResult = await otpService.generateAndSendOtp(
-      newUser._id?.toString() || "",
-      registerData.email,
-      registerData.first_name
-    );
-
-    if (!otpResult.success) {
-      throw new BadRequestError({ message: otpResult.message });
-    }
-
     const { passwordHash: _, ...userWithoutPassword } = newUser;
+    const token = generateToken({
+      userId: newUser._id?.toString() ?? "",
+      email: newUser.email,
+      role: newUser.role,
+    });
+
     return {
-      ...userWithoutPassword,
-      message: "Registration successful. Please check your email for verification code.",
+      user: userWithoutPassword,
+      token,
     };
   }
 

@@ -66,11 +66,7 @@ export default function AdminLayout({ children, title, navItems }: AdminLayoutPr
         <Divider />
         <List>
           {items.map((item) => (
-            <ListItemButton
-              key={item.path}
-              // Replace with react-router navigation later
-              onClick={() => (window.location.href = item.path)}
-            >
+            <ListItemButton key={item.path} onClick={() => (window.location.href = item.path)}>
               {item.icon && <ListItemIcon>{item.icon}</ListItemIcon>}
               <ListItemText primary={item.label} />
             </ListItemButton>

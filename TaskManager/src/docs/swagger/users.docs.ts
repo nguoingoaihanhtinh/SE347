@@ -409,7 +409,7 @@
  *                     avatarUrl:
  *                       type: string
  *                       description: URL of the uploaded avatar
- *                       example: "https://cdn.taskmanager.com/avatars/507f1f77bcf86cd799439013.jpg"
+ *                       example: "https://cdn.taskflow.com/avatars/507f1f77bcf86cd799439013.jpg"
  *       400:
  *         description: |
  *           Upload failed. Possible reasons:

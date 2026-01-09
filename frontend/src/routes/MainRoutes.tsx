@@ -6,10 +6,11 @@ import AdminLayout from "../layouts/AdminLayout";
 import DefaultLayout from "../layouts/DefaultLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import ProjectLayoutWrapper from "../components/ProjectLayoutWrapper";
-const LoginPage = <div> Login</div>;
-const RegisterPage = <div> Register</div>;
-const ProjectsPage = <div> Projects</div>;
-const BoardPage = <div> Board</div>;
+import LoginPage from "../pages/LoginPage";
+import RegisterPage from "../pages/RegisterPage";
+import ProjectsPage from "../pages/ProjectsPage";
+import BoardPage from "../pages/BoardPage";
+import ProfilePage from "../pages/ProfilePage";
 
 // Wrappers
 function DefaultLayoutWrapper() {
@@ -34,8 +35,8 @@ export default function MainRoutes() {
       <BrowserRouter>
         <Routes>
           {/* Public Routes - No Layout */}
-          <Route path="/login" element={LoginPage} />
-          <Route path="/register" element={RegisterPage} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
           {/* Protected Routes - Default Layout */}
           <Route
@@ -46,12 +47,13 @@ export default function MainRoutes() {
               </ProtectedRoute>
             }
           >
-            <Route index element={ProjectsPage} />
-            <Route path="projects" element={ProjectsPage} />
+            <Route index element={<ProjectsPage />} />
+            <Route path="projects" element={<ProjectsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
 
             {/* Project Board - Nested in Project Layout */}
             <Route path="projects/:projectId" element={<ProjectLayoutWrapper />}>
-              <Route path="board" element={BoardPage} />
+              <Route path="board" element={<BoardPage />} />
             </Route>
 
             <Route path="*" element={<PageNotFound />} />

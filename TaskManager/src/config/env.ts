@@ -11,7 +11,7 @@ export const env = {
 
   // MongoDB
   MONGODB_URI: process.env.MONGODB_URI,
-  MONGODB_DB: process.env.MONGODB_DB || "TaskManager",
+  MONGODB_DB: process.env.MONGODB_DB || "taskmanager",
 
   // Email Configuration
   SMTP_HOST: process.env.SMTP_HOST || "smtp.gmail.com",
