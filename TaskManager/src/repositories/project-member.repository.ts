@@ -14,10 +14,20 @@ class ProjectMemberRepository {
       this.db = await connectMongo();
       this.collection = this.db.collection<ProjectMember>("project_members");
 
-      // Create indexes for better performance
-      await this.collection.createIndex({ projectId: 1 });
-      await this.collection.createIndex({ userId: 1 });
-      await this.collection.createIndex({ projectId: 1, userId: 1 }, { unique: true });
+      const createIndexSafely = async (index: any, options: any = {}) => {
+        try {
+          await this.collection!.createIndex(index, options);
+        } catch (error: any) {
+          if (error.code !== 85 && error.code !== 86) {
+            throw error;
+          }
+          console.log(`Index already exists: ${JSON.stringify(index)}`);
+        }
+      };
+
+      await createIndexSafely({ projectId: 1 });
+      await createIndexSafely({ userId: 1 });
+      await createIndexSafely({ projectId: 1, userId: 1 }, { unique: true });
     }
     return this.collection;
   }
@@ -30,7 +40,7 @@ class ProjectMemberRepository {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
+    console.log("Creating project member doc:", JSON.stringify(member, null, 2));
     const result = await collection.insertOne(member);
     return { ...member, id: result.insertedId.toString() };
   }
@@ -38,7 +48,7 @@ class ProjectMemberRepository {
   async findByProject(projectId: string): Promise<ProjectMember[]> {
     const collection = await this.getCollection();
     const members = await collection.find({ projectId }).toArray();
-
+    console.log(`Found ${members.length} members for projectId ${projectId}`);
     return members.map((member) => ({
       ...member,
       id: member._id?.toString(),
@@ -54,13 +64,24 @@ class ProjectMemberRepository {
       {
         $lookup: {
           from: "users",
-          localField: "userId",
-          foreignField: "_id",
+          let: { userId: "$userId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$_id", { $toObjectId: "$$userId" }],
+                },
+              },
+            },
+          ],
           as: "userInfo",
         },
       },
       {
-        $unwind: "$userInfo",
+        $unwind: {
+          path: "$userInfo",
+          preserveNullAndEmptyArrays: true,
+        },
       },
       {
         $project: {
@@ -73,11 +94,17 @@ class ProjectMemberRepository {
           createdAt: 1,
           updatedAt: 1,
           user: {
-            _id: { $toString: "$userInfo._id" },
-            email: "$userInfo.email",
-            firstName: "$userInfo.firstName",
-            lastName: "$userInfo.lastName",
-            avatar: "$userInfo.avatar",
+            $cond: {
+              if: { $ne: ["$userInfo", null] },
+              then: {
+                _id: { $toString: "$userInfo._id" },
+                email: "$userInfo.email",
+                firstName: "$userInfo.firstName",
+                lastName: "$userInfo.lastName",
+                avatar: "$userInfo.avatar",
+              },
+              else: null,
+            },
           },
         },
       },
@@ -87,20 +114,11 @@ class ProjectMemberRepository {
     return members as ProjectMemberWithDetails[];
   }
 
-  async findByUser(userId: string): Promise<ProjectMember[]> {
-    const collection = await this.getCollection();
-    const members = await collection.find({ userId }).toArray();
-
-    return members.map((member) => ({
-      ...member,
-      id: member._id?.toString(),
-    }));
-  }
-
   async findByProjectAndUser(projectId: string, userId: string): Promise<ProjectMember | null> {
+    console.log("🔍 Finding member - Project ID:", projectId, "User ID:", userId);
     const collection = await this.getCollection();
     const member = await collection.findOne({ projectId, userId });
-
+    console.log("🔍 Found member:", member);
     if (!member) return null;
 
     return {
@@ -159,7 +177,7 @@ class ProjectMemberRepository {
 
   async removeById(memberId: string): Promise<boolean> {
     const collection = await this.getCollection();
-    const result = await collection.deleteOne({ _id: new ObjectId(memberId) } as any);
+    const result = await collection.deleteOne({ _id: new ObjectId(memberId) });
     return result.deletedCount > 0;
   }
 
@@ -221,7 +239,7 @@ class ProjectMemberRepository {
 
   async getUserRole(projectId: string, userId: string): Promise<TeamMemberRole | null> {
     const member = await this.findByProjectAndUser(projectId, userId);
-    return member ? (member.role as TeamMemberRole) : null;
+    return member ? member.role : null;
   }
 }
 

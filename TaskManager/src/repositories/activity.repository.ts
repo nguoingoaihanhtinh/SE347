@@ -16,7 +16,7 @@ export class ActivityRepository {
     const db = await connectMongo();
     const doc: any = {
       projectId: new ObjectId(projectId),
-      issueId: new ObjectId(issueId),
+      issueId: issueId ? new ObjectId(issueId) : new ObjectId(projectId),
       actionType,
       changes,
       createdAt: new Date(),
@@ -29,7 +29,7 @@ export class ActivityRepository {
     return {
       id: result.insertedId.toString(),
       projectId,
-      issueId,
+      issueId: issueId || projectId,
       userId,
       userName,
       actionType,

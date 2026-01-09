@@ -59,6 +59,7 @@ export class ProjectRepository {
     const doc = {
       name: projectData.name,
       key: projectData.key,
+      description: projectData.description ?? null,
       access: projectData.access,
       type: projectData.type,
       ownerId: new ObjectId(projectData.ownerId),

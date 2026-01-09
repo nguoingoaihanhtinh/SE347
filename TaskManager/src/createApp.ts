@@ -45,12 +45,12 @@ export const createApp = async () => {
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/projects", projectRoutes);
-  app.use("/api/project-members", projectMemberRoutes);
-  app.use("/api/project-columns", projectColumnRoutes);
+  // app.use("/api/projects", projectMemberRoutes);
+  // app.use("/api/projects", projectColumnRoutes);
   app.use("/api/issues", issueRoutes);
   app.use("/api/sprints", sprintRoutes);
-  app.use("/api/comments", commentRoutes);
-  app.use("/api/project-teams", projectTeamRoutes);
+  // app.use("/api/comments", commentRoutes);
+  // app.use("/api/project-teams", projectTeamRoutes);
 
   // Error handler
   app.use(errorHandler);

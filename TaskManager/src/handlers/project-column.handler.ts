@@ -2,6 +2,8 @@
 import { Request, Response } from "express";
 import projectColumnService from "@/services/project-column.service";
 import { BadRequestError, NotFoundError } from "@/utils/errors";
+import activityService, { ActivityService } from "@/services/activity.service";
+import { ActivityAction } from "@/enums";
 
 class ProjectColumnHandler {
   async createColumn(req: Request, res: Response): Promise<void> {
@@ -32,16 +34,23 @@ class ProjectColumnHandler {
         currentUserId
       );
 
+      await activityService.log({
+        projectId: projectId,
+        issueId: column.id!, // Use column ID
+        userId: currentUserId,
+        actionType: ActivityAction.COLUMN_CREATED,
+        changes: [{ field: "name", newValue: column.name }],
+      });
+
       res.status(201).json({
         success: true,
         message: "Column created successfully",
-        data: column,
+        column,
       });
     } catch (error) {
       throw error;
     }
   }
-
   async getProjectColumns(req: Request, res: Response): Promise<void> {
     try {
       const { projectId } = req.params;
