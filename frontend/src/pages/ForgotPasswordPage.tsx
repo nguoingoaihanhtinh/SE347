@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuthStore } from "../stores/authStore";
 import InputField from "../components/ui/InputField";
 import { Button } from "../components/ui/Button";
 import { useNavigate } from "react-router-dom";
@@ -9,13 +8,17 @@ import { useState, useEffect } from "react";
 import AuthBanner from "../components/auth/AuthBanner";
 import AuthFormContainer from "../components/auth/AuthFormContainer";
 import { authApi } from "../lib/api";
+import { useAuthStore } from "../stores/authStore";
+import { extractErrorMessage } from "../types/api";
 
 const schema = z
   .object({
-    firstName: z.string().min(1, "Họ không được trống"),
-    lastName: z.string().min(1, "Tên không được trống"),
     email: z.string().email("Email không hợp lệ"),
-    password: z.string().superRefine((val, ctx) => {
+    otp: z
+      .string()
+      .length(6, "Mã OTP phải có 6 số")
+      .regex(/^\d+$/, "Mã OTP chỉ chứa số"),
+    newPassword: z.string().superRefine((val, ctx) => {
       const missing: string[] = [];
       if (val.length < 8) missing.push("tối thiểu 8 ký tự");
       if (!/[A-Z]/.test(val)) missing.push("chữ hoa");
@@ -30,23 +33,20 @@ const schema = z
         });
       }
     }),
-    confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
-    otp: z
-      .string()
-      .length(6, "Mã OTP phải có 6 số")
-      .regex(/^\d+$/, "Mã OTP chỉ chứa số"),
+    confirmNewPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
     message: "Mật khẩu không khớp",
-    path: ["confirmPassword"],
+    path: ["confirmNewPassword"],
   });
 
 type FormValues = z.infer<typeof schema>;
 
-export default function RegisterPage() {
+export default function ForgotPasswordPage() {
   const navigate = useNavigate();
-  const { register: registerUser } = useAuthStore();
+  const { setAuth } = useAuthStore();
   const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -80,17 +80,12 @@ export default function RegisterPage() {
       }
 
       setSendingOtp(true);
-      await authApi.sendOtp(emailValue);
+      await authApi.sendForgotOtp(emailValue);
       setOtpSent(true);
       setCountdown(60);
       setOtpError(null);
     } catch (error: unknown) {
-      let message = error instanceof Error ? error.message : "Gửi mã xác nhận thất bại";
-      // Translate common error codes to Vietnamese
-      if (message.includes("400") || message.includes("already exists")) {
-        message = "Tài khoản đã tồn tại. Vui lòng đăng nhập.";
-      }
-      setOtpError(message);
+      setOtpError(extractErrorMessage(error));
     } finally {
       setSendingOtp(false);
     }
@@ -99,19 +94,44 @@ export default function RegisterPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       setFormError(null);
-      await registerUser(
-        values.firstName,
-        values.lastName,
-        values.email,
-        values.password,
-        values.confirmPassword,
-        values.otp
-      );
-      // PUSH to history stack: [Register, Home] - allows back button to work
-      navigate("/");
+      setSuccessMessage(null);
+      
+      // Call reset password API
+      const response = await authApi.resetPassword({
+        email: values.email,
+        otp: values.otp,
+        newPassword: values.newPassword,
+      });
+
+      // Auto-login: Save user and token
+      if (response.data.data?.user && response.data.data?.token) {
+        const { user, token } = response.data.data;
+        
+        // Save to localStorage
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+        
+        // Update auth store
+        setAuth(user, token);
+        
+        setSuccessMessage("Đổi mật khẩu thành công! Đang chuyển hướng...");
+        
+        // PUSH to history stack: [ForgotPassword, Home] - allows back button to work
+        setTimeout(() => {
+          navigate("/");
+        }, 1500);
+      } else {
+        // Fallback if no user/token returned
+        setSuccessMessage("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.");
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Đăng ký thất bại";
+      const message = extractErrorMessage(error);
       setFormError(message);
+      
+      // Clear OTP field if error is OTP-related
       if (message.toLowerCase().includes("otp") || message.toLowerCase().includes("xác nhận")) {
         setValue("otp", "");
       }
@@ -126,16 +146,11 @@ export default function RegisterPage() {
         <AuthBanner subtitle="Quản lý dự án, sprint và issue trong một nền tảng." />
 
         <AuthFormContainer
-          title="Đăng ký"
-          subtitle="Tạo tài khoản để đồng bộ hóa công việc của bạn."
-          swapLink={{ text: "Đăng nhập", href: "/login" }}
+          title="Quên mật khẩu"
+          subtitle="Nhập email và mã OTP để đặt lại mật khẩu mới."
+          swapLink={{ text: "Quay lại đăng nhập", href: "/login" }}
         >
           <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-2 gap-2">
-              <InputField autoComplete="given-name" placeholder="Họ" error={errors.firstName?.message} {...register("firstName")} />
-              <InputField autoComplete="family-name" placeholder="Tên" error={errors.lastName?.message} {...register("lastName")} />
-            </div>
-
             <div>
               <div className="flex gap-2">
                 <div className="flex-1">
@@ -162,34 +177,38 @@ export default function RegisterPage() {
             </div>
 
             {otpSent && (
-              <InputField
-                type="text"
-                placeholder="Nhập mã OTP (6 số)"
-                error={errors.otp?.message}
-                maxLength={6}
-                {...register("otp")}
-              />
+              <>
+                <InputField
+                  type="text"
+                  placeholder="Nhập mã OTP (6 số)"
+                  error={errors.otp?.message}
+                  maxLength={6}
+                  {...register("otp")}
+                />
+
+                <InputField
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Mật khẩu mới"
+                  error={errors.newPassword?.message}
+                  {...register("newPassword")}
+                />
+
+                <InputField
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Xác nhận mật khẩu mới"
+                  error={errors.confirmNewPassword?.message}
+                  {...register("confirmNewPassword")}
+                />
+              </>
             )}
 
-            <InputField
-              type="password"
-              autoComplete="new-password"
-              placeholder="Mật khẩu"
-              error={errors.password?.message}
-              {...register("password")}
-            />
-            <InputField
-              type="password"
-              autoComplete="new-password"
-              placeholder="Xác nhận mật khẩu"
-              error={errors.confirmPassword?.message}
-              {...register("confirmPassword")}
-            />
-
             {formError && <p className="text-xs text-red-600 mt-1">{formError}</p>}
+            {successMessage && <p className="text-xs text-green-600 font-medium mt-1">{successMessage}</p>}
 
-            <Button type="submit" className="w-full mt-4" size="md" isLoading={isSubmitting}>
-              Tạo tài khoản
+            <Button type="submit" className="w-full mt-4" size="md" isLoading={isSubmitting} disabled={!otpSent}>
+              Đổi mật khẩu
             </Button>
           </form>
         </AuthFormContainer>
@@ -197,4 +216,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

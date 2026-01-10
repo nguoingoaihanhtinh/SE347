@@ -70,6 +70,16 @@ export const authApi = {
 
   getCurrentUser: () => api.get<ApiResponse<User>>("/api/auth/me"),
 
+  sendForgotOtp: (email: string) =>
+    api.post<ApiResponse<{ message: string; email: string }>>("/api/auth/send-forgot-otp", { email }),
+
+  resetPassword: (data: { email: string; otp: string; newPassword: string }) =>
+    api.post<ApiResponse<{ message: string; user?: User; token?: string }>>("/api/auth/reset-password", {
+      email: data.email,
+      otp: data.otp,
+      newPassword: data.newPassword,
+    }),
+
   logout: () => {
     localStorage.removeItem("token");
     return api.post("/api/auth/logout");

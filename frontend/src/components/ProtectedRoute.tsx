@@ -11,8 +11,14 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
 
   useEffect(() => {
+    // SECURITY: Check token exists first
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // No token, don't even try to load user
+      return;
+    }
     loadUser();
-  }, []);
+  }, [loadUser]);
 
   if (isLoading) {
     return (

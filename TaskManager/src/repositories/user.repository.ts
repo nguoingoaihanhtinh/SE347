@@ -61,29 +61,38 @@ export class UserRepository {
 
   async update(input: { userId: string; userData: Partial<User> }) {
     const db = await connectMongo();
-
+    
+    console.log(`[REPO DEBUG] Updating user with ID: ${input.userId}`);
+    console.log(`[REPO DEBUG] Update data:`, JSON.stringify(input.userData, null, 2));
+    
+    // Validate ObjectId format (from HEAD)
+    if (!ObjectId.isValid(input.userId)) {
+      console.error(`[REPO ERROR] Invalid ObjectId format: ${input.userId}`);
+      throw new NotFoundError({ message: `Invalid user ID format: ${input.userId}` });
+    }
+    
+    // Auto add updatedAt timestamp (from origin/main)
     const updateData = {
       ...input.userData,
       updatedAt: new Date(),
     };
-
+    
     const result = await db
       .collection(this.collectionName)
-      .findOneAndUpdate({ _id: new ObjectId(input.userId) }, { $set: updateData }, { returnDocument: "after" });
-
-    if (!result?.value) {
-      const existingUser = await db.collection(this.collectionName).findOne({
-        _id: new ObjectId(input.userId),
-      });
-
-      if (existingUser) {
-        return existingUser;
-      }
-
+      .findOneAndUpdate(
+        { _id: new ObjectId(input.userId) }, 
+        { $set: updateData }, 
+        { returnDocument: "after" }
+      );
+    
+    console.log(`[REPO DEBUG] Update result:`, result ? "Success" : "Null");
+    
+    if (!result) {
+      console.error(`[REPO ERROR] User not found for ID: ${input.userId}`);
       throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
     }
-
-    return result.value;
+    
+    return result;
   }
 
   async delete(userId: string) {
