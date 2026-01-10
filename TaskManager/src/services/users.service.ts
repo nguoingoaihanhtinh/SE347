@@ -46,10 +46,10 @@ export class UserService {
     const { registerData } = input;
 
     // Verify OTP first
-    const otpVerification = await otpService.verifyOtpByEmail(registerData.email, registerData.otp);
-    if (!otpVerification.success) {
-      throw new BadRequestError({ message: otpVerification.message });
-    }
+    // const otpVerification = await otpService.verifyOtpByEmail(registerData.email, registerData.otp);
+    // if (!otpVerification.success) {
+    //   throw new BadRequestError({ message: otpVerification.message });
+    // }
 
     const existingUser = await userRepository.findOne({ email: registerData.email });
     if (existingUser) {
@@ -66,6 +66,7 @@ export class UserService {
         passwordHash: hashedPassword,
         role: "user",
         isEmailVerified: true,
+        // isEmailVerified: false,
         avatar: null,
         notifications: null,
         isActive: true,

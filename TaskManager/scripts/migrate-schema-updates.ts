@@ -375,6 +375,164 @@ async function migrateProjectColumns(db: Db) {
 
   console.log("✅ Project columns collection created");
 }
+// --- SPRINTS ---
+async function migrateSprints(db: Db) {
+  console.log("🔄 Creating sprints collection...");
+
+  try {
+    await db.collection("sprints").drop();
+  } catch {}
+
+  await db.createCollection("sprints", {
+    validator: {
+      $jsonSchema: {
+        bsonType: "object",
+        required: ["name", "dateStarted", "dateEnded", "goal", "projectId", "createdAt", "updatedAt"],
+        properties: {
+          name: {
+            bsonType: "string",
+            minLength: 1,
+            maxLength: 100,
+          },
+          dateStarted: {
+            bsonType: "date",
+          },
+          dateEnded: {
+            bsonType: "date",
+          },
+          duration: {
+            bsonType: "int",
+            description: "Duration in days (calculated field)",
+          },
+          goal: {
+            bsonType: "string",
+            maxLength: 500,
+          },
+          projectId: {
+            bsonType: "objectId",
+          },
+          createdAt: { bsonType: "date" },
+          updatedAt: { bsonType: "date" },
+        },
+      },
+    },
+  });
+
+  await db.collection("sprints").createIndex({ projectId: 1 });
+  await db.collection("sprints").createIndex({ dateStarted: 1 });
+  await db.collection("sprints").createIndex({ dateEnded: 1 });
+
+  console.log("✅ Sprints collection created");
+}
+// --- ISSUES ---
+async function migrateIssues(db: Db) {
+  console.log("🔄 Creating issues collection...");
+
+  try {
+    await db.collection("issues").drop();
+  } catch {}
+
+  await db.createCollection("issues", {
+    validator: {
+      $jsonSchema: {
+        bsonType: "object",
+        required: [
+          "title",
+          "key",
+          "summary",
+          "description",
+          "storyPoint",
+          "projectId",
+          "columnId",
+          "reporterId",
+          "createdAt",
+          "updatedAt",
+        ],
+        properties: {
+          title: {
+            bsonType: "string",
+            minLength: 1,
+            maxLength: 200,
+          },
+          key: {
+            bsonType: "string",
+            pattern: "^[A-Z]+-[0-9]+$",
+          },
+          summary: {
+            bsonType: "string",
+            maxLength: 500,
+          },
+          description: {
+            bsonType: "string",
+            maxLength: 5000,
+          },
+          storyPoint: {
+            bsonType: "int",
+            minimum: 0,
+            maximum: 100,
+          },
+          type: {
+            enum: ["task", "story", "bug", "epic"],
+          },
+          priority: {
+            enum: ["low", "medium", "high", "critical"],
+          },
+          projectId: {
+            bsonType: "objectId",
+          },
+          sprintId: {
+            bsonType: ["objectId", "null"],
+          },
+          columnId: {
+            bsonType: "objectId",
+          },
+          creatorId: {
+            bsonType: ["objectId", "null"],
+          },
+          reporterId: {
+            bsonType: "objectId",
+          },
+          assigneeId: {
+            bsonType: ["objectId", "null"],
+          },
+          parentId: {
+            bsonType: ["objectId", "null"],
+          },
+          teamId: {
+            bsonType: ["objectId", "null"],
+          },
+          attachments: {
+            bsonType: "array",
+            items: { bsonType: "string" },
+          },
+          dueDateFrom: {
+            bsonType: ["date", "null"],
+          },
+          dueDateTo: {
+            bsonType: ["date", "null"],
+          },
+          completedAt: {
+            bsonType: ["date", "null"],
+          },
+          createdAt: { bsonType: "date" },
+          updatedAt: { bsonType: "date" },
+        },
+      },
+    },
+  });
+
+  await db.collection("issues").createIndex({ key: 1 }, { unique: true });
+  await db.collection("issues").createIndex({ projectId: 1 });
+  await db.collection("issues").createIndex({ columnId: 1 });
+  await db.collection("issues").createIndex({ assigneeId: 1 });
+  await db.collection("issues").createIndex({ reporterId: 1 });
+  await db.collection("issues").createIndex({ type: 1 });
+  await db.collection("issues").createIndex({ priority: 1 });
+  await db.collection("issues").createIndex({ dueDateFrom: 1 });
+  await db.collection("issues").createIndex({ dueDateTo: 1 });
+
+  console.log("✅ Issues collection created");
+}
 // --- EXISTING COLLECTIONS UPDATE (unchanged) ---
 async function updateExistingCollections(db: Db) {
   console.log("🔄 Updating existing collections with new fields...");
@@ -559,7 +717,7 @@ async function runMigration() {
   const db = await connectMongo();
   await ensureMigrationCollection(db);
 
-  const migrationVersion = "011_project_columns_and_schema_updates";
+  const migrationVersion = "012_add_sprints_and_issues";
 
   if (await isMigrationApplied(db, migrationVersion)) {
     console.log("⏭️  Migration already applied, skipping...");
@@ -576,6 +734,8 @@ async function runMigration() {
     await migrateActivities(db);
     await migrateProjectMembers(db);
     await migrateProjectColumns(db);
+    await migrateSprints(db);
+    await migrateIssues(db);
 
     await recordMigration(db, migrationVersion, "Removed bio, timezone, and language from user schema");
 

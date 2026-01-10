@@ -25,11 +25,11 @@
  *           type: string
  *           description: ID of the project this sprint belongs to
  *           example: "507f1f77bcf86cd799439012"
- *         startDate:
+ *         dateStarted:
  *           type: string
  *           format: date-time
  *           description: Sprint start date
- *         endDate:
+ *         dateEnded:
  *           type: string
  *           format: date-time
  *           description: Sprint end date
@@ -100,11 +100,11 @@
  *           maxLength: 500
  *           description: Sprint goal
  *           example: "Updated sprint objective"
- *         startDate:
+ *         dateStarted:
  *           type: string
  *           format: date-time
  *           description: Sprint start date
- *         endDate:
+ *         dateEnded:
  *           type: string
  *           format: date-time
  *           description: Sprint end date

@@ -14,9 +14,10 @@ export class ActivityRepository {
     changes = [],
   }: Omit<Activity, "id" | "createdAt" | "updatedAt">): Promise<Activity> {
     const db = await connectMongo();
+    const finalIssueId = issueId || projectId;
     const doc: any = {
       projectId: new ObjectId(projectId),
-      issueId: issueId ? new ObjectId(issueId) : new ObjectId(projectId),
+      issueId: new ObjectId(finalIssueId),
       actionType,
       changes,
       createdAt: new Date(),
@@ -29,7 +30,7 @@ export class ActivityRepository {
     return {
       id: result.insertedId.toString(),
       projectId,
-      issueId: issueId || projectId,
+      issueId: finalIssueId,
       userId,
       userName,
       actionType,
