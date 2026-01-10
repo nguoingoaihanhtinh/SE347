@@ -139,16 +139,18 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-50 overflow-hidden">
-      <div className="w-[90%] h-[90%] max-w-[1600px] flex rounded-3xl shadow-2xl overflow-hidden bg-white">
-        <AuthBanner title="Khôi phục tài khoản" subtitle="Đặt lại mật khẩu của bạn để tiếp tục sử dụng TaskManager." />
+    <div 
+      className="fixed inset-0 flex items-center justify-center overflow-hidden py-12 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100"
+    >
+      <div className="w-[90%] h-full max-w-5xl flex rounded-3xl overflow-hidden bg-white/85 backdrop-blur-md" style={{ boxShadow: '0 0 50px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255,255,255,0.08)' }}>
+        <AuthBanner subtitle="Quản lý dự án, sprint và issue trong một nền tảng." />
 
         <AuthFormContainer
           title="Quên mật khẩu"
           subtitle="Nhập email và mã OTP để đặt lại mật khẩu mới."
           swapLink={{ text: "Quay lại đăng nhập", href: "/login" }}
         >
-          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
             <div>
               <div className="flex gap-2">
                 <div className="flex-1">
@@ -163,15 +165,15 @@ export default function ForgotPasswordPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  size="md"
+                  size="sm"
                   onClick={handleSendOtp}
                   disabled={sendingOtp || countdown > 0}
-                  className="shrink-0 w-36"
+                  className="shrink-0 w-32 h-10 text-xs"
                 >
                   {countdown > 0 ? `Gửi lại (${countdown}s)` : sendingOtp ? "Đang gửi..." : "Gửi xác nhận"}
                 </Button>
               </div>
-              {otpError && <p className="mt-1 text-xs text-red-600">{otpError}</p>}
+              {otpError && <p className="mt-0.5 text-xs text-red-600">{otpError}</p>}
             </div>
 
             {otpSent && (
@@ -187,7 +189,7 @@ export default function ForgotPasswordPage() {
                 <InputField
                   type="password"
                   autoComplete="new-password"
-                  placeholder="Mật khẩu mới (8+ ký tự, chữ hoa, thường, số, ký tự đặc biệt)"
+                  placeholder="Mật khẩu mới"
                   error={errors.newPassword?.message}
                   {...register("newPassword")}
                 />
@@ -202,10 +204,10 @@ export default function ForgotPasswordPage() {
               </>
             )}
 
-            {formError && <p className="text-sm text-red-600">{formError}</p>}
-            {successMessage && <p className="text-sm text-green-600 font-medium">{successMessage}</p>}
+            {formError && <p className="text-xs text-red-600 mt-1">{formError}</p>}
+            {successMessage && <p className="text-xs text-green-600 font-medium mt-1">{successMessage}</p>}
 
-            <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting} disabled={!otpSent}>
+            <Button type="submit" className="w-full mt-4" size="md" isLoading={isSubmitting} disabled={!otpSent}>
               Đổi mật khẩu
             </Button>
           </form>

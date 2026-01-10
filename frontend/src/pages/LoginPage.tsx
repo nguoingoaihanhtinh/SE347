@@ -45,16 +45,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-50 overflow-hidden">
-      <div className="w-[90%] h-[90%] max-w-[1600px] flex rounded-3xl shadow-2xl overflow-hidden bg-white">
-        <AuthBanner title="Chào mừng trở lại" subtitle="Quản lý dự án, sprint và issue trong một nền tảng." />
+    <div 
+      className="fixed inset-0 flex items-center justify-center overflow-hidden py-12 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100"
+    >
+      <div className="w-[90%] h-full max-w-5xl flex rounded-3xl overflow-hidden bg-white/85 backdrop-blur-md" style={{ boxShadow: '0 0 50px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255,255,255,0.08)' }}>
+        <AuthBanner subtitle="Quản lý dự án, sprint và issue trong một nền tảng." />
 
         <AuthFormContainer
           title="Đăng nhập"
           subtitle="Đăng nhập để tiếp tục làm việc cùng đội ngũ của bạn."
           swapLink={{ text: "Đăng ký", href: "/register" }}
         >
-          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
             <InputField
               type="email"
               autoComplete="email"
@@ -70,11 +72,11 @@ export default function LoginPage() {
               {...register("password")}
             />
 
-            {formError && <p className="text-sm text-red-600">{formError}</p>}
+            {formError && <p className="text-xs text-red-600 mt-1">{formError}</p>}
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="inline-flex items-center gap-2 text-slate-600">
-                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+            <div className="flex items-center justify-between text-xs pt-1">
+              <label className="inline-flex items-center gap-1.5 text-slate-600 cursor-pointer">
+                <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600" />
                 Ghi nhớ đăng nhập
               </label>
               <Link to="/forgot-password" replace className="text-blue-600 hover:underline font-medium">
@@ -82,7 +84,7 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting}>
+            <Button type="submit" className="w-full mt-4" size="md" isLoading={isSubmitting}>
               Đăng nhập
             </Button>
           </form>

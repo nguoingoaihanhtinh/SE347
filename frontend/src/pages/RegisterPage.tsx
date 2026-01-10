@@ -119,17 +119,19 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-50 overflow-hidden">
-      <div className="w-[90%] h-[90%] max-w-[1600px] flex rounded-3xl shadow-2xl overflow-hidden bg-white">
-        <AuthBanner title="Tạo tài khoản" subtitle="Bắt đầu theo dõi dự án, sprint và issue cùng đội ngũ của bạn." />
+    <div 
+      className="fixed inset-0 flex items-center justify-center overflow-hidden py-12 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100"
+    >
+      <div className="w-[90%] h-full max-w-5xl flex rounded-3xl overflow-hidden bg-white/85 backdrop-blur-md" style={{ boxShadow: '0 0 50px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255,255,255,0.08)' }}>
+        <AuthBanner subtitle="Quản lý dự án, sprint và issue trong một nền tảng." />
 
         <AuthFormContainer
           title="Đăng ký"
           subtitle="Tạo tài khoản để đồng bộ hóa công việc của bạn."
           swapLink={{ text: "Đăng nhập", href: "/login" }}
         >
-          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
+            <div className="grid grid-cols-2 gap-2">
               <InputField autoComplete="given-name" placeholder="Họ" error={errors.firstName?.message} {...register("firstName")} />
               <InputField autoComplete="family-name" placeholder="Tên" error={errors.lastName?.message} {...register("lastName")} />
             </div>
@@ -148,15 +150,15 @@ export default function RegisterPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  size="md"
+                  size="sm"
                   onClick={handleSendOtp}
                   disabled={sendingOtp || countdown > 0}
-                  className="shrink-0 w-36"
+                  className="shrink-0 w-32 h-10 text-xs"
                 >
                   {countdown > 0 ? `Gửi lại (${countdown}s)` : sendingOtp ? "Đang gửi..." : "Gửi xác nhận"}
                 </Button>
               </div>
-              {otpError && <p className="mt-1 text-xs text-red-600">{otpError}</p>}
+              {otpError && <p className="mt-0.5 text-xs text-red-600">{otpError}</p>}
             </div>
 
             {otpSent && (
@@ -172,7 +174,7 @@ export default function RegisterPage() {
             <InputField
               type="password"
               autoComplete="new-password"
-              placeholder="Mật khẩu (8+ ký tự, chữ hoa, thường, số, ký tự đặc biệt)"
+              placeholder="Mật khẩu"
               error={errors.password?.message}
               {...register("password")}
             />
@@ -184,9 +186,9 @@ export default function RegisterPage() {
               {...register("confirmPassword")}
             />
 
-            {formError && <p className="text-sm text-red-600">{formError}</p>}
+            {formError && <p className="text-xs text-red-600 mt-1">{formError}</p>}
 
-            <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting}>
+            <Button type="submit" className="w-full mt-4" size="md" isLoading={isSubmitting}>
               Tạo tài khoản
             </Button>
           </form>
