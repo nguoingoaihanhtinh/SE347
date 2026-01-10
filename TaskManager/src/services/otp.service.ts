@@ -319,6 +319,108 @@ class OtpService {
       };
     }
   }
+
+  async generateAndSendForgotPasswordOtp(
+    userId: string,
+    email: string,
+    firstName: string
+  ): Promise<OtpGenerationResult> {
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+      logger.info(`Generating forgot password OTP for email: ${normalizedEmail}`);
+
+      // Delete any existing forgot_password OTP for this email
+      await Otp.deleteMany({ email: normalizedEmail, type: "forgot_password" });
+
+      // Generate new OTP
+      const otpCode = this.generateOtpCode();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes
+
+      // Save OTP to database
+      await Otp.create({
+        email: normalizedEmail,
+        code: otpCode,
+        type: "forgot_password",
+        expiresAt,
+      });
+
+      logger.info(`OTP saved to database for email: ${normalizedEmail}, code: ${otpCode}`);
+
+      // Send forgot password OTP email
+      const emailSent = await emailService.sendForgotPasswordOTP(email, firstName, otpCode);
+
+      if (!emailSent) {
+        // Rollback: delete OTP if email sending failed
+        await Otp.deleteMany({ email: normalizedEmail, type: "forgot_password" });
+        throw new Error("Failed to send OTP email. Please check your email configuration.");
+      }
+
+      logger.info(`Forgot password OTP sent successfully to: ${normalizedEmail}`);
+
+      return {
+        success: true,
+        message: "Password reset OTP sent successfully to your email",
+      };
+    } catch (error) {
+      logger.error("Error generating forgot password OTP:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to send OTP. Please try again.",
+      };
+    }
+  }
+
+  async verifyForgotPasswordOtp(email: string, otpCode: string): Promise<OtpVerificationResult> {
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+      logger.info(`Verifying forgot password OTP for email: ${normalizedEmail}, code: ${otpCode}`);
+
+      const otpRecord = await Otp.findOne({
+        email: normalizedEmail,
+        code: otpCode,
+        type: "forgot_password",
+      });
+
+      logger.info(`OTP lookup result: ${otpRecord ? "FOUND" : "NOT FOUND"}`);
+
+      if (!otpRecord) {
+        return {
+          success: false,
+          message: "Invalid OTP code",
+        };
+      }
+
+      if (otpRecord.expiresAt < new Date()) {
+        await Otp.deleteOne({ _id: otpRecord._id });
+        return {
+          success: false,
+          message: "OTP has expired. Please request a new one.",
+        };
+      }
+
+      // Delete OTP after successful verification
+      await Otp.deleteOne({ _id: otpRecord._id });
+
+      logger.info(`Forgot password OTP verified successfully for email: ${normalizedEmail}`);
+
+      return {
+        success: true,
+        message: "OTP verified successfully",
+      };
+    } catch (error) {
+      logger.error("Error verifying forgot password OTP:", error);
+      return {
+        success: false,
+        message: "Internal server error. Please try again.",
+      };
+    }
+  }
+
+  async deleteOtp(userId: string): Promise<void> {
+    await otpRepository.deleteByUserId(userId);
+    logger.info(`OTP deleted for user: ${userId}`);
+  }
 }
 
 export default new OtpService();

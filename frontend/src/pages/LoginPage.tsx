@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "../stores/authStore";
 import InputField from "../components/ui/InputField";
 import { Button } from "../components/ui/Button";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import type { Location } from "react-router-dom";
 import { useState } from "react";
 import AuthBanner from "../components/auth/AuthBanner";
@@ -36,7 +36,8 @@ export default function LoginPage() {
       setFormError(null);
       await login(values.email, values.password);
       const from = (location.state as { from?: Location })?.from?.pathname || "/";
-      navigate(from, { replace: true });
+      // PUSH to history stack: [Login, Home] - allows back button to work
+      navigate(from);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Đăng nhập thất bại";
       setFormError(message);
@@ -76,9 +77,9 @@ export default function LoginPage() {
                 <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600" />
                 Ghi nhớ đăng nhập
               </label>
-              <button type="button" className="text-blue-600 hover:underline">
+              <Link to="/forgot-password" replace className="text-blue-600 hover:underline font-medium">
                 Quên mật khẩu?
-              </button>
+              </Link>
             </div>
 
             <Button type="submit" className="w-full" size="lg" isLoading={isSubmitting}>

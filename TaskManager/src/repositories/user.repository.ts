@@ -60,13 +60,32 @@ export class UserRepository {
 
   async update(input: { userId: string; userData: Partial<User> }) {
     const db = await connectMongo();
+    
+    console.log(`[REPO DEBUG] Updating user with ID: ${input.userId}`);
+    console.log(`[REPO DEBUG] Update data:`, JSON.stringify(input.userData, null, 2));
+    
+    // Validate ObjectId format
+    if (!ObjectId.isValid(input.userId)) {
+      console.error(`[REPO ERROR] Invalid ObjectId format: ${input.userId}`);
+      throw new NotFoundError({ message: `Invalid user ID format: ${input.userId}` });
+    }
+    
     const result = await db
       .collection(this.collectionName)
-      .findOneAndUpdate({ _id: new ObjectId(input.userId) }, { $set: input.userData }, { returnDocument: "after" });
-    if (!result || !result.value) {
+      .findOneAndUpdate(
+        { _id: new ObjectId(input.userId) }, 
+        { $set: input.userData }, 
+        { returnDocument: "after" }
+      );
+    
+    console.log(`[REPO DEBUG] Update result:`, result ? "Success" : "Null");
+    
+    if (!result) {
+      console.error(`[REPO ERROR] User not found for ID: ${input.userId}`);
       throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
     }
-    return result.value;
+    
+    return result;
   }
 
   async delete(userId: string) {

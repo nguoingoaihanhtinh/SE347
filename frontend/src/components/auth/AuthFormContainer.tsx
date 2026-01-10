@@ -16,6 +16,7 @@ export default function AuthFormContainer({ title, subtitle, swapLink, children 
       {/* Fixed position swap link - top right corner */}
       <Link
         to={swapLink.href}
+        replace
         className="absolute top-10 right-10 text-sm font-medium text-blue-600 hover:underline"
       >
         {swapLink.text}

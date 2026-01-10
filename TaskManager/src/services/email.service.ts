@@ -56,14 +56,14 @@ class EmailService {
     }
   }
 
-  // OTP Email Template
+  // OTP Email Template (for Registration)
   async sendOTPEmail(email: string, firstName: string, otp: string): Promise<boolean> {
     const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Xac thuc tai khoan</title>
+          <title>Xác thực tài khoản</title>
           <style>
             body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif; }
             .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -105,31 +105,32 @@ class EmailService {
               <h1>TaskManager</h1>
             </div>
             <div class="content">
-              <div class="greeting">Chao mung ban den voi TaskManager!</div>
+              <div class="greeting">Chào mừng bạn đến với TaskManager</div>
               <div class="message">
-                Xin chao ${firstName}, cam on ban da dang ky tai khoan. Vui long su dung ma OTP duoi day de xac thuc tai khoan cua ban:
+                Xin chào <strong>${firstName}</strong>, cảm ơn bạn đã đăng ký tài khoản. 
+                Vui lòng sử dụng mã xác thực bên dưới để hoàn tất đăng ký:
               </div>
               
               <div class="otp-box">
-                <div class="otp-label">MA XAC THUC CUA BAN</div>
+                <div class="otp-label">MÃ XÁC THỰC CỦA BẠN</div>
                 <div class="otp-code">${otp}</div>
               </div>
               
               <div class="warning">
-                <div class="warning-title">Luu y quan trong:</div>
+                <div class="warning-title">Lưu ý quan trọng:</div>
                 <ul class="warning-list">
-                  <li>Ma nay se het han sau 5 phut</li>
-                  <li><strong>TUYET DOI khong chia se ma nay voi bat ky ai</strong></li>
-                  <li>Neu ban khong yeu cau ma nay, vui long bo qua email</li>
+                  <li>Mã này sẽ hết hạn sau 5 phút</li>
+                  <li><strong>Tuyệt đối không chia sẻ mã này với bất kỳ ai</strong></li>
+                  <li>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email</li>
                 </ul>
               </div>
               
-              <div class="message" style="margin-top: 30px; font-size: 14px;">
-                Neu ban gap van de gi, vui long lien he doi ngu ho tro cua chung toi.
+              <div class="message" style="margin-top: 30px; font-size: 14px; color: #888;">
+                Nếu bạn gặp vấn đề gì, vui lòng liên hệ đội ngũ hỗ trợ của chúng tôi.
               </div>
             </div>
             <div class="footer">
-              <p>&copy; 2026 TaskManager Team.</p>
+              <p>© 2026 TaskManager Team. Mọi quyền được bảo lưu.</p>
             </div>
           </div>
         </body>
@@ -138,9 +139,9 @@ class EmailService {
 
     return this.sendEmail({
       to: email,
-      subject: "[TaskManager] Xac thuc tai khoan cua ban",
+      subject: "[TaskManager] Xác thực tài khoản của bạn",
       html,
-      text: `Chao mung ban den voi TaskManager! Xin chao ${firstName}, ma OTP cua ban la: ${otp}. Ma nay se het han sau 5 phut. TUYET DOI khong chia se ma nay voi bat ky ai.`,
+      text: `Chào mừng bạn đến với TaskManager! Xin chào ${firstName}, mã OTP của bạn là: ${otp}. Mã này sẽ hết hạn sau 5 phút. Tuyệt đối không chia sẻ mã này với bất kỳ ai.`,
     });
   }
 
@@ -301,7 +302,96 @@ class EmailService {
     });
   }
 
-  // Password Reset Email Template
+  // Forgot Password OTP Email Template
+  async sendForgotPasswordOTP(email: string, firstName: string, otp: string): Promise<boolean> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Đặt lại mật khẩu</title>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif; }
+            .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 30px 20px; text-align: center; }
+            .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+            .content { padding: 40px 30px; }
+            .greeting { font-size: 18px; color: #333; margin-bottom: 20px; font-weight: 600; }
+            .message { color: #666; line-height: 1.6; margin-bottom: 30px; }
+            .otp-box { 
+              background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+              border-radius: 8px;
+              padding: 20px;
+              text-align: center;
+              margin: 30px 0;
+            }
+            .otp-label { color: #fff; font-size: 14px; margin-bottom: 10px; opacity: 0.9; }
+            .otp-code { 
+              color: #fff;
+              font-size: 36px; 
+              font-weight: bold; 
+              letter-spacing: 8px;
+              font-family: 'Courier New', monospace;
+            }
+            .warning { 
+              background-color: #fff3cd; 
+              border-left: 4px solid #ffc107; 
+              padding: 15px; 
+              margin: 20px 0; 
+              border-radius: 4px;
+            }
+            .warning-title { color: #856404; font-weight: bold; margin: 0 0 10px 0; }
+            .warning-list { margin: 0; padding-left: 20px; color: #856404; }
+            .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #999; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Yêu cầu đặt lại mật khẩu</h1>
+            </div>
+            <div class="content">
+              <div class="greeting">Chào ${email},</div>
+              <div class="message">
+                Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>TaskManager</strong> của bạn. 
+                Vui lòng sử dụng mã xác thực bên dưới để tiếp tục:
+              </div>
+              
+              <div class="otp-box">
+                <div class="otp-label">MÃ XÁC THỰC CỦA BẠN</div>
+                <div class="otp-code">${otp}</div>
+              </div>
+              
+              <div class="warning">
+                <div class="warning-title">Lưu ý bảo mật:</div>
+                <ul class="warning-list">
+                  <li>Mã này sẽ hết hạn sau 5 phút</li>
+                  <li><strong>Tuyệt đối không chia sẻ mã này với bất kỳ ai</strong></li>
+                  <li>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này</li>
+                </ul>
+              </div>
+              
+              <div class="message" style="margin-top: 30px; font-size: 14px; color: #888;">
+                Nếu bạn gặp vấn đề gì, vui lòng liên hệ đội ngũ hỗ trợ của chúng tôi.
+              </div>
+            </div>
+            <div class="footer">
+              <p>© 2026 TaskManager Team. Mọi quyền được bảo lưu.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject: "[TaskManager] Yêu cầu đặt lại mật khẩu",
+      html,
+      text: `Chào ${email}! Mã OTP đặt lại mật khẩu của bạn là: ${otp}. Mã này sẽ hết hạn sau 5 phút. Tuyệt đối không chia sẻ mã này với bất kỳ ai.`,
+    });
+  }
+
+  // Password Reset Email Template (Token-based - for future use)
   async sendPasswordResetEmail(email: string, firstName: string, resetToken: string): Promise<boolean> {
     const resetLink = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 

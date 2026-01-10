@@ -21,6 +21,7 @@ interface AuthState {
   logout: () => void;
   loadUser: () => Promise<void>;
   clearError: () => void;
+  setAuth: (user: User, token: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -63,19 +64,38 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     authApi.logout().catch(console.error);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     set({ user: null, isAuthenticated: false });
   },
 
   loadUser: async () => {
     try {
       set({ isLoading: true });
+      
+      // SECURITY: Check token exists before calling API
+      const token = localStorage.getItem("token");
+      if (!token) {
+        set({ user: null, isAuthenticated: false, isLoading: false });
+        return;
+      }
+      
       const { data } = await authApi.getCurrentUser();
       set({ user: data.data, isAuthenticated: true, isLoading: false });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
+      // API call failed (token invalid/expired)
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
 
   clearError: () => set({ error: null }),
+
+  setAuth: (user, token) => {
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    set({ user, isAuthenticated: true });
+  },
 }));
