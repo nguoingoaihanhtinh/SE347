@@ -7,8 +7,6 @@ export const updateUserSchema = z
     email: z.string().email("Invalid email address").optional(),
     avatar: z.string().nullable().optional(),
 
-    timezone: z.string().nullable().optional(),
-    language: z.enum(["en", "es", "fr", "de", "ja", "ko", "zh"]).nullable().optional(),
     notifications: z
       .object({
         email: z.boolean().optional(),

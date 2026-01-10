@@ -4,6 +4,7 @@ import projectColumnService from "@/services/project-column.service";
 import { Project } from "@/models/project.model";
 import ActivityService from "@/services/activity.service";
 import { ActivityAction } from "@/enums";
+import projectMemberRepository from "@/repositories/project-member.repository";
 
 export class ProjectService {
   async findAll(page: number = 1, limit: number = 10) {
@@ -26,12 +27,37 @@ export class ProjectService {
     const existing = await projectRepository.findOne({ key: projectData.key });
     if (existing) throw new BadRequestError({ message: `Project key "${projectData.key}" already exists` });
 
+    // Create project first
     const project = await projectRepository.create(projectData);
-
+    // console.log("✅ Project created:", project.id);
     try {
+      // console.log("Adding owner as project member...");
+      // console.log("Project ID:", project.id);
+      // console.log("Owner ID:", project.ownerId);
+
+      const member = await projectMemberRepository.create({
+        projectId: project.id!,
+        userId: project.ownerId,
+        teamIds: [],
+        role: "owner",
+        isPending: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
       await projectColumnService.initializeDefaultColumns(project.id!, project.ownerId);
     } catch (error) {
-      console.error("Failed to create default columns for project:", error);
+      console.error("Failed to complete project setup:", error);
+
+      try {
+        await projectRepository.delete(project.id!);
+      } catch (rollbackError) {
+        console.error("Failed to rollback project creation:", rollbackError);
+      }
+
+      throw new BadRequestError({
+        message: "Failed to complete project setup. Please try again.",
+      });
     }
 
     await ActivityService.log({

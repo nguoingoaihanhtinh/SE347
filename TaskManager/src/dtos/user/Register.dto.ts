@@ -14,10 +14,10 @@ export const registerSchema = z
       .regex(/[0-9]/, "Password must contain at least one number")
       .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
     confirm_password: z.string().min(8, "Confirm password must be at least 8 characters"),
-    otp: z
-      .string()
-      .length(6, "OTP must be 6 digits")
-      .regex(/^\d+$/, "OTP must contain only numbers"),
+    // otp: z
+    //   .string()
+    //   .length(6, "OTP must be 6 digits")
+    //   .regex(/^\d+$/, "OTP must contain only numbers"),
   })
   .refine((data) => data.password === data.confirm_password, {
     path: ["confirm_password"],

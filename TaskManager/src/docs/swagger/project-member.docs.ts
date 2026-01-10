@@ -181,7 +181,7 @@
  *   post:
  *     summary: Invite a user to join the project
  *     description: Sends an email invitation to a user to join the project with the specified role. Requires Owner or Admin role.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
@@ -241,7 +241,7 @@
  *   post:
  *     summary: Accept a project invitation
  *     description: Accepts an invitation to join a project using the invitation token. User must be authenticated.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
@@ -290,7 +290,7 @@
  *   post:
  *     summary: Decline a project invitation
  *     description: Declines an invitation to join a project using the invitation token.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     parameters:
  *       - in: path
  *         name: token
@@ -325,7 +325,7 @@
  *   get:
  *     summary: Get all members of a project
  *     description: Retrieves a list of all project members with their roles and user information. All project members can access.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
@@ -404,7 +404,7 @@
  *   put:
  *     summary: Update a member's role
  *     description: Updates the role of a project member. Requires Owner role, or Admin role (cannot promote to Owner).
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
@@ -461,7 +461,7 @@
  *   delete:
  *     summary: Remove a member from the project
  *     description: Removes a member from the project. Requires Owner role, or Admin role (cannot remove Owner). Members can remove themselves.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
@@ -510,7 +510,7 @@
  *   post:
  *     summary: Leave a project
  *     description: Allows the current user to leave the project. Project owners cannot leave unless they transfer ownership first.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
@@ -552,7 +552,7 @@
  *   get:
  *     summary: Get project member statistics
  *     description: Retrieves statistics about project members including role breakdown and recent activity. Requires Owner or Admin role.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
@@ -594,7 +594,7 @@
  *   get:
  *     summary: Get pending invitations for a project
  *     description: Retrieves all pending invitations for the project. Requires Owner or Admin role.
- *     tags: [Project Members]
+ *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []

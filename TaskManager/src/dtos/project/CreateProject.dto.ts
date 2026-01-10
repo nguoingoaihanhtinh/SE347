@@ -7,6 +7,7 @@ export const createProjectSchema = z.object({
     .min(2)
     .max(10)
     .regex(/^[A-Z]+$/),
+  description: z.string().max(1000).optional(),
   access: z.enum(["public", "private"]),
   type: z.enum(["scrum", "kanban"]),
 });

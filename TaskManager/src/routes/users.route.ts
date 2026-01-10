@@ -1,21 +1,28 @@
-import { createUser, deleteUser, getUserById, getUsers, updateUser } from "@/handlers/users.handler";
+import {
+  createUser,
+  deleteUser,
+  deleteUserProfile,
+  getUserById,
+  getUserProfile,
+  getUsers,
+  updateUser,
+  updateUserProfile,
+} from "@/handlers/users.handler";
 import { Router } from "express";
+import { authenticate } from "@/middlewares/auth.middleware";
 
 const router = Router();
-
-// GET /api/users - Get all users
+// 🔒 Authenticated profile routes
+router.get("/profile", authenticate, getUserProfile);
+router.put("/profile", authenticate, updateUserProfile);
+router.delete("/profile", authenticate, deleteUserProfile);
+// Public routes (no auth)
 router.get("/", getUsers);
-
-// GET /api/users/:id - Get user by ID
 router.get("/:id", getUserById);
-
-// POST /api/users - Create new user
 router.post("/", createUser);
 
-// PUT /api/users/:id - Update user
-router.put("/:id", updateUser);
-
-// DELETE /api/users/:id - Delete user
-router.delete("/:id", deleteUser);
+// Admin/user management routes (may need admin auth)
+router.put("/:id", authenticate, updateUser);
+router.delete("/:id", authenticate, deleteUser);
 
 export default router;

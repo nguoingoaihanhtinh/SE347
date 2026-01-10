@@ -3,7 +3,7 @@ export interface CreateUserQueryParams {
 }
 
 export interface UserQueryParams {
-  user_id?: string;
+  userId?: string;
   email?: string;
   fullName?: string;
   role?: "user" | "admin" | "super_admin";

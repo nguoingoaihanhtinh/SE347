@@ -59,12 +59,14 @@ export class ProjectRepository {
     const doc = {
       name: projectData.name,
       key: projectData.key,
+      description: projectData.description ?? null,
       access: projectData.access,
       type: projectData.type,
       ownerId: new ObjectId(projectData.ownerId),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    console.log("Inserting project doc:", JSON.stringify(doc, null, 2));
     const result = await db.collection(this.collectionName).insertOne(doc);
     return {
       id: result.insertedId.toString(),

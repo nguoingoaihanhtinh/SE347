@@ -24,5 +24,5 @@ router.post("/reset-password", resetPassword); // PUBLIC - Reset password
 
 // Protected routes (authentication required)
 router.get("/me", authenticate, getMe);
-
+// console.log("✅ Auth routes loaded");
 export default router;

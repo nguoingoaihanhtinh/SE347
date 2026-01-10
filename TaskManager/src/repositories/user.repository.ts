@@ -1,8 +1,9 @@
 import { User } from "@/models/user.model";
-import { UserQueryParams } from "@/types/user.query-params";
+
 import { NotFoundError } from "@/utils/errors";
 import { connectMongo } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
+import { UserQueryParams } from "@/types/query-param";
 
 export class UserRepository {
   private collectionName = "users";
@@ -14,10 +15,9 @@ export class UserRepository {
     const skip = (page - 1) * limit;
 
     const filter: any = {};
-    if (input.user_id) filter._id = new ObjectId(input.user_id);
+    if (input.userId) filter._id = new ObjectId(input.userId);
     if (input.email) filter.email = input.email;
-    if (input.first_name) filter.firstName = input.first_name;
-    if (input.last_name) filter.lastName = input.last_name;
+    if (input.fullName) filter.firstName = input.fullName;
     if (input.role) filter.role = input.role;
 
     const data = await db.collection(this.collectionName).find(filter).skip(skip).limit(limit).toArray();
@@ -38,10 +38,11 @@ export class UserRepository {
   async findOne(input: UserQueryParams) {
     const db = await connectMongo();
     const filter: any = {};
-    if (input.user_id) filter._id = new ObjectId(input.user_id);
+    if (input.userId) filter._id = new ObjectId(input.userId);
     if (input.email) filter.email = input.email;
 
     const user = await db.collection(this.collectionName).findOne(filter);
+    console.log("findOne filter:", JSON.stringify(filter, null, 2));
     return user;
   }
 
@@ -64,17 +65,23 @@ export class UserRepository {
     console.log(`[REPO DEBUG] Updating user with ID: ${input.userId}`);
     console.log(`[REPO DEBUG] Update data:`, JSON.stringify(input.userData, null, 2));
     
-    // Validate ObjectId format
+    // Validate ObjectId format (from HEAD)
     if (!ObjectId.isValid(input.userId)) {
       console.error(`[REPO ERROR] Invalid ObjectId format: ${input.userId}`);
       throw new NotFoundError({ message: `Invalid user ID format: ${input.userId}` });
     }
     
+    // Auto add updatedAt timestamp (from origin/main)
+    const updateData = {
+      ...input.userData,
+      updatedAt: new Date(),
+    };
+    
     const result = await db
       .collection(this.collectionName)
       .findOneAndUpdate(
         { _id: new ObjectId(input.userId) }, 
-        { $set: input.userData }, 
+        { $set: updateData }, 
         { returnDocument: "after" }
       );
     

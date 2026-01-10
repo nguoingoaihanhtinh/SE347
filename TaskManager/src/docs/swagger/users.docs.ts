@@ -17,20 +17,6 @@
  *           type: string
  *           description: Avatar image URL
  *           example: "https://example.com/avatars/newavatar.jpg"
- *         bio:
- *           type: string
- *           maxLength: 500
- *           description: User's bio/description
- *           example: "Senior software developer with 5+ years experience"
- *         timezone:
- *           type: string
- *           description: User's timezone
- *           example: "America/New_York"
- *         language:
- *           type: string
- *           enum: ["en", "es", "fr", "de", "ja", "ko", "zh"]
- *           description: Preferred language
- *           example: "en"
  *         notifications:
  *           type: object
  *           description: Notification preferences
@@ -47,6 +33,11 @@
  *             issueAssignments:
  *               type: boolean
  *               example: true
+ *         role:
+ *           type: string
+ *           enum: ["user", "admin", "super_admin"]
+ *           description: System role (admin-only)
+ *           example: "admin"
  *
  *     ChangePasswordRequest:
  *       type: object
@@ -64,7 +55,7 @@
  *           type: string
  *           format: password
  *           minLength: 8
- *           description: New password (must meet security requirements)
+ *           description: New password (must contain uppercase, lowercase, number, special char)
  *           example: "NewSecurePass456!"
  *         confirmPassword:
  *           type: string
@@ -73,46 +64,54 @@
  *           example: "NewSecurePass456!"
  *
  *     UserProfile:
- *       allOf:
- *         - $ref: '#/components/schemas/User'
- *         - type: object
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "507f1f77bcf86cd799439013"
+ *         email:
+ *           type: string
+ *           format: email
+ *           example: "john.doe@example.com"
+ *         fullName:
+ *           type: string
+ *           example: "John Doe"
+ *         avatar:
+ *           type: string
+ *           nullable: true
+ *           example: "https://example.com/avatar.jpg"
+ *         role:
+ *           type: string
+ *           enum: ["user", "admin", "super_admin"]
+ *           example: "user"
+ *         isEmailVerified:
+ *           type: boolean
+ *           example: true
+ *         notifications:
+ *           type: object
+ *           nullable: true
  *           properties:
- *             bio:
- *               type: string
- *               description: User's bio/description
- *               example: "Senior software developer"
- *             timezone:
- *               type: string
- *               example: "America/New_York"
- *             language:
- *               type: string
- *               example: "en"
- *             notifications:
- *               type: object
- *               properties:
- *                 email:
- *                   type: boolean
- *                 push:
- *                   type: boolean
- *                 projectUpdates:
- *                   type: boolean
- *                 issueAssignments:
- *                   type: boolean
- *             stats:
- *               type: object
- *               properties:
- *                 totalProjects:
- *                   type: integer
- *                   example: 5
- *                 activeIssues:
- *                   type: integer
- *                   example: 12
- *                 completedIssues:
- *                   type: integer
- *                   example: 34
- *                 joinedAt:
- *                   type: string
- *                   format: date-time
+ *             email:
+ *               type: boolean
+ *             push:
+ *               type: boolean
+ *             projectUpdates:
+ *               type: boolean
+ *             issueAssignments:
+ *               type: boolean
+ *         isActive:
+ *           type: boolean
+ *           example: true
+ *         lastLoginAt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
  *
  *     UserSearchResult:
  *       type: object
@@ -129,6 +128,7 @@
  *           example: "John Doe"
  *         avatar:
  *           type: string
+ *           nullable: true
  *           example: "https://example.com/avatar.jpg"
  */
 
@@ -194,9 +194,7 @@
  * /api/users/{userId}:
  *   get:
  *     summary: Get user profile by ID
- *     description: |
- *       Retrieves detailed profile information for a specific user.
- *       Returns more information if viewing own profile.
+ *     description: Retrieves detailed profile information for a specific user.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -236,14 +234,14 @@
  * /api/users/profile:
  *   get:
  *     summary: Get own user profile
- *     description: Retrieves the complete profile information of the currently authenticated user
+ *     description: Retrieves the complete profile of the authenticated user
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *       - cookieAuth: []
  *     responses:
  *       200:
- *         description: User profile retrieved successfully
+ *         description: Profile retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -262,7 +260,7 @@
  *
  *   put:
  *     summary: Update own user profile
- *     description: Updates the profile information of the currently authenticated user
+ *     description: Updates the profile of the authenticated user
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []

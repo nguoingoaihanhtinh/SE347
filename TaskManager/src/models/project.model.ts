@@ -1,8 +1,11 @@
+import { TeamMemberRole } from "./project-member.model";
+
 // ProjectDomain model
 export interface Project {
   id?: string;
   name: string;
   key: string;
+  description?: string | null;
   access: "public" | "private";
   type: "scrum" | "kanban";
   ownerId: string;
@@ -28,7 +31,7 @@ export interface ProjectMember {
   projectId: string;
   teamIds: string[];
   userId: string;
-  role: any;
+  role: TeamMemberRole;
   isPending: boolean;
   createdAt: Date;
   updatedAt: Date;

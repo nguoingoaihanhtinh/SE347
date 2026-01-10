@@ -3,8 +3,9 @@ import validate from "@/utils/validate";
 import UserService from "@/services/users.service";
 import { Request, Response } from "express-serve-static-core";
 import { createUserSchema } from "@/dtos/user/CreateUser.dto";
-import { BadRequestError, NotFoundError } from "@/utils/errors";
+import { BadRequestError, NotFoundError, UnauthorizedError } from "@/utils/errors";
 import { updateUserSchema } from "@/dtos/user/UpdateUser.dto";
+import { isValidObjectId } from "@/utils/mongodb";
 
 export async function getUsers(req: Request, res: Response) {
   const { page, limit } = req.query;
@@ -75,5 +76,66 @@ export async function deleteUser(request: Request, response: Response) {
 
   response.status(200).json({
     success: true,
+  });
+}
+
+export async function getUserProfile(req: Request, res: Response) {
+  if (!req.user || !req.user.userId) {
+    throw new UnauthorizedError({ message: "Authentication required" });
+  }
+
+  const userId = req.user.userId;
+
+  if (!isValidObjectId(userId)) {
+    throw new UnauthorizedError({ message: "Invalid user ID format" });
+  }
+
+  const user = await UserService.findOne({ userId });
+
+  if (!user) {
+    throw new NotFoundError({ message: "User not found" });
+  }
+
+  const { passwordHash, ...userProfile } = user;
+  res.status(200).json({
+    success: true,
+    data: userProfile,
+  });
+}
+export async function updateUserProfile(req: Request, res: Response) {
+  if (!req.user?.userId) {
+    throw new UnauthorizedError({ message: "Authentication required" });
+  }
+
+  if (!isValidObjectId(req.user.userId)) {
+    throw new UnauthorizedError({ message: "Invalid user ID format" });
+  }
+
+  const userData = validate.schema_validate(updateUserSchema, req.body);
+  const updatedUser = await UserService.updateUser({
+    userId: req.user.userId,
+    userData,
+  });
+
+  const { passwordHash, ...userProfile } = updatedUser;
+  res.status(200).json({
+    success: true,
+    data: userProfile,
+  });
+}
+
+export async function deleteUserProfile(req: Request, res: Response) {
+  if (!req.user?.userId) {
+    throw new UnauthorizedError({ message: "Authentication required" });
+  }
+
+  if (!isValidObjectId(req.user.userId)) {
+    throw new UnauthorizedError({ message: "Invalid user ID format" });
+  }
+
+  await UserService.deleteUser(req.user.userId);
+  res.status(200).json({
+    success: true,
+    message: "Account deleted successfully",
   });
 }
