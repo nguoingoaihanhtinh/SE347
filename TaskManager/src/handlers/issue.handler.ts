@@ -20,15 +20,18 @@ function parseDateFields(data: any) {
 }
 
 export async function getIssues(req: Request, res: Response) {
-  const { projectId, columnId } = req.query;
+  let projectId = req.params.projectId || req.query.projectId;
+  const columnId = req.query.columnId;
+
   if (!projectId && !columnId) {
     throw new BadRequestError({ message: "Either projectId or columnId is required" });
   }
-  const { page, limit } = req.query;
+
   const filters: any = {};
-  if (projectId) filters.projectId = projectId as string;
+  if (projectId) filters.projectId = projectId;
   if (columnId) filters.columnId = columnId as string;
 
+  const { page, limit } = req.query;
   const result = await IssueService.findAll(filters, _.toInteger(page) || 1, _.toInteger(limit) || 10);
   res.status(200).json({ success: true, ...result });
 }
@@ -41,18 +44,20 @@ export async function getIssueById(req: Request, res: Response) {
 }
 
 export async function createIssue(req: Request, res: Response) {
-  const rawData = validate.schema_validate(createIssueSchema, req.body);
+  let rawData = validate.schema_validate(createIssueSchema, req.body);
+
+  rawData.reporterId = req.user!.userId;
+
+  if (req.params.projectId) {
+    rawData.projectId = req.params.projectId;
+  }
+
+  if (!rawData.projectId) {
+    throw new BadRequestError({ message: "projectId is required" });
+  }
+
   const data = parseDateFields(rawData);
-
-  // Set defaults for missing fields
-  if (!data.summary) {
-    data.summary = data.title; // Use title as summary if not provided
-  }
-
-  // Set reporterId from authenticated user if not provided
-  if (!data.reporterId && req.user) {
-    data.reporterId = req.user.userId;
-  }
+  if (!data.summary) data.summary = data.title;
 
   const issue = await IssueService.create(data, req.user!.userId);
   res.status(201).json({ success: true, issue });

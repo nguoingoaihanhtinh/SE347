@@ -16,8 +16,12 @@ function parseDateFields(data: any) {
 }
 
 export async function getSprints(req: Request, res: Response) {
-  const { projectId } = req.query;
-  if (!projectId) throw new BadRequestError({ message: "projectId is required" });
+  const projectId = req.params.projectId || req.query.projectId;
+
+  if (!projectId) {
+    throw new BadRequestError({ message: "projectId is required" });
+  }
+  console.log("Project ID:", projectId);
   const { page, limit } = req.query;
   const result = await SprintService.findAllByProject(
     projectId as string,
@@ -36,7 +40,17 @@ export async function getSprintById(req: Request, res: Response) {
 
 export async function createSprint(req: Request, res: Response) {
   const rawData = validate.schema_validate(createSprintSchema, req.body);
-  const data = parseDateFields(rawData);
+
+  const finalData = {
+    ...rawData,
+    projectId: req.params.projectId || rawData.projectId,
+  };
+
+  if (!finalData.projectId) {
+    throw new BadRequestError({ message: "projectId is required" });
+  }
+
+  const data = parseDateFields(finalData);
   const sprint = await SprintService.create(data, req.user!.userId);
   res.status(201).json({ success: true, data: sprint });
 }

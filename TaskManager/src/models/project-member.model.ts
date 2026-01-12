@@ -1,13 +1,13 @@
-// Project Member models
+import { ObjectId } from "mongodb";
 import { ProjectMember } from "./project.model";
 
 export type TeamMemberRole = "owner" | "admin" | "member" | "viewer";
 
 export interface ProjectInvitation {
-  _id?: string;
+  _id?: ObjectId | string;
   id?: string;
-  projectId: string;
-  inviterUserId: string;
+  projectId: ObjectId | string;
+  inviterUserId: ObjectId | string;
   inviteeEmail: string;
   role: TeamMemberRole;
   token: string;
@@ -24,12 +24,6 @@ export interface ProjectMemberWithDetails extends ProjectMember {
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
-  inviter?: {
-    _id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
   };
 }
 

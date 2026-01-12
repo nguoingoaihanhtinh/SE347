@@ -5,7 +5,8 @@ import { authenticate } from "@/middlewares/auth.middleware";
 // Project handlers
 import { createProject, deleteProject, getProjectById, getProjects, updateProject } from "@/handlers/project.handler";
 import { getProjectActivities } from "@/handlers/activity.handler";
-
+import sprintRoutes from "./sprint.route";
+import issueRoutes from "./issue.route";
 // Project member handlers
 import {
   inviteMember,
@@ -34,7 +35,7 @@ router.use(authenticate);
 router.get("/:projectId/members", getProjectMembers);
 router.get("/:projectId/stats", getProjectStats);
 router.post("/:projectId/members/invite", inviteMember);
-router.post("/:projectId/members/:userId/role", updateMemberRole);
+router.put("/:projectId/members/:userId/role", updateMemberRole);
 router.delete("/:projectId/members/:userId", removeMember);
 router.post("/:projectId/leave", leaveProject);
 // Project routes
@@ -53,5 +54,8 @@ router.delete("/:projectId/columns/:columnId", projectColumnHandler.deleteColumn
 router.post("/:projectId/columns/:columnId/issues", projectColumnHandler.addIssueToColumn);
 router.put("/:projectId/columns/reorder", projectColumnHandler.reorderColumns);
 router.post("/:projectId/columns/initialize", projectColumnHandler.initializeDefaultColumns);
+
+router.use("/:projectId/sprints", sprintRoutes);
+router.use("/:projectId/issues", issueRoutes);
 
 export default router;
