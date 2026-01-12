@@ -5,5 +5,5 @@ export const createSprintSchema = z.object({
   dateStarted: z.string().min(1, "dateStarted is required"),
   dateEnded: z.string().min(1, "dateEnded is required"),
   goal: z.string().optional(),
-  projectId: z.string().min(1),
+  projectId: z.string().min(1).optional(),
 });

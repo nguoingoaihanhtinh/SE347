@@ -13,6 +13,7 @@ export class ProjectRepository {
       mongoFilter.ownerId = new ObjectId(mongoFilter.ownerId);
     }
     const data = await db.collection(this.collectionName).find(mongoFilter).skip(skip).limit(limit).toArray();
+
     const total = await db.collection(this.collectionName).countDocuments(mongoFilter);
     const mappedData = data.map((doc) => ({
       id: doc._id.toString(),

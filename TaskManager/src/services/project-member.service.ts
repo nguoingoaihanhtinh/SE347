@@ -1,4 +1,3 @@
-// src/services/project-member.service.ts
 import crypto from "crypto";
 import { BadRequestError, NotFoundError, UnauthorizedError } from "@/utils/errors";
 import {
@@ -14,6 +13,7 @@ import userRepository from "@/repositories/user.repository";
 import emailService from "@/services/email.service";
 import { env } from "@/config/env";
 import logger from "@/utils/logger";
+import { ObjectId } from "mongodb";
 
 export interface InviteMemberInput {
   projectId: string;
@@ -35,7 +35,6 @@ export interface AcceptInvitationInput {
 }
 
 class ProjectMemberService {
-  // Role hierarchy for permission checks
   private readonly roleHierarchy: Record<TeamMemberRole, number> = {
     owner: 4,
     admin: 3,
@@ -59,7 +58,7 @@ class ProjectMemberService {
         return requesterLevel > targetLevel;
       case "update":
         if (requesterRole === "owner") return true;
-        return requesterLevel > targetLevel && requesterLevel >= this.roleHierarchy[targetRole];
+        return requesterLevel > targetLevel;
       default:
         return false;
     }
@@ -89,17 +88,6 @@ class ProjectMemberService {
         throw new UnauthorizedError({ message: "Insufficient permissions to invite users with this role" });
       }
 
-      const existingUser = await userRepository.findOne({ email: inviteeEmail });
-      if (existingUser) {
-        const existingMember = await projectMemberRepository.findByProjectAndUser(
-          projectId,
-          existingUser._id?.toString() || ""
-        );
-        if (existingMember) {
-          throw new BadRequestError({ message: "User is already a member of this project" });
-        }
-      }
-
       const existingInvitation = await projectInvitationRepository.findPendingByProjectAndEmail(
         projectId,
         inviteeEmail
@@ -114,12 +102,11 @@ class ProjectMemberService {
       }
 
       const token = this.generateInvitationToken();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       const invitation = await projectInvitationRepository.create({
-        projectId,
-        inviterUserId,
+        projectId: new ObjectId(projectId),
+        inviterUserId: new ObjectId(inviterUserId),
         inviteeEmail,
         role,
         token,
@@ -139,11 +126,9 @@ class ProjectMemberService {
       );
 
       if (!emailSent) {
-        await projectInvitationRepository.deleteById(invitation.id || "");
+        await projectInvitationRepository.deleteById(invitation.id!);
         throw new BadRequestError({ message: "Failed to send invitation email" });
       }
-
-      logger.info(`Project invitation sent: ${inviteeEmail} to project ${projectId} by ${inviterUserId}`);
 
       return {
         success: true,
@@ -163,36 +148,32 @@ class ProjectMemberService {
 
     try {
       const invitation = await projectInvitationRepository.findByToken(token);
-      if (!invitation) {
-        throw new NotFoundError({ message: "Invalid or expired invitation" });
-      }
-
+      if (!invitation) throw new NotFoundError({ message: "Invalid or expired invitation" });
       if (invitation.status !== "pending") {
         throw new BadRequestError({ message: "Invitation has already been processed" });
       }
-
       if (invitation.expiresAt < new Date()) {
-        await projectInvitationRepository.updateStatus(invitation.id || "", "expired");
+        await projectInvitationRepository.updateStatus(invitation.id!, "expired");
         throw new BadRequestError({ message: "Invitation has expired" });
       }
 
-      const user = await userRepository.findOne({ userId: userId });
-      if (!user) {
-        throw new NotFoundError({ message: "User not found" });
-      }
-
+      const user = await userRepository.findOne({ userId });
+      if (!user) throw new NotFoundError({ message: "User not found" });
       if (user.email !== invitation.inviteeEmail) {
-        throw new BadRequestError({ message: "Email mismatch. This invitation was sent to a different email address" });
+        throw new BadRequestError({
+          message: "Email mismatch. This invitation was sent to a different email address",
+        });
       }
 
-      const existingMember = await projectMemberRepository.findByProjectAndUser(invitation.projectId, userId);
+      const projectIdStr = invitation.projectId.toString();
+      const existingMember = await projectMemberRepository.findByProjectAndUser(projectIdStr, userId);
       if (existingMember) {
-        await projectInvitationRepository.updateStatus(invitation.id || "", "accepted");
+        await projectInvitationRepository.updateStatus(invitation.id!, "accepted");
         throw new BadRequestError({ message: "You are already a member of this project" });
       }
 
       const member = await projectMemberRepository.create({
-        projectId: invitation.projectId,
+        projectId: projectIdStr,
         userId,
         teamIds: [],
         role: invitation.role,
@@ -201,12 +182,10 @@ class ProjectMemberService {
         updatedAt: new Date(),
       });
 
-      await projectInvitationRepository.updateStatus(invitation.id || "", "accepted");
+      await projectInvitationRepository.updateStatus(invitation.id!, "accepted");
 
-      const memberWithDetails = await projectMemberRepository.findByProjectWithUserDetails(invitation.projectId);
+      const memberWithDetails = await projectMemberRepository.findByProjectWithUserDetails(projectIdStr);
       const newMember = memberWithDetails.find((m) => m.userId === userId);
-
-      logger.info(`Project invitation accepted: ${userId} joined project ${invitation.projectId}`);
 
       return {
         success: true,
@@ -222,15 +201,12 @@ class ProjectMemberService {
   async declineInvitation(token: string): Promise<{ success: boolean; message: string }> {
     try {
       const invitation = await projectInvitationRepository.findByToken(token);
-      if (!invitation) {
-        throw new NotFoundError({ message: "Invalid or expired invitation" });
-      }
-
+      if (!invitation) throw new NotFoundError({ message: "Invalid or expired invitation" });
       if (invitation.status !== "pending") {
         throw new BadRequestError({ message: "Invitation has already been processed" });
       }
 
-      await projectInvitationRepository.updateStatus(invitation.id || "", "declined");
+      await projectInvitationRepository.updateStatus(invitation.id!, "declined");
 
       return {
         success: true,
@@ -248,24 +224,20 @@ class ProjectMemberService {
     const { projectId, requesterId, memberId, newRole } = input;
 
     try {
-      // Check requester permissions
       const requester = await projectMemberRepository.findByProjectAndUser(projectId, requesterId);
       if (!requester) {
         throw new UnauthorizedError({ message: "You are not a member of this project" });
       }
 
-      // Get target member
       const targetMember = await projectMemberRepository.findByProjectAndUser(projectId, memberId);
       if (!targetMember) {
         throw new NotFoundError({ message: "Member not found in this project" });
       }
 
-      // Check permissions
       if (!this.hasPermission(requester.role as TeamMemberRole, targetMember.role as TeamMemberRole, "update")) {
         throw new UnauthorizedError({ message: "Insufficient permissions to update this member's role" });
       }
 
-      // Prevent removing the last owner
       if (targetMember.role === "owner" && newRole !== "owner") {
         const ownerCount = await projectMemberRepository.countByRole(projectId, "owner");
         if (ownerCount <= 1) {
@@ -273,17 +245,13 @@ class ProjectMemberService {
         }
       }
 
-      // Update role
       const updatedMember = await projectMemberRepository.updateRole(projectId, memberId, newRole);
       if (!updatedMember) {
         throw new NotFoundError({ message: "Failed to update member role" });
       }
 
-      // Get updated member with details
       const memberWithDetails = await projectMemberRepository.findByProjectWithUserDetails(projectId);
       const member = memberWithDetails.find((m) => m.userId === memberId);
-
-      logger.info(`Member role updated: ${memberId} in project ${projectId} to ${newRole} by ${requesterId}`);
 
       return {
         success: true,
@@ -302,19 +270,16 @@ class ProjectMemberService {
     memberId: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      // Check requester permissions
       const requester = await projectMemberRepository.findByProjectAndUser(projectId, requesterId);
       if (!requester) {
         throw new UnauthorizedError({ message: "You are not a member of this project" });
       }
 
-      // Get target member
       const targetMember = await projectMemberRepository.findByProjectAndUser(projectId, memberId);
       if (!targetMember) {
         throw new NotFoundError({ message: "Member not found in this project" });
       }
 
-      // Check permissions (members can leave themselves)
       if (
         memberId !== requesterId &&
         !this.hasPermission(requester.role as TeamMemberRole, targetMember.role as TeamMemberRole, "remove")
@@ -322,7 +287,6 @@ class ProjectMemberService {
         throw new UnauthorizedError({ message: "Insufficient permissions to remove this member" });
       }
 
-      // Prevent removing the last owner
       if (targetMember.role === "owner") {
         const ownerCount = await projectMemberRepository.countByRole(projectId, "owner");
         if (ownerCount <= 1) {
@@ -330,13 +294,10 @@ class ProjectMemberService {
         }
       }
 
-      // Remove member
       const removed = await projectMemberRepository.remove(projectId, memberId);
       if (!removed) {
         throw new NotFoundError({ message: "Failed to remove member" });
       }
-
-      logger.info(`Member removed: ${memberId} from project ${projectId} by ${requesterId}`);
 
       return {
         success: true,
@@ -349,7 +310,6 @@ class ProjectMemberService {
   }
 
   async getProjectMembers(projectId: string, requesterId: string): Promise<ProjectMemberWithDetails[]> {
-    // Check if requester is a member
     const requester = await projectMemberRepository.findByProjectAndUser(projectId, requesterId);
     if (!requester) {
       throw new UnauthorizedError({ message: "You are not a member of this project" });
@@ -359,15 +319,12 @@ class ProjectMemberService {
   }
 
   async getProjectStats(projectId: string, requesterId: string): Promise<ProjectMemberStats> {
-    // Check if requester is a member
     const requester = await projectMemberRepository.findByProjectAndUser(projectId, requesterId);
     if (!requester) {
       throw new UnauthorizedError({ message: "You are not a member of this project" });
     }
 
     const stats = await projectMemberRepository.getProjectStats(projectId);
-
-    // Add pending invitations count
     stats.pendingInvitations = await projectInvitationRepository.countPendingByProject(projectId);
 
     return stats;
@@ -383,7 +340,6 @@ class ProjectMemberService {
     invitationId: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      // Check requester permissions
       const requester = await projectMemberRepository.findByProjectAndUser(projectId, requesterId);
       if (!requester) {
         throw new UnauthorizedError({ message: "You are not a member of this project" });
@@ -393,7 +349,6 @@ class ProjectMemberService {
         throw new UnauthorizedError({ message: "Insufficient permissions to cancel invitations" });
       }
 
-      // Delete invitation
       const deleted = await projectInvitationRepository.deleteById(invitationId);
       if (!deleted) {
         throw new NotFoundError({ message: "Invitation not found" });

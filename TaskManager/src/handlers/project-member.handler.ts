@@ -11,26 +11,42 @@ import {
 } from "@/dtos/project/ProjectMember.dto";
 
 export async function inviteMember(req: Request, res: Response) {
-  const inviteData = validate.schema_validate(inviteMemberSchema, req.body);
+  const { projectId } = req.params;
 
+  if (!projectId) {
+    return res.status(400).json({
+      success: false,
+      message: "Project ID is required",
+    });
+  }
+
+  const inviteData = validate.schema_validate(inviteMemberSchema, req.body);
+  console.log("Invite Data:", inviteData);
   const result = await projectMemberService.inviteMember({
-    projectId: inviteData.projectId,
+    projectId,
     inviterUserId: req.user!.userId,
-    inviteeEmail: inviteData.inviteeEmail,
+    inviteeEmail: inviteData.email,
     role: inviteData.role,
   });
 
   res.status(200).json({
     success: true,
-    data: result,
+    result,
   });
 }
 
 export async function acceptInvitation(req: Request, res: Response) {
-  const acceptData = validate.schema_validate(acceptInvitationSchema, req.body);
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: "Token is required",
+    });
+  }
 
   const result = await projectMemberService.acceptInvitation({
-    token: acceptData.token,
+    token,
     userId: req.user!.userId,
   });
 
@@ -39,7 +55,6 @@ export async function acceptInvitation(req: Request, res: Response) {
     data: result,
   });
 }
-
 export async function declineInvitation(req: Request, res: Response) {
   const { token } = req.params;
 

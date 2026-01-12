@@ -3,11 +3,11 @@ import { z } from "zod";
 const teamMemberRoles = ["owner", "admin", "member", "viewer"] as const;
 
 export const inviteMemberSchema = z.object({
-  projectId: z.string().min(1, "Project ID is required"),
-  inviteeEmail: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address"),
   role: z
     .enum(teamMemberRoles)
     .refine((val) => teamMemberRoles.includes(val), { message: "Role must be one of: owner, admin, member, viewer" }),
+  message: z.string().optional(),
 });
 
 export const updateMemberRoleSchema = z.object({
