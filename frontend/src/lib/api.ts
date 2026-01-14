@@ -1,21 +1,11 @@
 // src/lib/api.ts
 import axios from "axios";
-import type {
-  User,
-  Project,
-  Sprint,
-  Issue,
-  Activity,
-  Comment,
-  ProjectColumn,
-  AuthResponse,
-  ApiResponse,
-} from "../types";
+import type { User, Comment, AuthResponse, ApiResponse } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -45,11 +35,19 @@ api.interceptors.response.use(
   }
 );
 
-// Auth API
-export const authApi = {
-  login: (email: string, password: string) => api.post<AuthResponse>("/api/auth/login", { email, password }),
+export interface ResponseApi<T> {
+  success: boolean;
+  status_code: number;
+  status: string;
+  message: string;
+  data?: T;
+}
 
-  sendOtp: (email: string) => api.post<ApiResponse<{ message: string }>>("/api/auth/send-otp", { email }),
+// Auth API (GIỮ NGUYÊN)
+export const authApi = {
+  login: (email: string, password: string) => api.post<AuthResponse>("/auth/login", { email, password }),
+
+  sendOtp: (email: string) => api.post<ApiResponse<{ message: string }>>("/auth/send-otp", { email }),
 
   register: (data: {
     email: string;
@@ -59,7 +57,7 @@ export const authApi = {
     confirmPassword: string;
     otp: string;
   }) =>
-    api.post<AuthResponse>("/api/auth/register", {
+    api.post<AuthResponse>("/auth/register", {
       email: data.email,
       password: data.password,
       first_name: data.firstName,
@@ -68,13 +66,13 @@ export const authApi = {
       otp: data.otp,
     }),
 
-  getCurrentUser: () => api.get<ApiResponse<User>>("/api/auth/me"),
+  getCurrentUser: () => api.get<ApiResponse<User>>("/auth/me"),
 
   sendForgotOtp: (email: string) =>
-    api.post<ApiResponse<{ message: string; email: string }>>("/api/auth/send-forgot-otp", { email }),
+    api.post<ApiResponse<{ message: string; email: string }>>("/auth/send-forgot-otp", { email }),
 
   resetPassword: (data: { email: string; otp: string; newPassword: string }) =>
-    api.post<ApiResponse<{ message: string; user?: User; token?: string }>>("/api/auth/reset-password", {
+    api.post<ApiResponse<{ message: string; user?: User; token?: string }>>("/auth/reset-password", {
       email: data.email,
       otp: data.otp,
       newPassword: data.newPassword,
@@ -82,67 +80,11 @@ export const authApi = {
 
   logout: () => {
     localStorage.removeItem("token");
-    return api.post("/api/auth/logout");
+    return api.post("/auth/logout");
   },
 };
 
-// User API
-export const userApi = {
-  getAll: () => api.get<ApiResponse<User[]>>("/api/users"),
-
-  getById: (id: string) => api.get<ApiResponse<User>>(`/api/users/${id}`),
-
-  create: (data: Partial<User>) => api.post<ApiResponse<User>>("/api/users", data),
-
-  update: (id: string, data: Partial<User>) => api.put<ApiResponse<User>>(`/api/users/${id}`, data),
-
-  delete: (id: string) => api.delete(`/api/users/${id}`),
-};
-
-// Project API
-export const projectApi = {
-  getAll: () => api.get<ApiResponse<Project[]>>("/api/projects"),
-
-  getById: (id: string) => api.get<ApiResponse<Project>>(`/api/projects/${id}`),
-
-  create: (data: Partial<Project>) => api.post<ApiResponse<Project>>("/api/projects", data),
-
-  update: (id: string, data: Partial<Project>) => api.put<ApiResponse<Project>>(`/api/projects/${id}`, data),
-
-  delete: (id: string) => api.delete(`/api/projects/${id}`),
-
-  getActivities: (projectId: string) => api.get<ApiResponse<Activity[]>>(`/api/projects/${projectId}/activities`),
-};
-
-// Sprint API
-export const sprintApi = {
-  getByProject: (projectId: string) => api.get<ApiResponse<Sprint[]>>("/api/sprints", { params: { projectId } }),
-
-  getById: (id: string) => api.get<ApiResponse<Sprint>>(`/api/sprints/${id}`),
-
-  create: (data: Partial<Sprint>) => api.post<ApiResponse<Sprint>>("/api/sprints", data),
-
-  update: (id: string, data: Partial<Sprint>) => api.put<ApiResponse<Sprint>>(`/api/sprints/${id}`, data),
-
-  delete: (id: string) => api.delete(`/api/sprints/${id}`),
-};
-
-// Issue API
-export const issueApi = {
-  getByProject: (projectId: string) => api.get<ApiResponse<Issue[]>>("/api/issues", { params: { projectId } }),
-
-  getByColumn: (columnId: string) => api.get<ApiResponse<Issue[]>>("/api/issues", { params: { columnId } }),
-
-  getById: (id: string) => api.get<ApiResponse<Issue>>(`/api/issues/${id}`),
-
-  create: (data: Partial<Issue>) => api.post<ApiResponse<Issue>>("/api/issues", data),
-
-  update: (id: string, data: Partial<Issue>) => api.put<ApiResponse<Issue>>(`/api/issues/${id}`, data),
-
-  delete: (id: string) => api.delete(`/api/issues/${id}`),
-};
-
-// Comment API (if you need it)
+// Comment API (GIỮ NGUYÊN)
 export const commentApi = {
   getByIssue: (issueId: string) => api.get<ApiResponse<Comment[]>>("/api/comments", { params: { issueId } }),
 
@@ -151,17 +93,6 @@ export const commentApi = {
   update: (id: string, data: Partial<Comment>) => api.put<ApiResponse<Comment>>(`/api/comments/${id}`, data),
 
   delete: (id: string) => api.delete(`/api/comments/${id}`),
-};
-
-// Column API (if you need it)
-export const columnApi = {
-  getByProject: (projectId: string) => api.get<ApiResponse<ProjectColumn[]>>("/api/columns", { params: { projectId } }),
-
-  create: (data: Partial<ProjectColumn>) => api.post<ApiResponse<ProjectColumn>>("/api/columns", data),
-
-  update: (id: string, data: Partial<ProjectColumn>) => api.put<ApiResponse<ProjectColumn>>(`/api/columns/${id}`, data),
-
-  delete: (id: string) => api.delete(`/api/columns/${id}`),
 };
 
 export default api;

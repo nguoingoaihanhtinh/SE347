@@ -16,15 +16,15 @@ export type ApiError = {
 
 export function extractErrorMessage(error: unknown): string {
   if (typeof error === "string") return error;
-  
+
   // Check axios error response first (before generic Error)
   const apiError = error as ApiError;
   if (apiError?.response?.data?.message) {
     return apiError.response.data.message;
   }
-  
+
   // Fallback to generic error message
   if (error instanceof Error) return error.message;
-  
+
   return "Đã có lỗi xảy ra";
 }
