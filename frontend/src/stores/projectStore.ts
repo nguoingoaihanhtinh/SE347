@@ -1,22 +1,23 @@
 import { create } from "zustand";
-import { projectApi } from "../lib/api";
-import type { Project, Activity } from "../types";
 import { extractErrorMessage } from "../types/api";
+import { projects } from "../apis/project";
+import type { IProject } from "../types/project";
+import type { Activity } from "../types";
 
 interface ProjectState {
-  projects: Project[];
-  currentProject: Project | null;
+  projects: IProject[];
+  currentProject: IProject | null;
   activities: Activity[];
   isLoading: boolean;
   error: string | null;
 
   fetchProjects: () => Promise<void>;
   fetchProject: (id: string) => Promise<void>;
-  createProject: (data: Partial<Project>) => Promise<Project>;
-  updateProject: (id: string, data: Partial<Project>) => Promise<void>;
+  createProject: (data: Omit<IProject, "id" | "createdAt" | "updatedAt">) => Promise<IProject>;
+  updateProject: (id: string, data: Partial<IProject>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   fetchActivities: (projectId: string) => Promise<void>;
-  setCurrentProject: (project: Project | null) => void;
+  setCurrentProject: (project: IProject | null) => void;
 }
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -29,27 +30,51 @@ export const useProjectStore = create<ProjectState>((set) => ({
   fetchProjects: async () => {
     try {
       set({ isLoading: true, error: null });
-      const { data } = await projectApi.getAll();
-      set({ projects: Array.isArray(data.data) ? data.data : [], isLoading: false });
+      const response = await projects.list();
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        set({
+          projects: response.data.data,
+          isLoading: false,
+        });
+      } else {
+        throw new Error(response.data.message || "Invalid project data format");
+      }
     } catch (error) {
-      set({ error: extractErrorMessage(error), isLoading: false });
+      const msg = extractErrorMessage(error);
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
     }
   },
 
   fetchProject: async (id) => {
     try {
       set({ isLoading: true, error: null });
-      const { data } = await projectApi.getById(id);
-      set({ currentProject: data.data, isLoading: false });
+      const response = await projects.getById(id);
+      if (response.data.success && response.data.data) {
+        set({ currentProject: response.data.data, isLoading: false });
+      } else {
+        throw new Error(response.data.message || "Failed to fetch project");
+      }
     } catch (error) {
-      set({ error: extractErrorMessage(error), isLoading: false });
+      const msg = extractErrorMessage(error);
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
     }
   },
 
   createProject: async (projectData) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await projectApi.create(projectData);
+      const response = await projects.create(projectData);
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to create project");
+      }
+      if (!response.data.data) {
+        throw new Error("Missing project data in response");
+      }
+
       const newProject = response.data.data;
       set((state) => ({
         projects: [...state.projects, newProject],
@@ -66,12 +91,19 @@ export const useProjectStore = create<ProjectState>((set) => ({
   updateProject: async (id, projectData) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await projectApi.update(id, projectData);
+      const response = await projects.update(id, projectData);
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to update project");
+      }
+      if (!response.data.data) {
+        throw new Error("Missing updated project data");
+      }
+
       const updatedProject = response.data.data;
       set((state) => ({
-        projects: state.projects.map((p) => (p.id === id || p._id === id ? updatedProject : p)),
-        currentProject:
-          state.currentProject?.id === id || state.currentProject?._id === id ? updatedProject : state.currentProject,
+        projects: state.projects.map((p) => (p.id === id ? updatedProject : p)),
+        currentProject: state.currentProject?.id === id ? updatedProject : state.currentProject,
         isLoading: false,
       }));
     } catch (error) {
@@ -84,11 +116,10 @@ export const useProjectStore = create<ProjectState>((set) => ({
   deleteProject: async (id) => {
     try {
       set({ isLoading: true, error: null });
-      await projectApi.delete(id);
+      await projects.delete(id);
       set((state) => ({
-        projects: state.projects.filter((p) => p.id !== id && p._id !== id),
-        currentProject:
-          state.currentProject?.id === id || state.currentProject?._id === id ? null : state.currentProject,
+        projects: state.projects.filter((p) => p.id !== id),
+        currentProject: state.currentProject?.id === id ? null : state.currentProject,
         isLoading: false,
       }));
     } catch (error) {
@@ -100,10 +131,16 @@ export const useProjectStore = create<ProjectState>((set) => ({
 
   fetchActivities: async (projectId) => {
     try {
-      const { data } = await projectApi.getActivities(projectId);
-      set({ activities: Array.isArray(data.data) ? data.data : [] });
+      set({ isLoading: true, error: null });
+      const response = await projects.getActivities(projectId);
+      if (response.data.success && Array.isArray(response.data.data)) {
+        set({ activities: response.data.data, isLoading: false });
+      } else {
+        set({ activities: [], isLoading: false });
+      }
     } catch (error) {
       console.error("Failed to fetch activities:", extractErrorMessage(error));
+      set({ activities: [], isLoading: false });
     }
   },
 

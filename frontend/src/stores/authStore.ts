@@ -72,14 +72,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   loadUser: async () => {
     try {
       set({ isLoading: true });
-      
+
       // SECURITY: Check token exists before calling API
       const token = localStorage.getItem("token");
       if (!token) {
         set({ user: null, isAuthenticated: false, isLoading: false });
         return;
       }
-      
+
       const { data } = await authApi.getCurrentUser();
       set({ user: data.data, isAuthenticated: true, isLoading: false });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

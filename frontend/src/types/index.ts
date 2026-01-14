@@ -1,89 +1,14 @@
 // src/types/index.ts
 
 export interface User {
-  _id?: string;
-  id?: string;
+  id: string;
   email: string;
-  password?: string;
   firstName: string;
   lastName: string;
-  avatar?: string | null;
-  role: "student" | "company" | "admin" | "user";
-  is_verified?: boolean;
-  created_at?: Date;
-  updated_at?: Date;
-}
-
-export interface Project {
-  _id?: string;
-  id?: string;
-  name: string;
-  key: string;
-  access: "public" | "private";
-  type: "scrum" | "kanban";
-  ownerId: string;
-  owner?: User;
-  members?: ProjectMember[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ProjectColumn {
-  _id?: string;
-  id?: string;
-  name: string;
-  projectId: string;
-  issueIds: string[];
-  issues?: Issue[];
-  order: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Sprint {
-  _id?: string;
-  id?: string;
-  name: string;
-  dateStarted: Date;
-  dateEnded: Date;
-  duration: number;
-  goal: string;
-  projectId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export type IssueType = "task" | "story" | "bug" | "epic";
-export type IssuePriority = "low" | "medium" | "high" | "critical";
-
-export interface Issue {
-  _id?: string;
-  id?: string;
-  title: string;
-  key: string; // Auto-generated: PROJECT_KEY-NUMBER
-  summary: string;
-  description: string;
-  storyPoint: number;
-  type?: IssueType;
-  priority?: IssuePriority;
-  projectId: string;
-  sprintId?: string;
-  columnId: string;
-  creatorId?: string;
-  reporterId: string;
-  assigneeId?: string;
-  parentId?: string;
-  teamId?: string;
-  attachments: string[];
-  dueDateFrom?: Date;
-  dueDateTo?: Date;
-  completedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  // Populated fields
-  assignee?: User;
-  reporter?: User;
-  creator?: User;
+  avatar: string | null;
+  role: "user" | "admin" | "super_admin";
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProjectTeam {

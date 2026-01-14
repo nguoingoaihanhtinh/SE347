@@ -1,20 +1,21 @@
+// src/stores/sprintStore.ts
 import { create } from "zustand";
-import { sprintApi } from "../lib/api";
-import type { Sprint } from "../types";
+import { sprints } from "../apis/sprint";
+import type { ISprint } from "../types/sprint";
 import { extractErrorMessage } from "../types/api";
 
 interface SprintState {
-  sprints: Sprint[];
-  currentSprint: Sprint | null;
+  sprints: ISprint[];
+  currentSprint: ISprint | null;
   isLoading: boolean;
   error: string | null;
 
   fetchSprintsByProject: (projectId: string) => Promise<void>;
-  fetchSprint: (id: string) => Promise<void>;
-  createSprint: (data: Partial<Sprint>) => Promise<Sprint>;
-  updateSprint: (id: string, data: Partial<Sprint>) => Promise<void>;
-  deleteSprint: (id: string) => Promise<void>;
-  setCurrentSprint: (sprint: Sprint | null) => void;
+  fetchSprint: (projectId: string, sprintId: string) => Promise<void>;
+  createSprint: (projectId: string, data: Omit<ISprint, "id" | "createdAt" | "updatedAt">) => Promise<ISprint>;
+  updateSprint: (projectId: string, sprintId: string, data: Partial<ISprint>) => Promise<void>;
+  deleteSprint: (projectId: string, sprintId: string) => Promise<void>;
+  setCurrentSprint: (sprint: ISprint | null) => void;
   clearSprints: () => void;
 }
 
@@ -27,27 +28,50 @@ export const useSprintStore = create<SprintState>((set) => ({
   fetchSprintsByProject: async (projectId) => {
     try {
       set({ isLoading: true, error: null });
-      const { data } = await sprintApi.getByProject(projectId);
-      set({ sprints: Array.isArray(data.data) ? data.data : [], isLoading: false });
+      const response = await sprints.list(projectId);
+      if (response.data.success && response.data.data?.data) {
+        set({
+          sprints: Array.isArray(response.data.data.data) ? response.data.data.data : [],
+          isLoading: false,
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to fetch sprints");
+      }
     } catch (error) {
-      set({ error: extractErrorMessage(error), isLoading: false });
+      const msg = extractErrorMessage(error);
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
     }
   },
 
-  fetchSprint: async (id) => {
+  fetchSprint: async (projectId, sprintId) => {
     try {
       set({ isLoading: true, error: null });
-      const { data } = await sprintApi.getById(id);
-      set({ currentSprint: data.data, isLoading: false });
+      const response = await sprints.getById(projectId, sprintId);
+      if (response.data.success && response.data.data) {
+        set({ currentSprint: response.data.data, isLoading: false });
+      } else {
+        throw new Error(response.data.message || "Failed to fetch sprint");
+      }
     } catch (error) {
-      set({ error: extractErrorMessage(error), isLoading: false });
+      const msg = extractErrorMessage(error);
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
     }
   },
 
-  createSprint: async (sprintData) => {
+  createSprint: async (projectId, sprintData) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await sprintApi.create(sprintData);
+      const response = await sprints.create(projectId, { ...sprintData, projectId });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to create sprint");
+      }
+      if (!response.data.data) {
+        throw new Error("Missing sprint data in response");
+      }
+
       const newSprint = response.data.data;
       set((state) => ({
         sprints: [...state.sprints, newSprint],
@@ -61,15 +85,22 @@ export const useSprintStore = create<SprintState>((set) => ({
     }
   },
 
-  updateSprint: async (id, sprintData) => {
+  updateSprint: async (projectId, sprintId, sprintData) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await sprintApi.update(id, sprintData);
+      const response = await sprints.update(projectId, sprintId, sprintData);
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to update sprint");
+      }
+      if (!response.data.data) {
+        throw new Error("Missing updated sprint data");
+      }
+
       const updatedSprint = response.data.data;
       set((state) => ({
-        sprints: state.sprints.map((s) => (s.id === id || s._id === id ? updatedSprint : s)),
-        currentSprint:
-          state.currentSprint?.id === id || state.currentSprint?._id === id ? updatedSprint : state.currentSprint,
+        sprints: state.sprints.map((s) => (s.id === sprintId ? updatedSprint : s)),
+        currentSprint: state.currentSprint?.id === sprintId ? updatedSprint : state.currentSprint,
         isLoading: false,
       }));
     } catch (error) {
@@ -79,13 +110,13 @@ export const useSprintStore = create<SprintState>((set) => ({
     }
   },
 
-  deleteSprint: async (id) => {
+  deleteSprint: async (projectId, sprintId) => {
     try {
       set({ isLoading: true, error: null });
-      await sprintApi.delete(id);
+      await sprints.delete(projectId, sprintId);
       set((state) => ({
-        sprints: state.sprints.filter((s) => s.id !== id && s._id !== id),
-        currentSprint: state.currentSprint?.id === id || state.currentSprint?._id === id ? null : state.currentSprint,
+        sprints: state.sprints.filter((s) => s.id !== sprintId),
+        currentSprint: state.currentSprint?.id === sprintId ? null : state.currentSprint,
         isLoading: false,
       }));
     } catch (error) {

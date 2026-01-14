@@ -73,7 +73,10 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <form className="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm" onSubmit={handleSubmit(onSubmit)}>
+      <form
+        className="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+        onSubmit={handleSubmit(onSubmit)}
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <InputField label="Họ" error={errors.firstName?.message} {...register("firstName")} />
           <InputField label="Tên" error={errors.lastName?.message} {...register("lastName")} />
@@ -95,5 +98,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-
