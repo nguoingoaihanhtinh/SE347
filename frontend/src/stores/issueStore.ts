@@ -31,21 +31,21 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await issues.list({ projectId, page: 1, limit: 50 });
-      if (response.data.success && response.data.data?.data) {
+
+      if (response.data.success && Array.isArray(response.data.data)) {
         set({
-          issues: Array.isArray(response.data.data.data) ? response.data.data.data : [],
+          issues: response.data.data,
           isLoading: false,
         });
       } else {
-        throw new Error(response.data.message || "Failed to fetch issues");
+        throw new Error("Invalid issues data format");
       }
     } catch (error) {
-      const errorMessage = extractErrorMessage(error);
-      set({ error: errorMessage, isLoading: false });
-      throw new Error(errorMessage);
+      const msg = extractErrorMessage(error);
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
     }
   },
-
   fetchIssuesByColumn: async (columnId, projectId) => {
     try {
       set({ isLoading: true, error: null });

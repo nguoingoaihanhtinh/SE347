@@ -37,7 +37,7 @@ export interface ResponseApi<T> {
   status_code: number;
   status: string;
   message: string;
-  T;
+  data: T;
   pagination?: {
     page: number;
     limit: number;

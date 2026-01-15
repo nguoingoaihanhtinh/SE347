@@ -29,13 +29,11 @@ export const useSprintStore = create<SprintState>((set) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await sprints.list(projectId);
-      if (response.data.success && response.data.data?.data) {
-        set({
-          sprints: Array.isArray(response.data.data.data) ? response.data.data.data : [],
-          isLoading: false,
-        });
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        set({ sprints: response.data.data, isLoading: false });
       } else {
-        throw new Error(response.data.message || "Failed to fetch sprints");
+        throw new Error("Invalid sprint data format");
       }
     } catch (error) {
       const msg = extractErrorMessage(error);
@@ -43,7 +41,6 @@ export const useSprintStore = create<SprintState>((set) => ({
       throw new Error(msg);
     }
   },
-
   fetchSprint: async (projectId, sprintId) => {
     try {
       set({ isLoading: true, error: null });
