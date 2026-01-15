@@ -49,10 +49,11 @@ router.get("/:projectId/activities", getProjectActivities);
 router.get("/:projectId/columns", projectColumnHandler.getProjectColumns);
 router.post("/:projectId/columns", projectColumnHandler.createColumn);
 router.get("/:projectId/columns/:columnId", projectColumnHandler.getColumnById);
+router.put("/:projectId/columns/reorder", projectColumnHandler.reorderColumns);
 router.put("/:projectId/columns/:columnId", projectColumnHandler.updateColumn);
 router.delete("/:projectId/columns/:columnId", projectColumnHandler.deleteColumn);
 router.post("/:projectId/columns/:columnId/issues", projectColumnHandler.addIssueToColumn);
-router.put("/:projectId/columns/reorder", projectColumnHandler.reorderColumns);
+
 router.post("/:projectId/columns/initialize", projectColumnHandler.initializeDefaultColumns);
 
 router.use("/:projectId/sprints", sprintRoutes);
