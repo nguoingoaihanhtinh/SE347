@@ -12,7 +12,9 @@ import type { ProjectMember } from "../types"; // ✅ Import từ index.ts
 const config = {
   withCredentials: true,
 };
-
+interface ReorderColumnsParams {
+  columnOrders: { columnId: string; order: number }[];
+}
 export const projects = {
   list: (params?: { page?: number; limit?: number; ownerId?: string }) => {
     const url = new URLSearchParams();
@@ -21,17 +23,7 @@ export const projects = {
     if (params?.ownerId) url.append("ownerId", params.ownerId);
 
     const queryString = url.toString() ? `?${url.toString()}` : "";
-    return api.get<
-      ResponseApi<{
-        data: IProject[];
-        pagination: {
-          page: number;
-          limit: number;
-          total: number;
-          total_pages: number;
-        };
-      }>
-    >(`/projects${queryString}`, config);
+    return api.get<ResponseApi<IProject[]>>(`/projects${queryString}`, config);
   },
 
   getById: (projectId: string) => api.get<ResponseApi<IProject>>(`/projects/${projectId}`, config),
@@ -111,7 +103,7 @@ export const projects = {
   deleteColumn: (projectId: string, columnId: string) =>
     api.delete<ResponseApi<void>>(`/projects/${projectId}/columns/${columnId}`, config),
 
-  reorderColumns: (projectId: string, data: UpdateColumnOrderParams) =>
+  reorderColumns: (projectId: string, data: ReorderColumnsParams) =>
     api.put<ResponseApi<void>>(`/projects/${projectId}/columns/reorder`, data, config),
 
   initializeColumns: (projectId: string) =>

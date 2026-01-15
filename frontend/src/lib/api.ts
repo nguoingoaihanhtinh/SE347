@@ -5,14 +5,12 @@ import type { User, Comment, AuthResponse, ApiResponse } from "../types";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: `${API_BASE_URL}/api`, // ✅ Đảm bảo có /api
+  headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
 
-// Thêm token vào header nếu có
+// Interceptors (giữ nguyên nếu đã có)
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -21,7 +19,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Xử lý lỗi từ server
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -40,9 +37,14 @@ export interface ResponseApi<T> {
   status_code: number;
   status: string;
   message: string;
-  data?: T;
+  T;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
 }
-
 // Auth API (GIỮ NGUYÊN)
 export const authApi = {
   login: (email: string, password: string) => api.post<AuthResponse>("/auth/login", { email, password }),
