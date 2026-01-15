@@ -17,7 +17,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       // No token, don't even try to load user
       return;
     }
-    loadUser();
+    loadUser().catch((error) => {
+      console.error("Failed to load user:", error);
+    });
   }, [loadUser]);
 
   if (isLoading) {
