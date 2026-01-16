@@ -1,6 +1,6 @@
 import api, { type ResponseApi } from "../lib/api";
 import { type IUser, type UpdateUserProfileParams } from "../types/user";
-import type { UserStats } from "../types/project"; // ✅ SỬA IMPORT PATH
+import type { UserStats } from "../types/project";
 
 const config = {
   withCredentials: true,

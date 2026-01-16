@@ -13,7 +13,6 @@ import {
   Divider,
   Breadcrumbs,
   Link,
-  Container,
   Chip,
   Stack,
 } from "@mui/material";
@@ -39,7 +38,7 @@ interface ProjectLayoutProps {
   breadcrumb?: { label: string; path?: string }[];
 }
 
-const drawerWidth = 220;
+const drawerWidth = 240; // Tăng width drawer cho đủ không gian
 
 const defaultNav: ProjectNavItem[] = [
   { label: "Overview", path: "/project/overview", icon: <FolderIcon /> },
@@ -54,7 +53,7 @@ export default function ProjectLayout({
   projectName,
   projectCode,
   navItems,
-  maxWidth = "lg",
+  maxWidth = false,
   breadcrumb = [],
 }: ProjectLayoutProps) {
   const [open, setOpen] = useState<boolean>(true);
@@ -73,15 +72,17 @@ export default function ProjectLayout({
             width: drawerWidth,
             boxSizing: "border-box",
             bgcolor: "background.paper",
+            borderRight: "1px solid",
+            borderColor: "divider",
           },
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ height: 64 }}>
           <Stack direction="column" spacing={0.5}>
-            <Typography variant="subtitle2" color="text.secondary">
+            <Typography variant="subtitle2" color="text.secondary" fontWeight={500}>
               PROJECT
             </Typography>
-            <Typography variant="h6" color="primary" noWrap>
+            <Typography variant="h6" fontWeight={600} color="primary" noWrap>
               {projectName || "Untitled"}
             </Typography>
             {projectCode && (
@@ -96,40 +97,79 @@ export default function ProjectLayout({
           </Stack>
         </Toolbar>
         <Divider />
-        <List>
-          {items.map((item) => (
-            <ListItemButton key={item.path} onClick={() => (window.location.href = item.path)}>
-              {item.icon && <ListItemIcon>{item.icon}</ListItemIcon>}
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          ))}
-        </List>
+        <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
+          <List>
+            {items.map((item) => (
+              <ListItemButton
+                key={item.path}
+                onClick={() => (window.location.href = item.path)}
+                sx={{
+                  "&:hover": { bgcolor: "action.hover" },
+                  py: 1.5,
+                }}
+              >
+                {item.icon && (
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    {React.cloneElement(item.icon as React.ReactElement, {
+                      sx: { color: "text.secondary" },
+                    })}
+                  </ListItemIcon>
+                )}
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontWeight: 500,
+                    fontSize: "0.925rem",
+                  }}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        </Box>
       </Drawer>
 
       {/* Main content area */}
-      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0, // Quan trọng để kích hoạt scrolling
+        }}
+      >
         <AppBar
           position="sticky"
           elevation={0}
           color="transparent"
           sx={{
             borderBottom: "1px solid",
-            borderColor: "grey.200",
+            borderColor: "divider",
             bgcolor: "background.paper",
+            height: 64,
+            zIndex: 1100,
           }}
         >
-          <Toolbar>
-            <IconButton edge="start" aria-label="menu" onClick={() => setOpen((o) => !o)} sx={{ mr: 2 }}>
+          <Toolbar sx={{ minHeight: 64 }}>
+            <IconButton
+              edge="start"
+              aria-label="menu"
+              onClick={() => setOpen((o) => !o)}
+              sx={{
+                mr: 2,
+                bgcolor: "action.hover",
+                "&:hover": { bgcolor: "action.selected" },
+              }}
+            >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" color="primary" sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" fontWeight={600} color="primary" sx={{ flexGrow: 1 }}>
               {projectName || "Project"}
             </Typography>
-            {/* Placeholder for right side actions (search, avatar...) */}
+            {/* Có thể thêm các action buttons ở đây */}
           </Toolbar>
           {breadcrumb.length > 0 && (
-            <Box sx={{ px: 3, pb: 1 }}>
-              <Breadcrumbs>
+            <Box sx={{ px: 3, pb: 1.5, pt: 0.5 }}>
+              <Breadcrumbs aria-label="breadcrumb">
                 {breadcrumb.map((b, idx) =>
                   b.path ? (
                     <Link
@@ -141,12 +181,16 @@ export default function ProjectLayout({
                           window.location.href = b.path;
                         }
                       }}
-                      sx={{ cursor: "pointer" }}
+                      sx={{
+                        cursor: "pointer",
+                        fontWeight: 500,
+                        "&:hover": { color: "primary.main" },
+                      }}
                     >
                       {b.label}
                     </Link>
                   ) : (
-                    <Typography key={idx} color="text.primary">
+                    <Typography key={idx} color="text.primary" fontWeight={500}>
                       {b.label}
                     </Typography>
                   )
@@ -155,18 +199,21 @@ export default function ProjectLayout({
             </Box>
           )}
         </AppBar>
-        <Container
-          maxWidth={maxWidth}
+
+        {/* Scrollable content area */}
+        <Box
+          component="main"
           sx={{
             flexGrow: 1,
-            py: 4,
-            display: "flex",
-            flexDirection: "column",
-            gap: 3,
+            overflowY: "auto", // Kích hoạt scrolling dọc
+            overflowX: "hidden", // Ngăn horizontal scroll trừ khi cần thiết
+            p: { xs: 2, sm: 3, md: 4 },
+            bgcolor: "background.default",
+            minHeight: 0, // Quan trọng để flexbox hoạt động với scrolling
           }}
         >
           {children}
-        </Container>
+        </Box>
       </Box>
     </Box>
   );

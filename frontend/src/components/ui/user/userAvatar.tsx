@@ -1,3 +1,4 @@
+// src/components/ui/user/UserAvatar.tsx
 import { memo } from "react";
 import { Avatar } from "antd";
 import { FaUserAltSlash } from "react-icons/fa";
@@ -11,45 +12,44 @@ type Props = {
 
 function buildCloudinaryUrl(url: string, size: number) {
   if (!url) return "";
-  // Chèn transform Cloudinary vào (w,h,c_fill,f_auto,q_auto)
   return url.replace("/upload/", `/upload/w_${size},h_${size},c_fill,f_auto,q_auto/`);
 }
 
 const UserAvatar = memo(({ userId, size = 28, isDisplayName = true }: Props) => {
-  const { user } = useUserById(userId || "");
+  const { user, isLoading } = useUserById(userId || "");
 
+  // Xử lý trường hợp không có userId
   if (!userId) {
     return (
       <div className="flex flex-row items-center justify-start gap-2">
         <div className="flex items-center justify-center rounded-full bg-gray-200 p-1">
-          <FaUserAltSlash />
+          <FaUserAltSlash className="text-gray-500" />
         </div>
         {isDisplayName && <span className="text-sm font-medium text-gray-700">Unassigned</span>}
       </div>
     );
   }
 
+  // Xử lý loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-row items-center gap-2">
+        <div className="animate-pulse rounded-full bg-gray-200" style={{ width: size, height: size }} />
+        {isDisplayName && <span className="text-sm font-medium text-gray-400">Loading...</span>}
+      </div>
+    );
+  }
+
+  // Xử lý khi có user data
   const avatarUrl = user?.avatar ? buildCloudinaryUrl(user.avatar, size) : "";
 
   return (
     <div className="flex flex-row items-center gap-2">
       <Avatar
         size={size}
-        src={
-          avatarUrl ? (
-            <img
-              src={avatarUrl}
-              srcSet={`
-                ${buildCloudinaryUrl(user?.avatar || "", size)} 1x,
-                ${buildCloudinaryUrl(user?.avatar || "", size * 2)} 2x
-              `}
-              alt={`user avatar`}
-              loading="lazy"
-            />
-          ) : undefined
-        }
+        src={avatarUrl || undefined}
         style={{
-          backgroundColor: "rgba(161, 157, 157)",
+          backgroundColor: avatarUrl ? "transparent" : "rgba(161, 157, 157)",
           color: "#ffffff",
           display: "flex",
           alignItems: "center",
@@ -60,10 +60,10 @@ const UserAvatar = memo(({ userId, size = 28, isDisplayName = true }: Props) => 
           border: "2px solid white",
         }}
       >
-        {user?.fullName}
+        {!avatarUrl && (user?.fullName?.charAt(0) || "U")}
       </Avatar>
 
-      {isDisplayName && <p className="text-sm font-medium text-gray-700">{user?.fullName}</p>}
+      {isDisplayName && <p className="text-sm font-medium text-gray-700">{user?.fullName || "Unknown User"}</p>}
     </div>
   );
 });

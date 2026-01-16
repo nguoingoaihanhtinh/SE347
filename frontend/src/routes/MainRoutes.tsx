@@ -12,6 +12,7 @@ import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ProjectsPage from "../pages/ProjectsPage";
 import BoardPage from "../pages/BoardPage";
 import ProfilePage from "../pages/ProfilePage";
+import BacklogPage from "../pages/BacklogPage";
 
 // Wrappers
 function DefaultLayoutWrapper() {
@@ -55,7 +56,7 @@ export default function MainRoutes() {
 
             {/* Project Board - Nested in Project Layout */}
             <Route path="projects/:projectId" element={<ProjectLayoutWrapper />}>
-              <Route path="board" element={<BoardPage />} />
+              <Route path="board" element={<BacklogPage />} />
             </Route>
 
             <Route path="*" element={<PageNotFound />} />
