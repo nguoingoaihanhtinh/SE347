@@ -22,6 +22,7 @@ interface CreateIssueModalProps {
   isEditing?: boolean;
   initialIssue?: IIssue;
   defaultSprintId?: string;
+  onSuccess?: () => void; // Callback sau khi tạo thành công
 }
 
 const ISSUE_TYPES = ["task", "story", "bug", "epic"] as const;
@@ -39,6 +40,9 @@ const issueSchema = z.object({
   sprintId: z.string().optional(),
   assigneeId: z.string().optional(),
   attachments: z.array(z.string()).optional(),
+  dueDateFrom: z.string().optional(),
+  dueDateTo: z.string().optional(),
+  storyPoint: z.number().int().min(0).default(0),
 });
 
 type IssueFormInputs = z.infer<typeof issueSchema>;
@@ -51,6 +55,7 @@ const CreateIssueModal = ({
   isEditing = false,
   initialIssue,
   defaultSprintId,
+  onSuccess,
 }: CreateIssueModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { currentProject } = useProjectStore();
@@ -79,14 +84,18 @@ const CreateIssueModal = ({
       sprintId: defaultSprintId || "",
       assigneeId: "",
       attachments: [],
+      dueDateFrom: "",
+      dueDateTo: "",
+      storyPoint: 0,
     },
   });
 
   const columnId = watch("columnId");
   const priority = watch("priority");
   const type = watch("type");
+  const dueDateFrom = watch("dueDateFrom");
+  const dueDateTo = watch("dueDateTo");
 
-  // Load data when modal opens
   useEffect(() => {
     if (!isOpen || !projectId) return;
 
@@ -101,7 +110,6 @@ const CreateIssueModal = ({
     loadData();
   }, [isOpen, projectId]);
 
-  // Set initial values for edit mode
   useEffect(() => {
     if (isEditing && initialIssue && columns.length > 0) {
       reset({
@@ -114,14 +122,15 @@ const CreateIssueModal = ({
         sprintId: initialIssue.sprintId || "",
         assigneeId: initialIssue.assigneeId || "",
         attachments: initialIssue.attachments || [],
+        dueDateFrom: initialIssue.dueDateFrom ? new Date(initialIssue.dueDateFrom).toISOString().split("T")[0] : "",
+        dueDateTo: initialIssue.dueDateTo ? new Date(initialIssue.dueDateTo).toISOString().split("T")[0] : "",
+        storyPoint: initialIssue.storyPoint || 0,
       });
     } else if (columns.length > 0 && !columnId) {
-      // Set default column
       setValue("columnId", columns[0].id);
     }
   }, [isEditing, initialIssue, columns, reset, setValue, columnId]);
 
-  // Set sprint ID from props
   useEffect(() => {
     if (sprintId) {
       setValue("sprintId", sprintId);
@@ -146,6 +155,16 @@ const CreateIssueModal = ({
     setFiles(selectedFiles);
   }, []);
 
+  const cleanData = (data: any) => {
+    const result = { ...data };
+    Object.keys(result).forEach((key) => {
+      if (result[key] === null || result[key] === undefined || result[key] === "") {
+        delete result[key];
+      }
+    });
+    return result;
+  };
+
   const onSubmit = handleSubmit(async (data: IssueFormInputs) => {
     if (!projectId) {
       toast.error("Project ID is missing");
@@ -155,6 +174,9 @@ const CreateIssueModal = ({
     setIsLoading(true);
 
     try {
+      const formattedDueDateFrom = dueDateFrom ? new Date(dueDateFrom).toISOString() : null;
+      const formattedDueDateTo = dueDateTo ? new Date(dueDateTo).toISOString() : null;
+
       if (isEditing && initialIssue) {
         const updateData: UpdateIssueParams = {
           title: data.title,
@@ -164,29 +186,37 @@ const CreateIssueModal = ({
           priority: data.priority,
           sprintId: data.sprintId || null,
           assigneeId: data.assigneeId || null,
+          dueDateFrom: formattedDueDateFrom,
+          dueDateTo: formattedDueDateTo,
+          storyPoint: data.storyPoint,
         };
 
         await updateIssue(projectId, initialIssue.id, updateData);
         toast.success("Issue updated successfully!");
       } else {
-        const createData: CreateIssueParams = {
-          projectId,
+        const cleanedData = cleanData({
           title: data.title,
           summary: data.summary,
           description: data.description,
           columnId: data.columnId,
           priority: data.priority,
           type: data.type,
+          projectId: projectId,
           reporterId: currentProject?.ownerId || "",
           assigneeId: data.assigneeId || null,
           sprintId: data.sprintId || null,
-          dueDateFrom: null,
-          dueDateTo: null,
-          storyPoint: 0,
-        };
+          dueDateFrom: formattedDueDateFrom,
+          dueDateTo: formattedDueDateTo,
+          storyPoint: data.storyPoint,
+        });
 
-        await createIssue(createData);
+        await createIssue(cleanedData);
         toast.success("Issue created successfully!");
+
+        // ✅ GỌI CALLBACK SAU KHI TẠO THÀNH CÔNG
+        if (onSuccess) {
+          onSuccess();
+        }
       }
 
       onClose();
@@ -219,7 +249,6 @@ const CreateIssueModal = ({
       <div className="max-h-[calc(100vh-200px)] overflow-auto p-4">
         <form className="space-y-4">
           <div className="mb-6 space-y-4">
-            {/* Project Display */}
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Project</label>
               <div className="rounded-md bg-gray-50 px-3 py-2">
@@ -227,7 +256,6 @@ const CreateIssueModal = ({
               </div>
             </div>
 
-            {/* Sprint Selection */}
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Sprint (Optional)</label>
               <Dropdown
@@ -317,16 +345,58 @@ const CreateIssueModal = ({
             />
           </div>
 
-          <div>
-            <label htmlFor="column" className="mb-1 block text-sm font-medium text-gray-700">
-              Status <span className="text-red-500">*</span>
-            </label>
-            <Dropdown
-              options={columns.map((column) => ({ value: column.id, label: column.name }))}
-              selectedValue={columnId}
-              onChange={(value) => setValue("columnId", value)}
-            />
-            {errors.columnId && <p className="mt-1 text-sm text-red-500">{errors.columnId.message}</p>}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="column" className="mb-1 block text-sm font-medium text-gray-700">
+                Status <span className="text-red-500">*</span>
+              </label>
+              <Dropdown
+                options={columns.map((column) => ({ value: column.id, label: column.name }))}
+                selectedValue={columnId}
+                onChange={(value) => setValue("columnId", value)}
+              />
+              {errors.columnId && <p className="mt-1 text-sm text-red-500">{errors.columnId.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="storyPoint" className="mb-1 block text-sm font-medium text-gray-700">
+                Story Point
+              </label>
+              <input
+                id="storyPoint"
+                type="number"
+                min="0"
+                {...register("storyPoint", { valueAsNumber: true })}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="dueDateFrom" className="mb-1 block text-sm font-medium text-gray-700">
+                Due Date From
+              </label>
+              <input
+                id="dueDateFrom"
+                type="date"
+                {...register("dueDateFrom")}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="dueDateTo" className="mb-1 block text-sm font-medium text-gray-700">
+                Due Date To
+              </label>
+              <input
+                id="dueDateTo"
+                type="date"
+                {...register("dueDateTo")}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
           </div>
 
           <div>
@@ -336,7 +406,6 @@ const CreateIssueModal = ({
             <Dropdown
               options={[
                 { value: "", label: "Unassigned" },
-                // In real app, you would fetch actual project members
                 { value: "user1", label: "User 1" },
                 { value: "user2", label: "User 2" },
               ]}

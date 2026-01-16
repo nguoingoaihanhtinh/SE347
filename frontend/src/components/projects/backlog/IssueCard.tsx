@@ -6,7 +6,9 @@ import type { IIssue } from "../../../types/issue";
 import type { IColumn } from "../../../types/project";
 import { useIssueStore } from "../../../stores/issueStore";
 import UserAvatar from "../../ui/user/userAvatar";
-import { statusOptions, IconRenderer, typeOptions, priorityOptions } from "../../../constants/list";
+// Cập nhật import - lấy constants từ file .ts, component từ file .tsx
+import { statusOptions, typeOptions, priorityOptions } from "../../../constants/list";
+import IconRenderer from "../../../components/ui/IconRenderer";
 
 interface IssueCardProps {
   issue: IIssue;
@@ -21,7 +23,8 @@ const IssueCard = memo(
   ({ issue, projectId, columns, isDragging, overItemId, setIsSprintIssuesChecked }: IssueCardProps) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useDraggable({
       id: issue.id,
-       {
+      data: {
+        // Đã sửa lỗi cú pháp bằng cách thêm "data"
         type: "Issue",
         issue,
       },
@@ -35,16 +38,16 @@ const IssueCard = memo(
 
     const { selectedIssues, setSelectedIssues } = useIssueStore();
     const isSelected = selectedIssues[issue.sprintId || ""]?.some((i) => i.id === issue.id);
-    
+
     const handleCardClick = () => {
       const { openIssueDetail } = useIssueStore.getState();
       openIssueDetail(issue.id);
     };
 
     // Get type and priority info
-    const typeInfo = typeOptions.find(opt => opt.id === issue.type);
-    const priorityInfo = priorityOptions.find(opt => opt.name === issue.priority);
-    const status = statusOptions.find(opt => opt.key === columns.find(c => c.id === issue.columnId)?.name);
+    const typeInfo = typeOptions.find((opt) => opt.id === issue.type);
+    const priorityInfo = priorityOptions.find((opt) => opt.name === issue.priority);
+    const status = statusOptions.find((opt) => opt.key === columns.find((c) => c.id === issue.columnId)?.name);
 
     return (
       <div
@@ -54,9 +57,9 @@ const IssueCard = memo(
         {...listeners}
         onClick={handleCardClick}
         className={`group bg-white px-2 py-1 shadow-sm transition-all duration-200 ${
-          isDragging && issue.id === overItemId 
-            ? 'border-emerald-500 bg-emerald-50' 
-            : 'border border-gray-200 hover:bg-gray-100'
+          isDragging && issue.id === overItemId
+            ? "border-emerald-500 bg-emerald-50"
+            : "border border-gray-200 hover:bg-gray-100"
         }`}
       >
         <div className="flex items-center">
@@ -86,7 +89,11 @@ const IssueCard = memo(
                 <IconRenderer type={issue.type} className="h-3 w-3" />
               </div>
 
-              <div className={`block text-sm font-light ${issue.columnId === "DONE" ? "line-through" : "underline"} text-gray-500`}>
+              <div
+                className={`block text-sm font-light ${
+                  issue.columnId === "DONE" ? "line-through" : "underline"
+                } text-gray-500`}
+              >
                 {issue.key}
               </div>
             </div>

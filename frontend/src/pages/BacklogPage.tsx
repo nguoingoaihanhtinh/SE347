@@ -10,9 +10,9 @@ import BacklogBoard from "../components/projects/backlog/BacklogBoard";
 export default function BacklogPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { currentProject, fetchProject } = useProjectStore();
-  const { sprints, fetchSprintsByProject } = useSprintStore();
-  const { issues, fetchIssuesByProject } = useIssueStore();
-  const { columns, fetchColumns } = useColumnStore();
+  const { fetchSprintsByProject } = useSprintStore();
+  const { fetchIssuesByProject } = useIssueStore();
+  const { fetchColumns } = useColumnStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -52,13 +52,7 @@ export default function BacklogPage() {
         </div>
       </div>
 
-      <BacklogBoard
-        projectId={projectId}
-        project={currentProject}
-        sprints={sprints}
-        issues={issues}
-        columns={columns}
-      />
+      <BacklogBoard projectId={projectId} />
     </div>
   );
 }

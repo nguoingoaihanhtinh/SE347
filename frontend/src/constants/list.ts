@@ -1,5 +1,4 @@
 // src/constants/list.ts
-// ✅ LOẠI BỎ HOÀN TOÀN JSX TRONG FILE NÀY
 export const typeOptions = [
   {
     id: "bug",
@@ -82,36 +81,34 @@ export const statusOptions = [
   },
 ];
 
-// // ✅ TẠO COMPONENT ICON RIÊNG BIỆT
-// export const IconRenderer = ({ type, className = "h-4 w-4" }: { type: string; className?: string }) => {
-//   const baseClass = `${className} flex-shrink-0`;
-
-//   switch (type) {
-//     case "bug":
-//       return <span className={`${baseClass} text-red-500`}>🐞</span>;
-//     case "task":
-//       return <span className={`${baseClass} text-blue-500`}>✓</span>;
-//     case "story":
-//       return <span className={`${baseClass} text-green-500`}>📖</span>;
-//     case "epic":
-//       return <span className={`${baseClass} text-purple-500`}>⭐</span>;
-//     case "high":
-//       return <span className={`${baseClass} text-red-500`}>▲</span>;
-//     case "medium":
-//       return <span className={`${baseClass} text-yellow-500`}>●</span>;
-//     case "low":
-//       return <span className={`${baseClass} text-green-500`}>▼</span>;
-//     case "lock":
-//       return <span className={`${baseClass} text-gray-500`}>🔒</span>;
-//     case "eye":
-//       return <span className={`${baseClass} text-gray-500`}>👁️</span>;
-//     case "share":
-//       return <span className={`${baseClass} text-gray-500`}>↗️</span>;
-//     case "dots":
-//       return <span className={`${baseClass} text-gray-500`}>⋮</span>;
-//     case "close":
-//       return <span className={`${baseClass} text-gray-500`}>×</span>;
-//     default:
-//       return <span className={`${baseClass} text-gray-400`}>□</span>;
-//   }
-// };
+// Export các icon dưới dạng strings hoặc functions không sử dụng JSX
+export const getIconContent = (type: string): string => {
+  switch (type) {
+    case "bug":
+      return "🐞";
+    case "task":
+      return "✓";
+    case "story":
+      return "📖";
+    case "epic":
+      return "⭐";
+    case "high":
+      return "▲";
+    case "medium":
+      return "●";
+    case "low":
+      return "▼";
+    case "lock":
+      return "🔒";
+    case "eye":
+      return "👁️";
+    case "share":
+      return "↗️";
+    case "dots":
+      return "⋮";
+    case "close":
+      return "×";
+    default:
+      return "□";
+  }
+};

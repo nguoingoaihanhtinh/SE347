@@ -33,12 +33,15 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
     },
   });
 
-  const { selectedIssues, setSelectedIssues } = useIssueStore();
+  const { selectedIssues = {}, setSelectedIssues } = useIssueStore();
   const [isOpenButtonMenu, setIsOpenButtonMenu] = useState(false);
   const [isCreateIssueModalOpen, setIsCreateIssueModalOpen] = useState(false);
   const [isDeleteSprintModalOpen, setIsDeleteSprintModalOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
-  const [isSprintIssuesChecked, setIsSprintIssuesChecked] = useState(!!selectedIssues[sprint.id]?.length);
+
+  // ✅ SỬA LỖI: Sử dụng optional chaining và giá trị mặc định
+  const isSprintIssuesChecked = !!selectedIssues?.[sprint.id]?.length;
+  const [checkedState, setCheckedState] = useState(isSprintIssuesChecked);
 
   const estimate = useMemo(() => {
     return sprint.issues.reduce((total, issue) => total + (issue.storyPoint || 0), 0);
@@ -63,16 +66,29 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
     // TODO: Implement actual delete logic
   };
 
+  // ✅ SỬA LỖI: Cập nhật state và store chính xác
   const handleToggleSprintIssuesChecked = () => {
-    if (isSprintIssuesChecked) {
-      setSelectedIssues({ [sprint.id]: [] });
-      setIsSprintIssuesChecked(false);
+    const newState = !checkedState;
+    setCheckedState(newState);
+
+    if (newState) {
+      // Tạo bản sao của selectedIssues hiện tại
+      const newSelectedIssues = { ...selectedIssues };
+      // Thêm tất cả issues của sprint vào mảng
+      newSelectedIssues[sprint.id] = [...sprint.issues];
+      setSelectedIssues(newSelectedIssues);
     } else {
-      const issues = sprint.issues.map((issue) => issue);
-      setSelectedIssues({ [sprint.id]: issues });
-      setIsSprintIssuesChecked(true);
+      // Xóa sprint khỏi selectedIssues
+      const newSelectedIssues = { ...selectedIssues };
+      delete newSelectedIssues[sprint.id];
+      setSelectedIssues(newSelectedIssues);
     }
   };
+
+  // Cập nhật local state khi selectedIssues thay đổi
+  useState(() => {
+    setCheckedState(!!selectedIssues?.[sprint.id]?.length);
+  }, [selectedIssues, sprint.id]);
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -83,7 +99,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
             <div className="flex items-center space-x-4">
               <input
                 type="checkbox"
-                checked={isSprintIssuesChecked}
+                checked={checkedState}
                 onChange={handleToggleSprintIssuesChecked}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
@@ -166,7 +182,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
                       columns={columns}
                       isDragging={isDragging}
                       overItemId={overItemId}
-                      setIsSprintIssuesChecked={setIsSprintIssuesChecked}
+                      setIsSprintIssuesChecked={() => {}} // Không cần dùng nữa
                     />
                     {/* Line DragOverlay */}
                     <div

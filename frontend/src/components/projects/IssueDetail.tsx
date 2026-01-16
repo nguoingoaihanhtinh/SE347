@@ -6,9 +6,8 @@ import { useSearchParams } from "react-router-dom";
 import { useIssueStore } from "../../stores/issueStore";
 import { useParams } from "react-router-dom";
 import IssueDetailSkeleton from "./IssueDetailSkeleton";
-import { IconRenderer } from "../../../constants/list"; // ✅ Import từ file đã sửa
+import IconRenderer from "../../components/ui/IconRenderer"; // Import từ file component mới
 
-// ✅ IMPORT TỪNG ICON TỪ THƯ MỤC CỤ THỂ
 import { IoLockClosedOutline } from "react-icons/io5";
 import { FaEye } from "react-icons/fa";
 import { CiShare2 } from "react-icons/ci";
@@ -69,27 +68,27 @@ const IssueDetail = ({ selectedIssueId }: { selectedIssueId: string }) => {
   const IssueDetailHeader = [
     {
       key: "lock",
-      icon: <IoLockClosedOutline className="h-4 w-4" />,
+      icon: <IoLockClosedOutline className="h-4 w-4 text-gray-600" />,
       onClick: () => toast.info("Lock issue not implemented yet"),
     },
     {
       key: "watch",
-      icon: <FaEye className="h-4 w-4" />,
+      icon: <FaEye className="h-4 w-4 text-gray-600" />,
       onClick: () => toast.info("Watch issue not implemented yet"),
     },
     {
       key: "share",
-      icon: <CiShare2 className="h-4 w-4" />,
+      icon: <CiShare2 className="h-4 w-4 text-gray-600" />,
       onClick: () => toast.info("Share issue not implemented yet"),
     },
     {
       key: "actions",
-      icon: <BsThreeDots className="h-4 w-4" />,
+      icon: <BsThreeDots className="h-4 w-4 text-gray-600" />,
       onClick: () => toast.info("Actions not implemented yet"),
     },
     {
       key: "close",
-      icon: <IoIosClose className="h-4 w-4" />,
+      icon: <IoIosClose className="h-4 w-4 text-gray-600" />,
       onClick: () => {
         closeIssueDetail();
         setSearchParams({});

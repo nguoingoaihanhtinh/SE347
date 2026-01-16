@@ -13,7 +13,6 @@ import {
   type DragEndEvent,
   DragOverlay,
 } from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { IColumn } from "../../../types/project";
 import type { ISprint } from "../../../types/sprint";
@@ -22,55 +21,90 @@ import BacklogSprint from "./BacklogSprint";
 import CreateSprintButton from "./CreateSprintButton";
 import IssueCardOverlay from "./IssueCardOverlay";
 import IssueDetail from "../IssueDetail";
-import IssueDetailSkeleton from "../IssueDetailSkeleton";
 import { useIssueStore } from "../../../stores/issueStore";
 import { useColumnStore } from "../../../stores/columnStore";
 import { useSprintStore } from "../../../stores/sprintStore";
 import { useProjectStore } from "../../../stores/projectStore";
-import { statusOptions, renderIcon } from "../../../constants/list"; // ✅ Import từ file đã sửa
+import { statusOptions } from "../../../constants/list";
+import { toast } from "react-toastify";
 
-// ✅ TẠO COMPONENT PAGE FILTER ĐƠN GIẢN
-const PageFilter = ({ onFiltersChange, currentProject }) => (
-  <div className="bg-white rounded-lg shadow p-4 mb-4">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-          <option>All Types</option>
-          {["Bug", "Task", "Story", "Epic"].map((type) => (
-            <option key={type}>{type}</option>
-          ))}
-        </select>
-      </div>
+const PageFilter = ({ onFiltersChange, currentProject }) => {
+  const [filters, setFilters] = useState({
+    type: "all",
+    status: "all",
+    assignee: "all",
+  });
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-          <option>All Status</option>
-          {statusOptions.map((status) => (
-            <option key={status.key}>{status.label}</option>
-          ))}
-        </select>
-      </div>
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    const newFilters = { ...filters, [name]: value };
+    setFilters(newFilters);
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
-        <select className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-          <option>All Assignees</option>
-          <option>Unassigned</option>
-          <option>Me</option>
-        </select>
+    if (onFiltersChange) {
+      onFiltersChange(newFilters);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <select
+            name="type"
+            value={filters.type}
+            onChange={handleFilterChange}
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          >
+            <option value="all">All Types</option>
+            {["Bug", "Task", "Story", "Epic"].map((type) => (
+              <option key={type} value={type.toLowerCase()}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select
+            name="status"
+            value={filters.status}
+            onChange={handleFilterChange}
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          >
+            <option value="all">All Status</option>
+            {statusOptions.map((status) => (
+              <option key={status.key} value={status.key.toLowerCase()}>
+                {status.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+          <select
+            name="assignee"
+            value={filters.assignee}
+            onChange={handleFilterChange}
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          >
+            <option value="all">All Assignees</option>
+            <option value="unassigned">Unassigned</option>
+            <option value="me">Me</option>
+          </select>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const BacklogBoard = () => {
-  const { projectId = "" } = useParams();
-  const { selectedIssueId, setSelectedIssueId } = useIssueStore();
-  const { columns, fetchColumns } = useColumnStore();
-  const { sprints, fetchSprintsByProject } = useSprintStore();
-  const { issues, fetchIssuesByProject } = useIssueStore();
+const BacklogBoard = ({ projectId }) => {
+  const { selectedIssueId } = useIssueStore();
+  const { columns } = useColumnStore();
+  const { sprints } = useSprintStore();
+  const { issues } = useIssueStore();
   const { currentProject } = useProjectStore();
 
   const [activeIssue, setActiveIssue] = useState<IIssue | null>(null);
@@ -78,11 +112,12 @@ const BacklogBoard = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [localSprints, setLocalSprints] = useState<Array<ISprint & { issues: IIssue[] }>>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({ projectId });
+  const [appliedFilters, setAppliedFilters] = useState({ projectId });
 
-  // Tạo sprint "Backlog" ảo
-  const backlogSprint = useMemo(
-    () => ({
+  const backlogSprint = useMemo(() => {
+    if (!projectId) return null;
+
+    return {
       id: "backlog",
       name: "Backlog",
       goal: "",
@@ -93,9 +128,8 @@ const BacklogBoard = () => {
       updatedAt: new Date().toISOString(),
       projectId,
       issues: [] as IIssue[],
-    }),
-    [projectId]
-  );
+    };
+  }, [projectId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -106,40 +140,37 @@ const BacklogBoard = () => {
     useSensor(KeyboardSensor)
   );
 
+  // Thêm useEffect để cập nhật localSprints khi issues thay đổi
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        await Promise.all([fetchColumns(projectId), fetchSprintsByProject(projectId), fetchIssuesByProject(projectId)]);
-      } finally {
-        setIsLoading(false);
+    if (isLoading || !projectId || !backlogSprint) return;
+
+    const validSprints = sprints.filter(
+      (sprint) =>
+        sprint.projectId === projectId && !["completed", "archived"].includes(sprint.status?.toLowerCase() || "")
+    );
+
+    const allSprints = [backlogSprint, ...validSprints];
+    const sprintsWithIssues = allSprints.map((sprint) => {
+      if (sprint.id === "backlog") {
+        return {
+          ...sprint,
+          issues: issues.filter((issue) => !issue.sprintId || issue.sprintId === null || issue.sprintId === ""),
+        };
       }
-    };
 
-    if (projectId) {
-      loadData();
-      setFilters({ projectId });
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    if (isLoading || !sprints.length || !issues.length) {
-      setLocalSprints([backlogSprint]);
-      return;
-    }
-
-    const allSprints = [backlogSprint, ...sprints];
-    const sprintsWithIssues = allSprints.map((sprint) => ({
-      ...sprint,
-      issues: issues.filter((issue) =>
-        sprint.id === "backlog"
-          ? !issue.sprintId || issue.sprintId === null || issue.sprintId === ""
-          : issue.sprintId === sprint.id
-      ),
-    }));
+      return {
+        ...sprint,
+        issues: issues.filter((issue) => issue.sprintId === sprint.id),
+      };
+    });
 
     setLocalSprints(sprintsWithIssues);
-  }, [sprints, issues, backlogSprint, isLoading]);
+  }, [sprints, issues, backlogSprint, projectId, isLoading]); // QUAN TRỌNG: Theo dõi sự thay đổi của issues
+
+  useEffect(() => {
+    // Cài đặt ban đầu khi component mount
+    setIsLoading(false);
+  }, []);
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -183,7 +214,10 @@ const BacklogBoard = () => {
 
       const activeSprint = localSprints.find((sprint) => sprint.issues.some((issue) => issue.id === activeId));
 
-      if (!targetSprint || !activeSprint) return;
+      if (!targetSprint || !activeSprint) {
+        console.warn("Could not find target or active sprint");
+        return;
+      }
 
       // Cùng sprint - đổi thứ tự
       if (targetSprint.id === activeSprint.id) {
@@ -217,14 +251,12 @@ const BacklogBoard = () => {
       setLocalSprints((prev) => {
         const newSprints = [...prev];
 
-        // Xóa issue khỏi sprint nguồn
         const activeIndex = newSprints.findIndex((s) => s.id === activeSprint.id);
         if (activeIndex !== -1) {
           const activeIssueIndex = newSprints[activeIndex].issues.findIndex((i) => i.id === activeId);
           if (activeIssueIndex !== -1) {
             const [issue] = newSprints[activeIndex].issues.splice(activeIssueIndex, 1);
 
-            // Thêm vào sprint đích
             const targetIndex = newSprints.findIndex((s) => s.id === targetSprint.id);
             if (targetIndex !== -1) {
               if (isOverSprint) {
@@ -245,20 +277,49 @@ const BacklogBoard = () => {
       });
 
       // Cập nhật backend
-      const newSprintId = targetSprint.id === "backlog" ? null : targetSprint.id;
-      const { updateIssue } = useIssueStore.getState();
-      try {
-        await updateIssue(projectId, activeId, { sprintId: newSprintId });
-        toast.success("Issue moved successfully!");
-      } catch (error) {
-        console.error("Failed to update issue sprint:", error);
+      if (activeId && activeId !== "undefined") {
+        const newSprintId = targetSprint.id === "backlog" ? null : targetSprint.id;
+        const { updateIssue } = useIssueStore.getState();
+        try {
+          await updateIssue(projectId, activeId, { sprintId: newSprintId });
+          toast.success("Issue moved successfully!");
+        } catch (error) {
+          console.error("Failed to update issue sprint:", error);
+          toast.error("Failed to move issue. Please try again.");
+
+          // Rollback UI khi có lỗi
+          setLocalSprints((prev) => {
+            const newSprints = [...prev];
+            return newSprints;
+          });
+        }
       }
     },
     [localSprints, projectId]
   );
 
+  const handleFilterChange = useCallback(
+    (filters) => {
+      const newFilters = { projectId, ...filters };
+      setAppliedFilters(newFilters);
+    },
+    [projectId]
+  );
+
+  if (!projectId) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-gray-500">No project selected</p>
+      </div>
+    );
+  }
+
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center">Loading...</div>;
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
@@ -269,32 +330,51 @@ const BacklogBoard = () => {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full flex-col gap-4 p-4 pb-28">
+      <div className="flex h-full flex-col gap-4 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="p-2 text-2xl font-bold text-gray-700">{currentProject?.name} Backlog</h1>
+            <h1 className="p-2 text-2xl font-bold text-gray-700">{currentProject?.name || "Project"} Backlog</h1>
             <p className="px-2 text-sm text-gray-500">Manage your project backlog and sprints</p>
           </div>
           <CreateSprintButton projectId={projectId} />
         </div>
 
-        {/* ✅ SỬ DỤNG COMPONENT MỚI */}
-        <PageFilter onFiltersChange={(filter) => setFilters(filter as any)} currentProject={currentProject} />
+        <PageFilter onFiltersChange={handleFilterChange} currentProject={currentProject} />
 
-        <div className="flex min-w-[650px] flex-col gap-2 overflow-x-auto">
-          {localSprints.map((sprint) => (
-            <BacklogSprint
-              key={sprint.id}
-              sprint={sprint}
-              projectId={projectId}
-              columns={columns}
-              overItemId={overItemId}
-              isDragging={isDragging}
-            />
-          ))}
-        </div>
+        {localSprints.length === 0 && !isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                <span className="text-blue-600 text-2xl">📋</span>
+              </div>
+              <h3 className="mt-2 text-sm font-semibold text-gray-900">No sprints found</h3>
+              <p className="mt-1 text-sm text-gray-500">Get started by creating a new sprint</p>
+              <div className="mt-6">
+                <CreateSprintButton projectId={projectId} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-w-[650px] flex-col gap-2 overflow-x-auto">
+            {localSprints.map(
+              (sprint) =>
+                sprint && (
+                  <BacklogSprint
+                    key={sprint.id}
+                    sprint={sprint}
+                    projectId={projectId}
+                    columns={columns}
+                    overItemId={overItemId}
+                    isDragging={isDragging}
+                  />
+                )
+            )}
+          </div>
+        )}
 
         <DragOverlay dropAnimation={null}>{activeIssue ? <IssueCardOverlay issue={activeIssue} /> : null}</DragOverlay>
+
+        {selectedIssueId && selectedIssueId !== "undefined" && <IssueDetail selectedIssueId={selectedIssueId} />}
       </div>
     </DndContext>
   );

@@ -9,6 +9,8 @@ interface IssueState {
   currentIssue: IIssue | null;
   isLoading: boolean;
   error: string | null;
+  selectedIssues: Record<string, IIssue[]>;
+  selectedIssueId: string | null;
 
   fetchIssuesByProject: (projectId: string) => Promise<void>;
   fetchIssuesByColumn: (columnId: string, projectId: string) => Promise<void>;
@@ -18,7 +20,15 @@ interface IssueState {
   deleteIssue: (projectId: string, issueId: string) => Promise<void>;
   setCurrentIssue: (issue: IIssue | null) => void;
   clearIssues: () => void;
-  openIssueDetail: (projectId: string, issueId: string) => Promise<void>;
+  openIssueDetail: (issueId: string) => void;
+  closeIssueDetail: () => void;
+  getIssueById: (issueId: string) => IIssue | undefined;
+
+  setSelectedIssues: (sprintId: string, issues: IIssue[]) => void;
+  toggleIssueSelection: (sprintId: string, issue: IIssue) => void;
+  clearSelectedIssues: (sprintId: string) => void;
+  getSelectedIssues: (sprintId: string) => IIssue[];
+  isIssueSelected: (sprintId: string, issueId: string) => boolean;
 }
 
 export const useIssueStore = create<IssueState>()((set, get) => ({
@@ -26,6 +36,8 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
   currentIssue: null,
   isLoading: false,
   error: null,
+  selectedIssues: {},
+  selectedIssueId: null,
 
   fetchIssuesByProject: async (projectId) => {
     try {
@@ -46,13 +58,16 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
       throw new Error(msg);
     }
   },
+
   fetchIssuesByColumn: async (columnId, projectId) => {
     try {
       set({ isLoading: true, error: null });
       const response = await issues.list({ projectId, columnId, page: 1, limit: 50 });
-      if (response.data.success && response.data.data?.data) {
+      if (response.data.success) {
+        const issuesData = Array.isArray(response.data.data) ? response.data.data : response.data.data?.data || [];
+
         set({
-          issues: Array.isArray(response.data.data.data) ? response.data.data.data : [],
+          issues: issuesData,
           isLoading: false,
         });
       } else {
@@ -85,12 +100,15 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await issues.create(issueData.projectId, issueData);
+
       if (response.data.success && response.data.data) {
         const newIssue = response.data.data;
+
         set((state) => ({
           issues: [...state.issues, newIssue],
           isLoading: false,
         }));
+
         return newIssue;
       } else {
         throw new Error(response.data.message || "Failed to create issue");
@@ -145,12 +163,55 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
 
   setCurrentIssue: (issue) => set({ currentIssue: issue }),
   clearIssues: () => set({ issues: [], currentIssue: null }),
+  openIssueDetail: (issueId) => set({ selectedIssueId: issueId }),
+  closeIssueDetail: () => set({ selectedIssueId: null }),
 
-  openIssueDetail: async (projectId, issueId) => {
-    try {
-      await get().fetchIssue(projectId, issueId);
-    } catch (error) {
-      console.error("Failed to open issue detail:", error);
-    }
+  getIssueById: (issueId) => {
+    const { issues } = get();
+    return issues.find((issue) => issue.id === issueId);
+  },
+
+  setSelectedIssues: (sprintId: string, issues: IIssue[]) => {
+    set((state) => {
+      const newSelectedIssues = { ...state.selectedIssues };
+      newSelectedIssues[sprintId] = issues;
+      return { selectedIssues: newSelectedIssues };
+    });
+  },
+
+  toggleIssueSelection: (sprintId: string, issue: IIssue) => {
+    set((state) => {
+      const currentIssues = state.selectedIssues[sprintId] || [];
+      const issueIndex = currentIssues.findIndex((i) => i.id === issue.id);
+
+      let newIssues = [];
+      if (issueIndex === -1) {
+        newIssues = [...currentIssues, issue];
+      } else {
+        newIssues = currentIssues.filter((i) => i.id !== issue.id);
+      }
+
+      const newSelectedIssues = { ...state.selectedIssues };
+      newSelectedIssues[sprintId] = newIssues;
+
+      return { selectedIssues: newSelectedIssues };
+    });
+  },
+
+  clearSelectedIssues: (sprintId: string) => {
+    set((state) => {
+      const newSelectedIssues = { ...state.selectedIssues };
+      delete newSelectedIssues[sprintId];
+      return { selectedIssues: newSelectedIssues };
+    });
+  },
+
+  getSelectedIssues: (sprintId: string) => {
+    return get().selectedIssues[sprintId] || [];
+  },
+
+  isIssueSelected: (sprintId: string, issueId: string) => {
+    const selectedIssues = get().selectedIssues[sprintId] || [];
+    return selectedIssues.some((issue) => issue.id === issueId);
   },
 }));
