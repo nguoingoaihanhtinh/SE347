@@ -1,7 +1,7 @@
 // src/middlewares/auth.middleware.ts
 import { Request, Response, NextFunction } from "express";
 import { verifyToken, JWTPayload } from "@/utils/jwt.util";
-import { UnauthorizedError } from "@/utils/errors";
+import { UnauthorizedError, ForbiddenError } from "@/utils/errors";
 import { isValidObjectId } from "@/utils/mongodb";
 declare global {
   namespace Express {
@@ -70,4 +70,41 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     }
     next(error);
   }
+};
+
+/**
+ * Middleware to require admin or super_admin role
+ * Throws 403 Forbidden if user is not admin or super_admin
+ */
+export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    throw new UnauthorizedError({ message: "Authentication required" });
+  }
+
+  const userRole = req.user.role;
+  if (userRole !== "admin" && userRole !== "super_admin") {
+    throw new ForbiddenError({
+      message: "Admin access required. You do not have permission to perform this action.",
+    });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to require super_admin role only
+ * Throws 403 Forbidden if user is not super_admin
+ */
+export const requireSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    throw new UnauthorizedError({ message: "Authentication required" });
+  }
+
+  if (req.user.role !== "super_admin") {
+    throw new ForbiddenError({
+      message: "Super Admin access required. You do not have permission to perform this action.",
+    });
+  }
+
+  next();
 };

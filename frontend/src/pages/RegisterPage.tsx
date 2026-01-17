@@ -107,8 +107,18 @@ export default function RegisterPage() {
         values.confirmPassword,
         values.otp
       );
-      // PUSH to history stack: [Register, Home] - allows back button to work
-      navigate("/");
+      
+      // Get the registered user from store (register has already set it)
+      const registeredUser = useAuthStore.getState().user;
+      
+      // ROLE-BASED REDIRECTION (same as login)
+      if (registeredUser?.role === "admin" || registeredUser?.role === "super_admin") {
+        // Admin users go to Admin Panel
+        navigate("/admin");
+      } else {
+        // Regular users go to dashboard
+        navigate("/");
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Đăng ký thất bại";
       setFormError(message);

@@ -5,13 +5,16 @@ import PageNotFound from "../layouts/PageNotFound";
 import AdminLayout from "../layouts/AdminLayout";
 import DefaultLayout from "../layouts/DefaultLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
+import AdminRoute from "./AdminRoute";
 import ProjectLayoutWrapper from "../components/ProjectLayoutWrapper";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ProjectsPage from "../pages/ProjectsPage";
-import BoardPage from "../pages/BoardPage";
 import ProfilePage from "../pages/ProfilePage";
+import UserManagementPage from "../pages/admin/UserManagementPage";
+import AdminDashboard from "../pages/admin/AdminDashboard";
+import AdminProjectPage from "../pages/admin/AdminProjectPage";
 import BacklogPage from "../pages/BacklogPage";
 
 // Wrappers
@@ -62,16 +65,19 @@ export default function MainRoutes() {
             <Route path="*" element={<PageNotFound />} />
           </Route>
 
-          {/* Admin Routes */}
+          {/* Admin Routes - Protected by AdminRoute (RBAC) */}
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <AdminRoute>
                 <AdminLayoutWrapper />
-              </ProtectedRoute>
+              </AdminRoute>
             }
           >
-            <Route index element={<div>Admin Dashboard</div>} />
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<UserManagementPage />} />
+            <Route path="projects" element={<AdminProjectPage />} />
+            <Route path="settings" element={<div className="text-slate-600">System Settings (Coming Soon)</div>} />
           </Route>
         </Routes>
       </BrowserRouter>

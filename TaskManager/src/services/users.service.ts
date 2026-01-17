@@ -146,6 +146,10 @@ export class UserService {
     return await userRepository.findAll(input);
   }
 
+  async countSuperAdmins(): Promise<number> {
+    return await userRepository.countByRole("super_admin");
+  }
+
   async findOne(input: { userId: string }) {
     const user = await userRepository.findOne({ userId: input.userId });
     console.log("findOne user:", JSON.stringify(user, null, 2));
@@ -157,6 +161,9 @@ export class UserService {
     const { userData } = input;
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
+    // Allow admin to create pre-verified users (default: false)
+    const isEmailVerified = userData.isEmailVerified ?? false;
+
     const newUser = await userRepository.create({
       userData: {
         email: userData.email,
@@ -164,7 +171,7 @@ export class UserService {
         passwordHash: hashedPassword,
         role: userData.role,
         avatar: userData.avatar ?? null,
-        isEmailVerified: false,
+        isEmailVerified, // Use the provided value or default to false
         notifications: null,
         isActive: true,
         lastLoginAt: null,

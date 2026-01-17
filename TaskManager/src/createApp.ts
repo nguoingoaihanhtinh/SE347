@@ -14,6 +14,7 @@ import commentRoutes from "./routes/comment.route";
 import projectTeamRoutes from "./routes/project-team.route";
 import { requestLogger, errorHandler } from "@/middlewares";
 import invitationRoutes from "@/routes/invitation.route";
+import adminRoutes from "@/routes/admin.route";
 import { specs, swaggerUi } from "./config/swagger";
 import logger from "./utils/logger";
 
@@ -44,6 +45,7 @@ export const createApp = async () => {
   // Routes
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);
+  app.use("/api/admin", adminRoutes);
   app.use("/api/projects", projectRoutes);
   app.use("/api/projects/invitations", invitationRoutes);
   // app.use("/api/projects", projectMemberRoutes);
