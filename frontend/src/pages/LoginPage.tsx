@@ -34,10 +34,22 @@ export default function LoginPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       setFormError(null);
+      
+      // Call login - this will save token and update state
       await login(values.email, values.password);
-      const from = (location.state as { from?: Location })?.from?.pathname || "/";
-      // PUSH to history stack: [Login, Home] - allows back button to work
-      navigate(from);
+      
+      // Get the updated user from store (login has already set it)
+      const loggedInUser = useAuthStore.getState().user;
+      
+      // ROLE-BASED REDIRECTION
+      if (loggedInUser?.role === "admin" || loggedInUser?.role === "super_admin") {
+        // Admin users go to Admin Panel
+        navigate("/admin");
+      } else {
+        // Regular users go to their intended location or dashboard
+        const from = (location.state as { from?: Location })?.from?.pathname || "/";
+        navigate(from);
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Đăng nhập thất bại";
       setFormError(message);

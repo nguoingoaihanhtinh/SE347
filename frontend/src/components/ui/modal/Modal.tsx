@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { LuX } from "react-icons/lu";
 import { Button } from "../Button";
 
@@ -35,11 +36,12 @@ export default function Modal({
     }
   };
 
-  return (
+  const modalContent = (
     <div
       id="modal"
       onMouseDown={handleBackdropClick}
-      className="fixed inset-0 bg-black/40 bg-opacity-50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center"
+      style={{ zIndex: 9999 }}
     >
       <div className={`bg-white rounded-lg shadow-xl min-w-[500px] p-6 animate-fade-in ${className}`}>
         <div className="flex justify-between items-center mb-4">
@@ -72,4 +74,7 @@ export default function Modal({
       </div>
     </div>
   );
+
+  // Render modal using React Portal to ensure it's at the root level
+  return createPortal(modalContent, document.body);
 }

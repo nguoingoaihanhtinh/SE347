@@ -34,8 +34,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true, error: null });
       const { data } = await authApi.login(email, password);
+      
+      // CRITICAL: Save token to localStorage (same as setAuth)
+      const token = data.data.token;
+      const user = data.data.user;
+      
+      if (token) {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+      
       set({
-        user: data.data.user,
+        user: user,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -50,8 +60,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true, error: null });
       const { data } = await authApi.register({ firstName, lastName, email, password, confirmPassword, otp });
+      
+      // CRITICAL: Save token to localStorage (same as login)
+      const token = data.data.token;
+      const user = data.data.user;
+      
+      if (token) {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+      
       set({
-        user: data.data.user,
+        user: user,
         isAuthenticated: true,
         isLoading: false,
       });

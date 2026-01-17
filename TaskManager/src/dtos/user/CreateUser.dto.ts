@@ -13,6 +13,7 @@ export const createUserSchema = z.object({
     .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
   role: z.enum(["user", "admin", "super_admin"]),
   avatar: z.string().nullable().optional(),
+  isEmailVerified: z.boolean().optional(), // Allow admin to create pre-verified users
 });
 
 export type CreateUserDto = z.infer<typeof createUserSchema>;

@@ -19,6 +19,15 @@ export class UserRepository {
     if (input.email) filter.email = input.email;
     if (input.fullName) filter.firstName = input.fullName;
     if (input.role) filter.role = input.role;
+    
+    // Add fuzzy search for email and fullName
+    if (input.search) {
+      const searchRegex = new RegExp(input.search, "i"); // Case-insensitive search
+      filter.$or = [
+        { email: searchRegex },
+        { fullName: searchRegex },
+      ];
+    }
 
     const data = await db.collection(this.collectionName).find(filter).skip(skip).limit(limit).toArray();
 
@@ -102,6 +111,11 @@ export class UserRepository {
       throw new NotFoundError({ message: `User with ID ${userId} not found` });
     }
     return result.value;
+  }
+
+  async countByRole(role: string): Promise<number> {
+    const db = await connectMongo();
+    return await db.collection(this.collectionName).countDocuments({ role });
   }
 }
 

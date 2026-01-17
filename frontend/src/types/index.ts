@@ -3,8 +3,9 @@
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
   avatar: string | null;
   role: "user" | "admin" | "super_admin";
   createdAt: string;
@@ -82,6 +83,7 @@ export interface AuthResponse {
   success: boolean;
   data: {
     user: User;
+    token: string;
   };
 }
 
