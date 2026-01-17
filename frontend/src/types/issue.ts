@@ -63,6 +63,10 @@ export interface CreateIssueParams {
   projectId: string;
   columnId: string;
   reporterId: string;
+  assigneeId?: string | null;
+  sprintId?: string | null;
+  dueDateFrom?: string | null;
+  dueDateTo?: string | null;
 }
 
 export interface UpdateIssueParams {

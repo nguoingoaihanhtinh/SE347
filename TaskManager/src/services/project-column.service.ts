@@ -145,8 +145,18 @@ class ProjectColumnService {
 
   async reorderColumns(projectId: string, data: ReorderColumnsData, currentUserId: string): Promise<void> {
     const { columnOrders } = data;
-
-    await validationService.validateProjectMemberPermission(projectId, currentUserId, ["owner", "admin"]);
+    if (!Array.isArray(columnOrders) || columnOrders.length === 0) {
+      throw new BadRequestError({ message: "columnOrders must be a non-empty array" });
+    }
+    for (const item of columnOrders) {
+      if (typeof item.columnId !== "string" || item.columnId.trim() === "") {
+        throw new BadRequestError({ message: `Invalid columnId: ${item.columnId}` });
+      }
+      if (typeof item.order !== "number" || isNaN(item.order) || item.order <= 0) {
+        throw new BadRequestError({ message: `Invalid order value: ${item.order}` });
+      }
+    }
+    await projectColumnRepository.reorderColumns(projectId, columnOrders);
 
     // Validate all columns belong to the project
     const projectColumns = await projectColumnRepository.findByProject(projectId);

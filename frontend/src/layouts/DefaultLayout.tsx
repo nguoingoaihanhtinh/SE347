@@ -36,7 +36,7 @@ export default function DefaultLayout({ children, title, footerText, maxWidth = 
       </AppBar>
 
       <Container
-        maxWidth={maxWidth}
+        maxWidth={false}
         sx={{
           flexGrow: 1,
           py: 4,

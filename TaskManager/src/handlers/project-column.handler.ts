@@ -132,8 +132,10 @@ class ProjectColumnHandler {
 
   async reorderColumns(req: Request, res: Response): Promise<void> {
     try {
+      console.log("Reorder request body:", req.body);
       const { projectId } = req.params;
       const { columnOrders } = req.body;
+      console.log("Parsed columnOrders:", columnOrders);
       const currentUserId = req.user?.userId;
 
       if (!currentUserId || !projectId) {
@@ -159,6 +161,7 @@ class ProjectColumnHandler {
         message: "Columns reordered successfully",
       });
     } catch (error) {
+      console.error("Reorder error details:", error);
       throw error;
     }
   }

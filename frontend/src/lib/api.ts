@@ -5,10 +5,8 @@ import type { User, Comment, AuthResponse, ApiResponse } from "../types";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: `${API_BASE_URL}/api`, // ✅ Đảm bảo có /api
+  headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
 
@@ -63,7 +61,13 @@ export interface ResponseApi<T> {
   status_code: number;
   status: string;
   message: string;
-  data?: T;
+  data: T;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
 }
 
 export interface Pagination {

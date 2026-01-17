@@ -52,13 +52,14 @@ export const KanbanColumn = ({
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const { updateColumn } = useUpdateColumn();
   const { deleteColumn } = useDeleteColumn((deletedColumnId) => {
     const newColumns = columns
       .filter((col) => col.id !== deletedColumnId)
       .map((col, index) => ({ ...col, order: index }));
     setColumns(newColumns);
   });
+
+  const { updateColumn } = useUpdateColumn();
 
   const handleMove = useCallback(
     (direction: "left" | "right") => {
@@ -83,9 +84,10 @@ export const KanbanColumn = ({
     (newName: string) => {
       setColumns((cols) => cols.map((col) => (col.id === column.id ? { ...col, name: newName } : col)));
       setShowRenameColumnModal(false);
+      // ✅ FIX LỖI: THÊM 'data' VÀO ĐÂY
       updateColumn({ projectId, columnId: column.id, data: { name: newName } });
     },
-    [column.id, projectId, updateColumn]
+    [column.id, projectId, updateColumn, setColumns]
   );
 
   const handleDeleteColumn = () => {
@@ -98,7 +100,6 @@ export const KanbanColumn = ({
     setShowDeleteColumnModal(false);
   };
 
-  // ✅ Bảo vệ trước khi dùng .map()
   const safeIssues = Array.isArray(column.issues) ? column.issues : [];
 
   const content: ReactNode = (
@@ -147,7 +148,6 @@ export const KanbanColumn = ({
         </Popover>
       </div>
 
-      {/* ✅ DÙNG SAFE ISSUES */}
       <SortableContext items={safeIssues.map((issue) => issue.id)}>
         <div className="flex max-h-[600px] min-h-40 flex-col gap-2 overflow-auto pb-2">
           {safeIssues.map((issue) => (

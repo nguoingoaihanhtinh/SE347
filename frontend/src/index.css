@@ -17,8 +17,8 @@ html,
 #root {
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  height: 100%;
+  overflow: auto;
+  min-height: 100%;
   width: 100%;
   font-family: 'Poppins', sans-serif;
 }
