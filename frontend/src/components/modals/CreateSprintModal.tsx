@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "react-toastify";
-import { useSprintStore } from "../../stores/sprintStore";
+import { useCreateSprint, useUpdateSprint } from "@/hooks/useSprint";
 import Modal from "../ui/modal/Modal";
 
 interface CreateSprintModalProps {
@@ -52,13 +51,14 @@ const CreateSprintModal = ({
   initialSprint,
 }: CreateSprintModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const { createSprint, updateSprint } = useSprintStore();
+
+  const { createSprint } = useCreateSprint();
+  const { updateSprint } = useUpdateSprint();
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<SprintFormData>({
     resolver: zodResolver(sprintSchema),
@@ -98,7 +98,6 @@ const CreateSprintModal = ({
           dateStarted: data.dateStarted,
           dateEnded: data.dateEnded,
         });
-        toast.success("Sprint updated successfully!");
       } else {
         await createSprint(projectId, {
           name: data.name,
@@ -108,18 +107,12 @@ const CreateSprintModal = ({
           duration,
           projectId,
         });
-        toast.success("Sprint created successfully!");
       }
 
       onClose();
       reset();
     } catch (error) {
       console.error("Error creating/updating sprint:", error);
-      toast.error(
-        `Failed to ${isEditing ? "update" : "create"} sprint: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
     } finally {
       setIsLoading(false);
     }

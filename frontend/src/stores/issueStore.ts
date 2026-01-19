@@ -1,4 +1,3 @@
-// src/stores/issueStore.ts
 import { create } from "zustand";
 import { issues } from "../apis/issue";
 import { extractErrorMessage } from "../types/api";
@@ -11,7 +10,6 @@ interface IssueState {
   error: string | null;
   selectedIssues: Record<string, IIssue[]>;
   selectedIssueId: string | null;
-
   fetchIssuesByProject: (projectId: string) => Promise<void>;
   fetchIssuesByColumn: (columnId: string, projectId: string) => Promise<void>;
   fetchIssue: (projectId: string, issueId: string) => Promise<void>;
@@ -23,7 +21,6 @@ interface IssueState {
   openIssueDetail: (issueId: string) => void;
   closeIssueDetail: () => void;
   getIssueById: (issueId: string) => IIssue | undefined;
-
   setSelectedIssues: (sprintId: string, issues: IIssue[]) => void;
   toggleIssueSelection: (sprintId: string, issue: IIssue) => void;
   clearSelectedIssues: (sprintId: string) => void;
@@ -43,7 +40,6 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await issues.list({ projectId, page: 1, limit: 50 });
-
       if (response.data.success && Array.isArray(response.data.data)) {
         set({
           issues: response.data.data,
@@ -65,7 +61,6 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
       const response = await issues.list({ projectId, columnId, page: 1, limit: 50 });
       if (response.data.success) {
         const issuesData = Array.isArray(response.data.data) ? response.data.data : response.data.data?.data || [];
-
         set({
           issues: issuesData,
           isLoading: false,
@@ -100,15 +95,12 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await issues.create(issueData.projectId, issueData);
-
       if (response.data.success && response.data.data) {
         const newIssue = response.data.data;
-
         set((state) => ({
           issues: [...state.issues, newIssue],
           isLoading: false,
         }));
-
         return newIssue;
       } else {
         throw new Error(response.data.message || "Failed to create issue");
@@ -124,13 +116,18 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await issues.update(projectId, issueId, issueData);
-      if (response.data.success && response.data.data) {
-        const updatedIssue = response.data.data;
+
+      if (response.data.success) {
+        const updatedFields = { ...issueData, updatedAt: new Date().toISOString() };
+
         set((state) => ({
-          issues: state.issues.map((i) => (i.id === issueId ? updatedIssue : i)),
-          currentIssue: state.currentIssue?.id === issueId ? updatedIssue : state.currentIssue,
+          issues: state.issues.map((i) => (i.id === issueId ? { ...i, ...updatedFields } : i)),
+          currentIssue:
+            state.currentIssue?.id === issueId ? { ...state.currentIssue, ...updatedFields } : state.currentIssue,
           isLoading: false,
         }));
+
+        await get().fetchIssuesByProject(projectId);
       } else {
         throw new Error(response.data.message || "Failed to update issue");
       }
@@ -165,12 +162,10 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
   clearIssues: () => set({ issues: [], currentIssue: null }),
   openIssueDetail: (issueId) => set({ selectedIssueId: issueId }),
   closeIssueDetail: () => set({ selectedIssueId: null }),
-
   getIssueById: (issueId) => {
     const { issues } = get();
     return issues.find((issue) => issue.id === issueId);
   },
-
   setSelectedIssues: (sprintId: string, issues: IIssue[]) => {
     set((state) => {
       const newSelectedIssues = { ...state.selectedIssues };
@@ -178,26 +173,21 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
       return { selectedIssues: newSelectedIssues };
     });
   },
-
   toggleIssueSelection: (sprintId: string, issue: IIssue) => {
     set((state) => {
       const currentIssues = state.selectedIssues[sprintId] || [];
       const issueIndex = currentIssues.findIndex((i) => i.id === issue.id);
-
       let newIssues = [];
       if (issueIndex === -1) {
         newIssues = [...currentIssues, issue];
       } else {
         newIssues = currentIssues.filter((i) => i.id !== issue.id);
       }
-
       const newSelectedIssues = { ...state.selectedIssues };
       newSelectedIssues[sprintId] = newIssues;
-
       return { selectedIssues: newSelectedIssues };
     });
   },
-
   clearSelectedIssues: (sprintId: string) => {
     set((state) => {
       const newSelectedIssues = { ...state.selectedIssues };
@@ -205,11 +195,9 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
       return { selectedIssues: newSelectedIssues };
     });
   },
-
   getSelectedIssues: (sprintId: string) => {
     return get().selectedIssues[sprintId] || [];
   },
-
   isIssueSelected: (sprintId: string, issueId: string) => {
     const selectedIssues = get().selectedIssues[sprintId] || [];
     return selectedIssues.some((issue) => issue.id === issueId);

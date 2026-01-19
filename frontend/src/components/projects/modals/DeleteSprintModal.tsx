@@ -11,6 +11,7 @@ interface DeleteSprintModalProps {
   sprintId: string;
   sprintName: string;
   projectId: string;
+  isLoading?: boolean;
 }
 
 const DeleteSprintModal = ({ isOpen, onClose, sprintId, sprintName, projectId }: DeleteSprintModalProps) => {

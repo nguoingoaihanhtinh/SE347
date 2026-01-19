@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, createContext, useCallback } from "react";
 import {
   Box,
   AppBar,
@@ -15,6 +15,10 @@ import {
   Link,
   Chip,
   Stack,
+  useTheme,
+  useMediaQuery,
+  Slide,
+  alpha,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import FolderIcon from "@mui/icons-material/Folder";
@@ -22,24 +26,40 @@ import ViewKanbanIcon from "@mui/icons-material/ViewKanban";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import SettingsIcon from "@mui/icons-material/Settings";
+import CloseIcon from "@mui/icons-material/Close";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import IssueDetail from "../components/projects/IssueDetail";
+import { useParams } from "react-router-dom";
 
+/* ================= CONTEXT ================= */
+interface LayoutContextType {
+  openIssueDetail: (issueId: string) => void;
+  closeIssueDetail: () => void;
+}
+export const LayoutContext = createContext<LayoutContextType>({
+  openIssueDetail: () => {},
+  closeIssueDetail: () => {},
+});
+
+/* ================= TYPES ================= */
 interface ProjectNavItem {
   label: string;
   path: string;
   icon?: React.ReactNode;
 }
-
 interface ProjectLayoutProps {
   children: React.ReactNode;
   projectName?: string;
   projectCode?: string;
   navItems?: ProjectNavItem[];
-  maxWidth?: "xs" | "sm" | "md" | "lg" | "xl" | false;
   breadcrumb?: { label: string; path?: string }[];
 }
 
-const drawerWidth = 240; // Tăng width drawer cho đủ không gian
-
+/* ================= CONSTANTS ================= */
+const drawerWidth = 260;
+const miniDrawerWidth = 72;
+const issueDetailWidth = 400;
 const defaultNav: ProjectNavItem[] = [
   { label: "Overview", path: "/project/overview", icon: <FolderIcon /> },
   { label: "Board", path: "/project/board", icon: <ViewKanbanIcon /> },
@@ -48,173 +68,184 @@ const defaultNav: ProjectNavItem[] = [
   { label: "Settings", path: "/project/settings", icon: <SettingsIcon /> },
 ];
 
+/* ================= COMPONENT ================= */
 export default function ProjectLayout({
   children,
   projectName,
   projectCode,
   navItems,
-  maxWidth = false,
   breadcrumb = [],
 }: ProjectLayoutProps) {
-  const [open, setOpen] = useState<boolean>(true);
-  const items = navItems && navItems.length ? navItems : defaultNav;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { projectId } = useParams<{ projectId: string }>(); // Lấy projectId từ URL
+
+  const [drawerOpen, setDrawerOpen] = useState(!isMobile);
+  const [issueDetailOpen, setIssueDetailOpen] = useState(false);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+
+  const items = navItems?.length ? navItems : defaultNav;
+
+  const toggleDrawer = () => setDrawerOpen((p) => !p);
+
+  const openIssueDetail = useCallback((issueId: string) => {
+    setSelectedIssueId(issueId);
+    setIssueDetailOpen(true);
+  }, []);
+
+  const closeIssueDetail = useCallback(() => {
+    setIssueDetailOpen(false);
+    setSelectedIssueId(null);
+  }, []);
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
-      {/* Sidebar */}
-      <Drawer
-        variant="persistent"
-        open={open}
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: drawerWidth,
-            boxSizing: "border-box",
-            bgcolor: "background.paper",
-            borderRight: "1px solid",
-            borderColor: "divider",
-          },
-        }}
-      >
-        <Toolbar sx={{ height: 64 }}>
-          <Stack direction="column" spacing={0.5}>
-            <Typography variant="subtitle2" color="text.secondary" fontWeight={500}>
-              PROJECT
-            </Typography>
-            <Typography variant="h6" fontWeight={600} color="primary" noWrap>
-              {projectName || "Untitled"}
-            </Typography>
-            {projectCode && (
-              <Chip
-                size="small"
-                label={projectCode}
-                color="primary"
-                variant="outlined"
-                sx={{ alignSelf: "flex-start" }}
-              />
-            )}
-          </Stack>
-        </Toolbar>
-        <Divider />
-        <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
+    <LayoutContext.Provider value={{ openIssueDetail, closeIssueDetail }}>
+      <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+        {/* ========== LEFT SIDEBAR ========== */}
+        <Drawer
+          variant={isMobile ? "temporary" : "persistent"}
+          open={drawerOpen}
+          onClose={toggleDrawer}
+          sx={{
+            width: drawerOpen ? drawerWidth : miniDrawerWidth,
+            flexShrink: 0,
+            "& .MuiDrawer-paper": {
+              width: drawerOpen ? drawerWidth : miniDrawerWidth,
+              transition: theme.transitions.create("width"),
+            },
+          }}
+        >
+          <Toolbar sx={{ height: 64, justifyContent: "space-between" }}>
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                PROJECT
+              </Typography>
+              {drawerOpen && (
+                <>
+                  <Typography variant="h6" color="primary" noWrap>
+                    {projectName || "Untitled"}
+                  </Typography>
+                  {projectCode && <Chip size="small" label={projectCode} />}
+                </>
+              )}
+            </Stack>
+            <IconButton onClick={toggleDrawer}>{drawerOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}</IconButton>
+          </Toolbar>
+          <Divider />
           <List>
             {items.map((item) => (
               <ListItemButton
                 key={item.path}
                 onClick={() => (window.location.href = item.path)}
                 sx={{
-                  "&:hover": { bgcolor: "action.hover" },
-                  py: 1.5,
+                  "&:hover": {
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  },
                 }}
               >
-                {item.icon && (
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    {React.cloneElement(item.icon as React.ReactElement, {
-                      sx: { color: "text.secondary" },
-                    })}
-                  </ListItemIcon>
-                )}
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{
-                    fontWeight: 500,
-                    fontSize: "0.925rem",
-                  }}
-                />
+                <ListItemIcon sx={{ color: "primary.main", minWidth: 40 }}>{item.icon}</ListItemIcon>
+                {drawerOpen && <ListItemText primary={item.label} />}
               </ListItemButton>
             ))}
           </List>
-        </Box>
-      </Drawer>
+        </Drawer>
 
-      {/* Main content area */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          display: "flex",
-          flexDirection: "column",
-          minHeight: 0, // Quan trọng để kích hoạt scrolling
-        }}
-      >
-        <AppBar
-          position="sticky"
-          elevation={0}
-          color="transparent"
-          sx={{
-            borderBottom: "1px solid",
-            borderColor: "divider",
-            bgcolor: "background.paper",
-            height: 64,
-            zIndex: 1100,
-          }}
-        >
-          <Toolbar sx={{ minHeight: 64 }}>
-            <IconButton
-              edge="start"
-              aria-label="menu"
-              onClick={() => setOpen((o) => !o)}
-              sx={{
-                mr: 2,
-                bgcolor: "action.hover",
-                "&:hover": { bgcolor: "action.selected" },
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" fontWeight={600} color="primary" sx={{ flexGrow: 1 }}>
-              {projectName || "Project"}
-            </Typography>
-            {/* Có thể thêm các action buttons ở đây */}
-          </Toolbar>
-          {breadcrumb.length > 0 && (
-            <Box sx={{ px: 3, pb: 1.5, pt: 0.5 }}>
-              <Breadcrumbs aria-label="breadcrumb">
-                {breadcrumb.map((b, idx) =>
-                  b.path ? (
-                    <Link
-                      underline="hover"
-                      color="inherit"
-                      key={idx}
-                      onClick={() => {
-                        if (b.path) {
-                          window.location.href = b.path;
-                        }
-                      }}
-                      sx={{
-                        cursor: "pointer",
-                        fontWeight: 500,
-                        "&:hover": { color: "primary.main" },
-                      }}
-                    >
-                      {b.label}
-                    </Link>
-                  ) : (
-                    <Typography key={idx} color="text.primary" fontWeight={500}>
-                      {b.label}
-                    </Typography>
-                  )
-                )}
-              </Breadcrumbs>
-            </Box>
-          )}
-        </AppBar>
-
-        {/* Scrollable content area */}
+        {/* ========== MAIN AREA ========== */}
         <Box
-          component="main"
           sx={{
             flexGrow: 1,
-            overflowY: "auto", // Kích hoạt scrolling dọc
-            overflowX: "hidden", // Ngăn horizontal scroll trừ khi cần thiết
-            p: { xs: 2, sm: 3, md: 4 },
-            bgcolor: "background.default",
-            minHeight: 0, // Quan trọng để flexbox hoạt động với scrolling
+            display: "flex",
+            flexDirection: "column",
+            ml: drawerOpen ? 0 : `${miniDrawerWidth}px`,
           }}
         >
-          {children}
+          {/* HEADER */}
+          <AppBar position="sticky" color="transparent" elevation={0}>
+            <Toolbar sx={{ height: 64 }}>
+              {isMobile && (
+                <IconButton onClick={toggleDrawer}>
+                  <MenuIcon />
+                </IconButton>
+              )}
+              <Typography variant="h6" color="primary" sx={{ ml: 2 }}>
+                {projectName || "Project"}
+              </Typography>
+            </Toolbar>
+            {breadcrumb.length > 0 && (
+              <Box px={3} pb={1}>
+                <Breadcrumbs>
+                  {breadcrumb.map((b, i) =>
+                    b.path ? (
+                      <Link key={i} onClick={() => (window.location.href = b.path!)}>
+                        {b.label}
+                      </Link>
+                    ) : (
+                      <Typography key={i}>{b.label}</Typography>
+                    ),
+                  )}
+                </Breadcrumbs>
+              </Box>
+            )}
+          </AppBar>
+
+          {/* CONTENT */}
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              overflowY: "auto",
+              p: 3,
+              transition: theme.transitions.create("margin-right"),
+              ...(issueDetailOpen && {
+                mr: { xs: 0, md: `${issueDetailWidth}px` },
+              }),
+            }}
+          >
+            {children}
+          </Box>
         </Box>
+
+        {/* ========== ISSUE DETAIL SIDEBAR ========== */}
+        <Slide direction="left" in={issueDetailOpen} mountOnEnter unmountOnExit>
+          <Box
+            sx={{
+              position: "fixed",
+              top: 64,
+              right: 0,
+              bottom: 0,
+              width: { xs: "100%", md: issueDetailWidth },
+              bgcolor: "background.paper",
+              borderLeft: "1px solid",
+              borderColor: "divider",
+              zIndex: 1300,
+              overflowY: "auto",
+            }}
+          >
+            <Box
+              sx={{
+                position: "sticky",
+                top: 0,
+                bgcolor: "background.paper",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                px: 2,
+                py: 1,
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography variant="h6">Issue Details</Typography>
+              <IconButton onClick={closeIssueDetail}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+
+            {selectedIssueId && projectId && (
+              <IssueDetail selectedIssueId={selectedIssueId} onClose={closeIssueDetail} projectId={projectId} />
+            )}
+          </Box>
+        </Slide>
       </Box>
-    </Box>
+    </LayoutContext.Provider>
   );
 }
