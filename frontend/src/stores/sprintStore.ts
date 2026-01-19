@@ -19,7 +19,7 @@ interface SprintState {
   clearSprints: () => void;
 }
 
-export const useSprintStore = create<SprintState>((set) => ({
+export const useSprintStore = create<SprintState>((set, get) => ({
   sprints: [],
   currentSprint: null,
   isLoading: false,
@@ -31,7 +31,10 @@ export const useSprintStore = create<SprintState>((set) => ({
       const response = await sprints.list(projectId);
 
       if (response.data.success && Array.isArray(response.data.data)) {
-        set({ sprints: response.data.data, isLoading: false });
+        set({
+          sprints: response.data.data,
+          isLoading: false,
+        });
       } else {
         throw new Error("Invalid sprint data format");
       }
@@ -41,6 +44,7 @@ export const useSprintStore = create<SprintState>((set) => ({
       throw new Error(msg);
     }
   },
+
   fetchSprint: async (projectId, sprintId) => {
     try {
       set({ isLoading: true, error: null });
@@ -70,10 +74,12 @@ export const useSprintStore = create<SprintState>((set) => ({
       }
 
       const newSprint = response.data.data;
+
       set((state) => ({
         sprints: [...state.sprints, newSprint],
         isLoading: false,
       }));
+
       return newSprint;
     } catch (error) {
       const msg = extractErrorMessage(error);
@@ -90,11 +96,19 @@ export const useSprintStore = create<SprintState>((set) => ({
       if (!response.data.success) {
         throw new Error(response.data.message || "Failed to update sprint");
       }
-      if (!response.data.data) {
-        throw new Error("Missing updated sprint data");
+
+      let updatedSprint: ISprint;
+
+      if (response.data.data) {
+        updatedSprint = response.data.data;
+      } else {
+        const fetchResponse = await sprints.getById(projectId, sprintId);
+        if (!fetchResponse.data.success || !fetchResponse.data.data) {
+          throw new Error("Failed to fetch updated sprint");
+        }
+        updatedSprint = fetchResponse.data.data;
       }
 
-      const updatedSprint = response.data.data;
       set((state) => ({
         sprints: state.sprints.map((s) => (s.id === sprintId ? updatedSprint : s)),
         currentSprint: state.currentSprint?.id === sprintId ? updatedSprint : state.currentSprint,
@@ -111,6 +125,7 @@ export const useSprintStore = create<SprintState>((set) => ({
     try {
       set({ isLoading: true, error: null });
       await sprints.delete(projectId, sprintId);
+
       set((state) => ({
         sprints: state.sprints.filter((s) => s.id !== sprintId),
         currentSprint: state.currentSprint?.id === sprintId ? null : state.currentSprint,
