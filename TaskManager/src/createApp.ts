@@ -10,8 +10,8 @@ import projectMemberRoutes from "./routes/project-member.route";
 import projectColumnRoutes from "./routes/project-column.route";
 import issueRoutes from "./routes/issue.route";
 import sprintRoutes from "./routes/sprint.route";
-import commentRoutes from "./routes/comment.route";
-import projectTeamRoutes from "./routes/project-team.route";
+// import commentRoutes from "./routes/comment.route";
+// import projectTeamRoutes from "./routes/project-team.route";
 import { requestLogger, errorHandler } from "@/middlewares";
 import invitationRoutes from "@/routes/invitation.route";
 import adminRoutes from "@/routes/admin.route";
@@ -30,7 +30,7 @@ export const createApp = async () => {
       origin: "http://localhost:5173",
       credentials: true,
       exposedHeaders: ["Authorization"],
-    })
+    }),
   );
   app.use(cookieParser());
   app.use(express.json({ limit: "10mb" }));
@@ -54,7 +54,12 @@ export const createApp = async () => {
   app.use("/api/sprints", sprintRoutes);
   // app.use("/api/comments", commentRoutes);
   // app.use("/api/project-teams", projectTeamRoutes);
-
+  app.get("/health", (req, res) => {
+    res.status(200).json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+    });
+  });
   // Error handler
   app.use(errorHandler);
 

@@ -2,7 +2,7 @@
 import axios from "axios";
 import type { User, Comment, AuthResponse, ApiResponse } from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api`, // ✅ Đảm bảo có /api
@@ -28,7 +28,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Handle errors from server
@@ -38,12 +38,12 @@ api.interceptors.response.use(
     // Only redirect to login on 401 if we're not already on an auth page
     if (error.response?.status === 401) {
       const isAuthPage = ["/login", "/register", "/forgot-password"].includes(window.location.pathname);
-      
+
       if (!isAuthPage) {
         console.warn("401 Unauthorized - clearing token and redirecting to login");
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        
+
         // Prevent infinite redirect loops
         setTimeout(() => {
           if (window.location.pathname !== "/login") {
@@ -53,7 +53,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export interface ResponseApi<T> {
@@ -147,8 +147,14 @@ export const userApi = {
   getById: (userId: string) => api.get<ApiResponse<User>>(`/users/${userId}`),
 
   // POST /api/users - Create user (admin only)
-  create: (data: { email: string; fullName: string; password: string; role: "user" | "admin" | "super_admin"; avatar?: string | null; isEmailVerified?: boolean }) =>
-    api.post<ApiResponse<User>>("/users", data),
+  create: (data: {
+    email: string;
+    fullName: string;
+    password: string;
+    role: "user" | "admin" | "super_admin";
+    avatar?: string | null;
+    isEmailVerified?: boolean;
+  }) => api.post<ApiResponse<User>>("/users", data),
 
   // PUT /api/users/profile - Update own profile
   updateProfile: (data: Partial<User>) => api.put<ApiResponse<User>>("/users/profile", data),
@@ -225,7 +231,7 @@ export interface AdminProject {
 export const adminApi = {
   // GET /api/admin/stats - Get system statistics
   getStats: () => api.get<ApiResponse<SystemStats>>("/admin/stats"),
-  
+
   // GET /api/admin/projects - Get all projects (admin only)
   getProjects: (params?: { page?: number; limit?: number; search?: string }) =>
     api.get<PaginatedResponse<AdminProject[]>>("/admin/projects", { params }),

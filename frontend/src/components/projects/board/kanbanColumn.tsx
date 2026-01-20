@@ -1,4 +1,3 @@
-// src/components/projects/board/kanbanColumn.tsx
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { Popover } from "antd";
 import { type ReactNode, useCallback, useState } from "react";
@@ -11,22 +10,24 @@ import type { IColumn } from "../../../types/project";
 import RenameColumnModal from "../modals/renameColumnModal";
 import DeleteColumnModal from "../modals/deleteColumnModal";
 import { useDeleteColumn, useUpdateColumn, useUpdateProjectOrderColumn } from "../../../hooks/useProject";
+import { useDroppable } from "@dnd-kit/core";
 
-const SortableIssue = ({ issue }: { issue: IIssue }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+const SortableIssue = ({ issue, isDraggingPreview }: { issue: IIssue; isDraggingPreview?: boolean }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: issue.id,
   });
-  const isDragging = attributes["aria-pressed"];
+
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    cursor: isDragging ? "grabbing" : "default",
+    cursor: isDragging ? "grabbing" : "grab",
     touchAction: "none",
+    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab">
-      <IssueCard issue={issue} isDragging={isDragging} />
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <IssueCard issue={issue} isDragging={isDragging} isDraggingPreview={isDraggingPreview} />
     </div>
   );
 };
@@ -35,31 +36,51 @@ export const KanbanColumn = ({
   columns,
   column,
   projectId,
-  setColumns,
+  isDragging = false,
 }: {
   columns: IColumn[];
-  column: IColumn;
+  column: IColumn & { issues?: IIssue[] };
   projectId: string;
-  setColumns: React.Dispatch<React.SetStateAction<IColumn[]>>;
+  isDragging?: boolean;
 }) => {
-  const { setNodeRef } = useSortable({
+  const {
+    setNodeRef: setSortableRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging: isColumnDragging,
+  } = useSortable({
     id: column.id,
-    data: { type: "Column", column },
+    data: {
+      type: "Column",
+      column,
+    },
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: column.id,
   });
 
   const { updateOrderColumn } = useUpdateProjectOrderColumn();
+  const { deleteColumn } = useDeleteColumn();
+  const { updateColumn } = useUpdateColumn();
+
   const [showRenameColumnModal, setShowRenameColumnModal] = useState(false);
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const { deleteColumn } = useDeleteColumn((deletedColumnId) => {
-    const newColumns = columns
-      .filter((col) => col.id !== deletedColumnId)
-      .map((col, index) => ({ ...col, order: index }));
-    setColumns(newColumns);
-  });
+  const columnIssues = column.issues || [];
+  const issueCount = columnIssues.length;
 
-  const { updateColumn } = useUpdateColumn();
+  const columnStyle: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isColumnDragging ? 0.8 : 1,
+    cursor: isColumnDragging ? "grabbing" : "grab",
+    border: isOver ? "2px solid #3b82f6" : isColumnDragging ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+    backgroundColor: isOver ? "#eff6ff" : "#f9fafb",
+  };
 
   const handleMove = useCallback(
     (direction: "left" | "right") => {
@@ -67,48 +88,44 @@ export const KanbanColumn = ({
       const targetIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
       if (targetIndex < 0 || targetIndex >= columns.length) return;
 
-      const newOrder = [...columns];
-      [newOrder[currentIndex], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[currentIndex]];
-      setColumns(newOrder.map((col, i) => ({ ...col, order: i })));
+      const newColumns = [...columns];
+      [newColumns[currentIndex], newColumns[targetIndex]] = [newColumns[targetIndex], newColumns[currentIndex]];
 
+      const reordered = newColumns.map((col, i) => ({ ...col, order: i }));
       updateOrderColumn({
         projectId,
-        columns: newOrder.map((col, i) => ({ id: col.id, order: i + 1 })),
+        columns: reordered.map((col) => ({ id: col.id, order: col.order + 1 })),
       });
+
       setPopoverOpen(false);
     },
-    [columns, column.id, projectId, setColumns, updateOrderColumn]
+    [columns, column.id, projectId, updateOrderColumn],
   );
 
   const handleRenameColumn = useCallback(
     (newName: string) => {
-      setColumns((cols) => cols.map((col) => (col.id === column.id ? { ...col, name: newName } : col)));
-      setShowRenameColumnModal(false);
-      // ✅ FIX LỖI: THÊM 'data' VÀO ĐÂY
       updateColumn({ projectId, columnId: column.id, data: { name: newName } });
+      setShowRenameColumnModal(false);
     },
-    [column.id, projectId, updateColumn, setColumns]
+    [column.id, projectId, updateColumn],
   );
 
   const handleDeleteColumn = () => {
-    const hasIssues = Array.isArray(column.issues) && column.issues.length > 0;
-    if (hasIssues) {
-      alert("Cannot delete column with issues. Please move them first.");
+    if (issueCount > 0) {
+      alert("Không thể xóa column đang chứa issue. Vui lòng di chuyển chúng trước.");
       return;
     }
     deleteColumn({ projectId, columnId: column.id });
     setShowDeleteColumnModal(false);
   };
 
-  const safeIssues = Array.isArray(column.issues) ? column.issues : [];
-
   const content: ReactNode = (
     <div className="w-48">
       <div onClick={() => handleMove("left")} className="cursor-pointer rounded px-3 py-2 hover:bg-gray-100">
-        Move to left
+        Move left
       </div>
       <div onClick={() => handleMove("right")} className="cursor-pointer rounded px-3 py-2 hover:bg-gray-100">
-        Move to right
+        Move right
       </div>
       <div
         onClick={() => {
@@ -117,7 +134,7 @@ export const KanbanColumn = ({
         }}
         className="cursor-pointer rounded px-3 py-2 hover:bg-gray-100"
       >
-        Change column name
+        Rename column
       </div>
       <div
         onClick={() => {
@@ -132,9 +149,24 @@ export const KanbanColumn = ({
   );
 
   return (
-    <div ref={setNodeRef} className="mx-2 w-80 flex-shrink-0 rounded bg-gray-100 p-2">
-      <div className="mb-3 flex items-center justify-between p-2">
-        <h2 className="text-base font-medium text-gray-700">{column.name}</h2>
+    <div
+      ref={(node) => {
+        setSortableRef(node);
+        setDroppableRef(node);
+      }}
+      style={columnStyle}
+      {...attributes}
+      {...listeners}
+      className={`mx-2 w-80 flex-shrink-0 rounded-lg p-3 shadow-sm border transition-all duration-200 ${
+        isColumnDragging || isDragging ? "shadow-lg scale-[1.01]" : ""
+      }`}
+    >
+      {/* Header */}
+      <div className="mb-3 flex items-center justify-between px-2 py-1">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">{column.name}</h2>
+          <span className="text-xs text-gray-500">{issueCount} issues</span>
+        </div>
         <Popover
           content={content}
           trigger="click"
@@ -142,20 +174,33 @@ export const KanbanColumn = ({
           open={popoverOpen}
           onOpenChange={setPopoverOpen}
         >
-          <div className="cursor-pointer rounded p-1.5 hover:bg-gray-200">
+          <button className="p-1.5 rounded hover:bg-gray-200 transition">
             <LuEllipsisVertical className="text-gray-500" />
-          </div>
+          </button>
         </Popover>
       </div>
 
-      <SortableContext items={safeIssues.map((issue) => issue.id)}>
-        <div className="flex max-h-[600px] min-h-40 flex-col gap-2 overflow-auto pb-2">
-          {safeIssues.map((issue) => (
-            <SortableIssue key={issue.id} issue={issue} />
-          ))}
+      {/* Issues List */}
+      <SortableContext items={columnIssues.map((i) => i.id)}>
+        <div className="flex min-h-[150px] max-h-[70vh] flex-col gap-2 overflow-y-auto pb-4 pr-1">
+          {issueCount > 0 ? (
+            columnIssues.map((issue) => <SortableIssue key={issue.id} issue={issue} isDraggingPreview={isDragging} />)
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-100 text-sm text-gray-500 p-4">
+              <p>
+                Drag issues here or <span className="text-blue-600 cursor-pointer">create new issue</span>
+              </p>
+            </div>
+          )}
         </div>
       </SortableContext>
 
+      {/* Footer với tổng số issues */}
+      <div className="mt-3 pt-2 border-t border-gray-200 text-sm font-medium text-gray-600 text-center">
+        {issueCount} issues
+      </div>
+
+      {/* Modals */}
       {showRenameColumnModal && (
         <RenameColumnModal
           currentName={column.name}
@@ -163,12 +208,11 @@ export const KanbanColumn = ({
           onSubmit={handleRenameColumn}
         />
       )}
-
       {showDeleteColumnModal && (
         <DeleteColumnModal
           onClose={() => setShowDeleteColumnModal(false)}
           onSubmit={handleDeleteColumn}
-          hasIssues={safeIssues.length > 0}
+          hasIssues={issueCount > 0}
         />
       )}
     </div>
