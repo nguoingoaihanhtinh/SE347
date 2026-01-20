@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: taskmanager-backend
+    runtime: node
+    env:
+      node: "20"
+    region: singapore
+    plan: free
+    rootDir: TaskManager # Vì code của bạn nằm trong folder TaskManager
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Bạn sẽ set giá trị này trong Render Dashboard
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      # Thêm các biến môi trường khác của bạn ở đây
+    autoDeploy: true # Tự động deploy khi push code lên branch main
+    branch: main # Branch để deploy
