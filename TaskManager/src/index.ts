@@ -1,3 +1,4 @@
+import "module-alias/register";
 import "dotenv/config";
 // src/index.ts
 import { createApp } from "./createApp";

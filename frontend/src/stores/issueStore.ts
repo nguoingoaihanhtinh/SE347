@@ -16,11 +16,13 @@ interface IssueState {
   createIssue: (data: CreateIssueParams) => Promise<IIssue>;
   updateIssue: (projectId: string, issueId: string, data: UpdateIssueParams) => Promise<void>;
   deleteIssue: (projectId: string, issueId: string) => Promise<void>;
+
   setCurrentIssue: (issue: IIssue | null) => void;
   clearIssues: () => void;
   openIssueDetail: (issueId: string) => void;
   closeIssueDetail: () => void;
   getIssueById: (issueId: string) => IIssue | undefined;
+
   setSelectedIssues: (sprintId: string, issues: IIssue[]) => void;
   toggleIssueSelection: (sprintId: string, issue: IIssue) => void;
   clearSelectedIssues: (sprintId: string) => void;
@@ -118,16 +120,19 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
       const response = await issues.update(projectId, issueId, issueData);
 
       if (response.data.success) {
-        const updatedFields = { ...issueData, updatedAt: new Date().toISOString() };
+        // Lấy issue data từ response hoặc fallback về issueData nếu backend không trả về data
+        const updatedData = response.data.data || issueData;
 
         set((state) => ({
-          issues: state.issues.map((i) => (i.id === issueId ? { ...i, ...updatedFields } : i)),
+          issues: state.issues.map((i) =>
+            i.id === issueId ? { ...i, ...updatedData, updatedAt: new Date().toISOString() } : i,
+          ),
           currentIssue:
-            state.currentIssue?.id === issueId ? { ...state.currentIssue, ...updatedFields } : state.currentIssue,
+            state.currentIssue?.id === issueId
+              ? { ...state.currentIssue, ...updatedData, updatedAt: new Date().toISOString() }
+              : state.currentIssue,
           isLoading: false,
         }));
-
-        await get().fetchIssuesByProject(projectId);
       } else {
         throw new Error(response.data.message || "Failed to update issue");
       }

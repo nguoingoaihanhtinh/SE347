@@ -8,25 +8,20 @@
     },
     "rootDir": "./src",
     "outDir": "./dist",
-
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "commonjs",
     "target": "es2016",
-    "types": ["jest", "node"],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
-
+    "lib": ["es2016"],
+    "typeRoots": ["./node_modules/@types"],
+    // Removed jest from types to prevent production build errors
+    "types": ["node"],
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
-
     // Style Options
     // "noImplicitReturns": true,
     // "noImplicitOverride": true,
@@ -34,13 +29,14 @@
     // "noUnusedParameters": true,
     // "noFallthroughCasesInSwitch": true,
     // "noPropertyAccessFromIndexSignature": true,
-
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
     // Recommended Options
     "strict": true,
-    "jsx": "react-jsx",
+    // Removed jsx for backend project
+    // "jsx": "react-jsx",
     // "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
@@ -48,5 +44,5 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "scripts", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": ["node_modules", "dist", "scripts", "coverage", "src/__tests__", "**/*.test.ts", "**/*.spec.ts"]
 }

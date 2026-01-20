@@ -30,7 +30,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import IssueDetail from "../components/projects/IssueDetail";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; // Thêm useNavigate
 
 /* ================= CONTEXT ================= */
 interface LayoutContextType {
@@ -45,9 +45,10 @@ export const LayoutContext = createContext<LayoutContextType>({
 /* ================= TYPES ================= */
 interface ProjectNavItem {
   label: string;
-  path: string;
+  path: string; // relative path, ví dụ: "board", "backlog"
   icon?: React.ReactNode;
 }
+
 interface ProjectLayoutProps {
   children: React.ReactNode;
   projectName?: string;
@@ -60,12 +61,13 @@ interface ProjectLayoutProps {
 const drawerWidth = 260;
 const miniDrawerWidth = 72;
 const issueDetailWidth = 400;
+
 const defaultNav: ProjectNavItem[] = [
-  { label: "Overview", path: "/project/overview", icon: <FolderIcon /> },
-  { label: "Board", path: "/project/board", icon: <ViewKanbanIcon /> },
-  { label: "Issues", path: "/project/issues", icon: <BugReportIcon /> },
-  { label: "Team", path: "/project/team", icon: <PeopleAltIcon /> },
-  { label: "Settings", path: "/project/settings", icon: <SettingsIcon /> },
+  { label: "Overview", path: "overview", icon: <FolderIcon /> },
+  { label: "Board", path: "board", icon: <ViewKanbanIcon /> },
+  { label: "Backlog", path: "backlog", icon: <BugReportIcon /> },
+  { label: "Team", path: "team", icon: <PeopleAltIcon /> },
+  { label: "Settings", path: "settings", icon: <SettingsIcon /> },
 ];
 
 /* ================= COMPONENT ================= */
@@ -78,7 +80,8 @@ export default function ProjectLayout({
 }: ProjectLayoutProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { projectId } = useParams<{ projectId: string }>(); // Lấy projectId từ URL
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate(); // Thêm useNavigate
 
   const [drawerOpen, setDrawerOpen] = useState(!isMobile);
   const [issueDetailOpen, setIssueDetailOpen] = useState(false);
@@ -97,6 +100,12 @@ export default function ProjectLayout({
     setIssueDetailOpen(false);
     setSelectedIssueId(null);
   }, []);
+
+  const handleNavClick = (path: string) => {
+    if (projectId) {
+      navigate(`/projects/${projectId}/${path}`);
+    }
+  };
 
   return (
     <LayoutContext.Provider value={{ openIssueDetail, closeIssueDetail }}>
@@ -136,7 +145,7 @@ export default function ProjectLayout({
             {items.map((item) => (
               <ListItemButton
                 key={item.path}
-                onClick={() => (window.location.href = item.path)}
+                onClick={() => handleNavClick(item.path)}
                 sx={{
                   "&:hover": {
                     bgcolor: alpha(theme.palette.primary.main, 0.08),
@@ -176,7 +185,7 @@ export default function ProjectLayout({
                 <Breadcrumbs>
                   {breadcrumb.map((b, i) =>
                     b.path ? (
-                      <Link key={i} onClick={() => (window.location.href = b.path!)}>
+                      <Link key={i} component="button" onClick={() => navigate(b.path!)}>
                         {b.label}
                       </Link>
                     ) : (
