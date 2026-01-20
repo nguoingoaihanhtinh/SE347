@@ -3,8 +3,9 @@ services:
     name: taskmanager-backend
     runtime: node
     env: node
-    region: singapore # hoặc oregon, frankfurt tùy bạn chọn
-    plan: free # hoặc starter, standard
+    region: singapore
+    plan: free
+    rootDir: TaskManager # Vì code của bạn nằm trong folder TaskManager
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /health
@@ -13,8 +14,6 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: NPM_CONFIG_PRODUCTION
-        value: false # Để cài devDependencies khi build
       - key: DATABASE_URL
         sync: false # Bạn sẽ set giá trị này trong Render Dashboard
       - key: MONGODB_URI
@@ -27,8 +26,6 @@ services:
         sync: false
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
-      - key: FRONTEND_URL
-        value: https://your-frontend-domain.com
       # Thêm các biến môi trường khác của bạn ở đây
     autoDeploy: true # Tự động deploy khi push code lên branch main
     branch: main # Branch để deploy
