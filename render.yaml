@@ -11,6 +11,8 @@ services:
     startCommand: node -r module-alias/register ./dist/index.js
     healthCheckPath: /health
     envVars:
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
       - key: NODE_ENV
         value: production
       - key: PORT
