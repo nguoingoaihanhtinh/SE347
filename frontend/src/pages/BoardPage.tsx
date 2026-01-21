@@ -3,23 +3,35 @@ import { useParams } from "react-router-dom";
 import { useProjectStore } from "../stores/projectStore";
 import { useColumnStore } from "../stores/columnStore";
 import { useIssueStore } from "../stores/issueStore";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  DragEndEvent,
+  DragStartEvent,
+  UniqueIdentifier,
+} from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { KanbanColumn } from "../components/projects/board/kanbanColumn";
 import { useUpdateProjectOrderColumn } from "../hooks/useProject";
 import NewColumnPlaceholder from "@/components/projects/board/newColumnPlaceholder";
 import IssueCard from "@/components/projects/board/issueCard";
+import type { IIssue } from "../types/issue";
 
 export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { fetchProject, currentProject, isLoading: isProjectLoading } = useProjectStore();
   const { fetchColumns, columns, isLoading: isColumnsLoading, createColumn } = useColumnStore();
-  const { fetchIssuesByProject, issues, updateIssue } = useIssueStore();
+  const { fetchIssuesByProject, issues: storeIssues, updateIssue } = useIssueStore();
   const { updateOrderColumn } = useUpdateProjectOrderColumn();
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
-  const [activeIssue, setActiveIssue] = useState(null);
+  const [activeIssue, setActiveIssue] = useState<IIssue | null>(null);
   const [currentColumnIndex, setCurrentColumnIndex] = useState(0);
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -34,36 +46,59 @@ export default function BoardPage() {
     fetchIssuesByProject(projectId);
   }, [projectId, fetchProject, fetchColumns, fetchIssuesByProject]);
 
-  const handleDragStart = (event) => {
+  const issues = storeIssues || [];
+
+  const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
+    setActiveId(active.id);
     const issue = issues.find((i) => i.id === active.id);
-    setActiveIssue(issue);
+    if (issue) setActiveIssue(issue);
   };
 
-  const handleDragEnd = async (event) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveIssue(null);
+    setActiveId(null);
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over || active.id === over.id || !projectId) return;
 
-    const activeIssueId = active.id as string;
-    const overColumnId = over.id as string;
+    // Xác định loại drag: column hay issue
+    const isDraggingColumn = columns.some((col) => col.id === active.id);
 
-    // Tìm issue
-    const issue = issues.find((i) => i.id === activeIssueId);
-    if (!issue || !projectId) return;
+    if (isDraggingColumn) {
+      // Xử lý drag column
+      const activeColumnId = active.id as string;
+      const overColumnId = over.id as string;
 
-    // Nếu drop vào column khác → update columnId
-    if (issue.columnId !== overColumnId) {
-      try {
-        await updateIssue(projectId, activeIssueId, { columnId: overColumnId });
-      } catch (error) {
-        console.error("Failed to update issue:", error);
+      const currentIndex = columns.findIndex((col) => col.id === activeColumnId);
+      const overIndex = columns.findIndex((col) => col.id === overColumnId);
+
+      if (currentIndex === -1 || overIndex === -1) return;
+
+      const newOrder = [...columns.map((col) => col.id)];
+      const [movedItem] = newOrder.splice(currentIndex, 1);
+      newOrder.splice(overIndex, 0, movedItem);
+
+      await handleReorderColumns(newOrder);
+    } else {
+      // Xử lý drag issue
+      const activeIssueId = active.id as string;
+      const overColumnId = over.id as string;
+
+      const issue = issues.find((i) => i.id === activeIssueId);
+      if (!issue) return;
+
+      if (issue.columnId !== overColumnId) {
+        try {
+          await updateIssue(projectId, activeIssueId, { columnId: overColumnId });
+        } catch (error) {
+          console.error("Failed to update issue:", error);
+        }
       }
     }
   };
 
   const handleCreateColumn = async (name: string, description: string = "") => {
-    if (!name.trim()) return;
+    if (!projectId || !name.trim()) return;
 
     try {
       await createColumn(projectId, {
@@ -71,7 +106,6 @@ export default function BoardPage() {
         description: description.trim(),
         color: "#3B82F6",
       });
-
       setIsCreatingColumn(false);
     } catch (error) {
       console.error("Error creating column:", error);
@@ -84,6 +118,8 @@ export default function BoardPage() {
   };
 
   const handleReorderColumns = async (newColumnOrder: string[]) => {
+    if (!projectId) return;
+
     const newColumns = columns
       .map((col) => ({
         ...col,
@@ -91,7 +127,6 @@ export default function BoardPage() {
       }))
       .sort((a, b) => a.order - b.order);
 
-    // Cập nhật thứ tự column trên backend
     await updateOrderColumn({
       projectId,
       columns: newColumns.map((col) => ({ id: col.id, order: col.order })),
@@ -109,11 +144,9 @@ export default function BoardPage() {
     }
   };
 
-  const visibleColumns = () => {
+  const visibleColumnsCount = () => {
     const totalColumns = columns.length + (isCreatingColumn ? 1 : 0);
     if (totalColumns <= 1) return totalColumns;
-
-    // Hiển thị tối đa 4 columns trên màn hình cùng lúc
     return Math.min(4, totalColumns);
   };
 
@@ -125,10 +158,9 @@ export default function BoardPage() {
     );
   }
 
-  // Filter issues theo columnId
   const columnsWithIssues = columns.map((column) => ({
     ...column,
-    issues: issues.filter((issue) => issue.columnId === column.id),
+    issues: (issues || []).filter((issue) => issue.columnId === column.id),
   }));
 
   return (
@@ -140,7 +172,6 @@ export default function BoardPage() {
         </div>
       </div>
 
-      {/* Navigation controls for column navigation */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex gap-2">
           <button
@@ -158,11 +189,11 @@ export default function BoardPage() {
           <button
             onClick={() => handleNavigateColumns("right")}
             className={`p-2 rounded-lg transition-all ${
-              currentColumnIndex < columns.length + (isCreatingColumn ? 1 : 0) - visibleColumns()
+              currentColumnIndex < columns.length + (isCreatingColumn ? 1 : 0) - visibleColumnsCount()
                 ? "bg-white text-gray-700 shadow-md hover:bg-gray-50"
                 : "bg-gray-100 text-gray-400 cursor-not-allowed"
             }`}
-            disabled={currentColumnIndex >= columns.length + (isCreatingColumn ? 1 : 0) - visibleColumns()}
+            disabled={currentColumnIndex >= columns.length + (isCreatingColumn ? 1 : 0) - visibleColumnsCount()}
             aria-label="Next column"
           >
             <FaChevronRight className="h-4 w-4" />
@@ -180,37 +211,16 @@ export default function BoardPage() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext
-          items={columns.map((c) => c.id)}
-          strategy={horizontalListSortingStrategy}
-          onDragEnd={(event) => {
-            const { active, over } = event;
-            if (!over || active.id === over.id) return;
-
-            const activeColumnId = active.id as string;
-            const overColumnId = over.id as string;
-
-            const currentIndex = columns.findIndex((col) => col.id === activeColumnId);
-            const overIndex = columns.findIndex((col) => col.id === overColumnId);
-
-            if (currentIndex === -1 || overIndex === -1) return;
-
-            const newOrder = [...columns.map((col) => col.id)];
-            const [movedItem] = newOrder.splice(currentIndex, 1);
-            newOrder.splice(overIndex, 0, movedItem);
-
-            handleReorderColumns(newOrder);
-          }}
-        >
-          {/* Container bình thường không có scroll */}
+        <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
           <div className="flex gap-4">
-            {columnsWithIssues.slice(currentColumnIndex, currentColumnIndex + visibleColumns()).map((column) => (
+            {columnsWithIssues.slice(currentColumnIndex, currentColumnIndex + visibleColumnsCount()).map((column) => (
               <KanbanColumn
                 key={column.id}
                 column={column}
                 columns={columns}
                 projectId={projectId}
                 isDragging={!!activeIssue}
+                activeId={activeId as string | null}
               />
             ))}
 
@@ -218,7 +228,7 @@ export default function BoardPage() {
               <NewColumnPlaceholder onCancel={handleCancelCreateColumn} onSubmit={handleCreateColumn} />
             )}
 
-            {!isCreatingColumn && currentColumnIndex + visibleColumns() > columns.length && (
+            {!isCreatingColumn && currentColumnIndex + visibleColumnsCount() > columns.length && (
               <div
                 onClick={() => setIsCreatingColumn(true)}
                 className="mx-2 w-80 flex-shrink-0 rounded-lg bg-gray-50 border-2 border-dashed border-gray-300 hover:border-blue-500 cursor-pointer transition-all flex items-center justify-center p-4 min-w-[320px]"
@@ -236,8 +246,7 @@ export default function BoardPage() {
             )}
           </div>
 
-          {/* Thông báo khi có nhiều columns */}
-          {columns.length + (isCreatingColumn ? 1 : 0) > visibleColumns() && (
+          {columns.length + (isCreatingColumn ? 1 : 0) > visibleColumnsCount() && (
             <div className="mt-4 text-center text-sm text-gray-500">Use the navigation buttons to see more columns</div>
           )}
         </SortableContext>

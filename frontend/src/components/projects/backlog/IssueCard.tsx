@@ -3,7 +3,6 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { IIssue } from "../../../types/issue";
 import type { IColumn } from "../../../types/project";
-import { useIssueStore } from "../../../stores/issueStore";
 import UserAvatar from "../../ui/user/userAvatar";
 import { statusOptions, typeOptions, priorityOptions } from "../../../constants/list";
 import IconRenderer from "../../ui/IconRenderer";
@@ -17,8 +16,8 @@ interface IssueCardProps {
   overItemId: string | null;
 }
 
-const IssueCard = memo(({ issue, projectId, columns, isDragging, overItemId }: IssueCardProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useDraggable({
+const IssueCard = memo(({ issue, columns, isDragging, overItemId }: IssueCardProps) => {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: issue.id,
     data: {
       type: "Issue",
@@ -30,14 +29,15 @@ const IssueCard = memo(({ issue, projectId, columns, isDragging, overItemId }: I
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+
     cursor: "grab",
+    touchAction: "none",
   };
 
-  // Get type and priority info
   const typeInfo = typeOptions.find((opt) => opt.id === issue.type);
   const priorityInfo = priorityOptions.find((opt) => opt.name === issue.priority);
-  const status = statusOptions.find((opt) => opt.key === columns.find((c) => c.id === issue.columnId)?.name);
+  const column = columns.find((c) => c.id === issue.columnId);
+  const status = statusOptions.find((opt) => opt.key === column?.name);
 
   const handleClick = () => {
     openIssueDetail(issue.id);
@@ -57,13 +57,13 @@ const IssueCard = memo(({ issue, projectId, columns, isDragging, overItemId }: I
       <div className="flex items-center">
         <div className="w-full flex flex-row items-center justify-start gap-4">
           <div className="flex flex-row items-center gap-2">
-            <div className={`rounded-sm p-0.5 ${typeInfo?.bgColor}`}>
+            <div className={`rounded-sm p-0.5 ${typeInfo?.bgColor || "bg-gray-200"}`}>
               <IconRenderer type={issue.type} className="h-3 w-3" />
             </div>
 
             <div
               className={`block text-sm font-light ${
-                issue.columnId === "DONE" ? "line-through text-gray-400" : "underline text-gray-700"
+                column?.name === "DONE" ? "line-through text-gray-400" : "underline text-gray-700"
               }`}
             >
               {issue.key}
@@ -72,7 +72,7 @@ const IssueCard = memo(({ issue, projectId, columns, isDragging, overItemId }: I
           {/* ISSUE SUMMARY */}
           <div className="relative flex max-w-[300px] items-center gap-2 text-clip">
             <div className="flex items-center gap-1">
-              <div className={`rounded-sm p-0.5 ${priorityInfo?.bgColor}`}>
+              <div className={`rounded-sm p-0.5 ${priorityInfo?.bgColor || "bg-gray-200"}`}>
                 <IconRenderer type={issue.priority} className="h-3 w-3" />
               </div>
               <span className="truncate text-sm font-medium text-gray-800">{issue.summary}</span>
@@ -86,11 +86,11 @@ const IssueCard = memo(({ issue, projectId, columns, isDragging, overItemId }: I
         <div className="flex flex-row items-center gap-3 min-w-[120px]">
           <div className="flex flex-row items-center gap-2">
             {/* status indicator */}
-            <div className={`rounded-full w-2 h-2 ${status?.bgColor}`}></div>
+            <div className={`rounded-full w-2 h-2 ${status?.bgColor || "bg-gray-300"}`}></div>
 
             {/* status text */}
-            <span className={`text-xs font-medium ${status?.textColor}`}>
-              {columns.find((c) => c.id === issue.columnId)?.name || "Unknown"}
+            <span className={`text-xs font-medium ${status?.textColor || "text-gray-600"}`}>
+              {column?.name || "Unknown"}
             </span>
           </div>
 

@@ -7,7 +7,7 @@ import logger from "./utils/logger";
 
 (async () => {
   const app = await createApp();
-  app.listen(env.PORT, () => {
-    logger.info(`Server running on port http://localhost:${env.PORT} in ${env.NODE_ENV} mode`);
+  app.listen(env.PORT, "0.0.0.0", () => {
+    logger.info(`Server running on port ${env.PORT}`);
   });
 })();

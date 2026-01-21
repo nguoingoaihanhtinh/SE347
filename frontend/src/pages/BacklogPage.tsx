@@ -9,7 +9,7 @@ import BacklogBoard from "../components/projects/backlog/BacklogBoard";
 
 export default function BacklogPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { currentProject, fetchProject } = useProjectStore();
+  const { fetchProject } = useProjectStore();
   const { fetchSprintsByProject } = useSprintStore();
   const { fetchIssuesByProject } = useIssueStore();
   const { fetchColumns } = useColumnStore();
@@ -33,6 +33,7 @@ export default function BacklogPage() {
     };
 
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   if (!projectId || isLoading) {

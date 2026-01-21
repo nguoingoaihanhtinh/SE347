@@ -1,4 +1,3 @@
-// src/components/projects/backlog/DeleteSprintModal.tsx
 import { useState } from "react";
 import Modal from "../../ui/modal/Modal";
 import { useSprintStore } from "../../../stores/sprintStore";
@@ -11,7 +10,6 @@ interface DeleteSprintModalProps {
   sprintId: string;
   sprintName: string;
   projectId: string;
-  isLoading?: boolean;
 }
 
 const DeleteSprintModal = ({ isOpen, onClose, sprintId, sprintName, projectId }: DeleteSprintModalProps) => {
@@ -23,21 +21,16 @@ const DeleteSprintModal = ({ isOpen, onClose, sprintId, sprintName, projectId }:
     try {
       setIsLoading(true);
 
-      // Lấy tất cả issue trong sprint này
       const sprintIssues = issues.filter((issue) => issue.sprintId === sprintId);
 
-      // Cập nhật issue về backlog trước khi xóa sprint
       for (const issue of sprintIssues) {
         await useIssueStore.getState().updateIssue(projectId, issue.id, {
-          ...issue,
           sprintId: null,
         });
       }
 
-      // Xóa sprint
       await deleteSprint(projectId, sprintId);
 
-      // Tải lại danh sách issue để cập nhật UI
       await fetchIssuesByProject(projectId);
 
       toast.success(`Sprint "${sprintName}" has been deleted successfully!`);
@@ -59,7 +52,6 @@ const DeleteSprintModal = ({ isOpen, onClose, sprintId, sprintName, projectId }:
       buttonContent={isLoading ? "Deleting..." : "Delete Sprint"}
       onSubmit={handleDeleteSprint}
       isLoadingButton={isLoading}
-      buttonVariant="danger"
     >
       <div className="space-y-4 p-4">
         <p className="text-gray-600">

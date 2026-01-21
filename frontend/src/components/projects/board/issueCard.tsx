@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { FaBars } from "react-icons/fa";
-import type { IIssue } from "../../../types/issue";
+import type { IIssue, IIssueWithoutColumn } from "../../../types/issue";
 import TypeBadge from "../../ui/badge/typeBadge";
 import PriorityBadge from "../../ui/badge/priorityBadge";
 import UserAvatar from "../../ui/user/userAvatar";
@@ -14,15 +14,38 @@ const formatDate = (dateString: string): string => {
   }).format(date);
 };
 
+const ensureIssueHasColumnId = (issue: IIssue | IIssueWithoutColumn, defaultColumnId?: string): IIssue => {
+  if ("columnId" in issue && issue.columnId) {
+    return issue as IIssue;
+  }
+
+  return {
+    ...issue,
+    columnId: defaultColumnId || "unassigned",
+
+    createdAt: issue.createdAt || new Date().toISOString(),
+    updatedAt: issue.updatedAt || new Date().toISOString(),
+    attachments: issue.attachments || [],
+    dueDateFrom: issue.dueDateFrom || null,
+    dueDateTo: issue.dueDateTo || null,
+    completedAt: issue.completedAt || null,
+    reporterId: issue.reporterId || "unknown",
+  } as IIssue;
+};
+
 const IssueCard = ({
-  issue,
+  issue: rawIssue,
   isDragging,
   isDraggingPreview = false,
+  defaultColumnId,
 }: {
-  issue: IIssue;
+  issue: IIssue | IIssueWithoutColumn;
   isDragging?: boolean;
   isDraggingPreview?: boolean;
+  defaultColumnId?: string;
 }) => {
+  const issue = ensureIssueHasColumnId(rawIssue, defaultColumnId);
+
   const [isHovered, setIsHovered] = useState(false);
   const { openIssueDetail } = useIssueStore();
   const cardRef = useRef<HTMLDivElement>(null);

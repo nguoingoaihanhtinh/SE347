@@ -9,7 +9,7 @@ import type { IColumn } from "../../../types/project";
 import IssueCard from "./IssueCard";
 import QuickCreateIssue from "./QuickCreateIssue";
 import { useIssueStore } from "../../../stores/issueStore";
-import { useDeleteSprint } from "../../../hooks/useSprint";
+// import { useDeleteSprint } from "../../../hooks/useSprint";
 import { formatSprintDate } from "../../../modules/utils/date";
 import { statusOptions } from "../../../constants/list";
 import CreateIssueModal from "../../modals/CreateIssueModal";
@@ -25,23 +25,23 @@ interface BacklogSprintProps {
 }
 
 const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: BacklogSprintProps) => {
-  const { setNodeRef } = useSortable({
+  const { setNodeRef, isDragging: isSprintDragging } = useSortable({
     id: sprint.id,
     data: { type: "Sprint", sprint },
   });
 
-  const { selectedIssues = {}, setSelectedIssues } = useIssueStore();
-  const { deleteSprint } = useDeleteSprint();
+  const { selectedIssues, setSelectedIssues, clearSelectedIssues } = useIssueStore();
+  // const { deleteSprint } = useDeleteSprint();
 
   const [isOpenButtonMenu, setIsOpenButtonMenu] = useState(false);
   const [isCreateIssueModalOpen, setIsCreateIssueModalOpen] = useState(false);
   const [isEditSprintModalOpen, setIsEditSprintModalOpen] = useState(false);
   const [isDeleteSprintModalOpen, setIsDeleteSprintModalOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const isSprintIssuesChecked = !!selectedIssues?.[sprint.id]?.length;
-  const [checkedState, setCheckedState] = useState(isSprintIssuesChecked);
+  // Tính toán checkedState dựa trên selectedIssues thực tế
+  const sprintSelectedIssues = selectedIssues[sprint.id] || [];
+  const checkedState = sprintSelectedIssues.length > 0 && sprintSelectedIssues.length === sprint.issues.length;
 
   const estimate = useMemo(() => {
     return sprint.issues.reduce((total, issue) => total + (issue.storyPoint || 0), 0);
@@ -63,36 +63,30 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
     },
   ];
 
-  const handleDeleteSprint = async () => {
-    try {
-      setIsLoading(true);
-      await deleteSprint(projectId, sprint.id);
-      setIsDeleteSprintModalOpen(false);
-    } catch (error) {
-      console.error("Failed to delete sprint:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleToggleSprintIssuesChecked = () => {
     const newState = !checkedState;
-    setCheckedState(newState);
     if (newState) {
-      const newSelectedIssues = { ...selectedIssues };
-      newSelectedIssues[sprint.id] = [...sprint.issues];
-      setSelectedIssues(newSelectedIssues);
+      // Chọn tất cả issues trong sprint
+      setSelectedIssues(sprint.id, [...sprint.issues]);
     } else {
-      const newSelectedIssues = { ...selectedIssues };
-      delete newSelectedIssues[sprint.id];
-      setSelectedIssues(newSelectedIssues);
+      // Bỏ chọn tất cả
+      clearSelectedIssues(sprint.id);
     }
   };
 
+  // Xác định trạng thái của sprint
+  const isCompleted = new Date(sprint.dateEnded) < new Date();
+  const sprintStatus = isCompleted ? "Completed" : "Active";
+
   return (
-    <div ref={setNodeRef} className="flex w-full flex-col border border-gray-200 bg-white rounded-lg shadow-sm">
+    <div
+      ref={setNodeRef}
+      className={`flex w-full flex-col border rounded-lg shadow-sm transition-all duration-200 ${
+        isSprintDragging ? "border-blue-500 shadow-lg scale-[1.01] z-10" : "border-gray-200"
+      } ${isDragging ? "opacity-70" : ""}`}
+    >
       {/* Header */}
-      <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white px-4 py-3">
+      <div className="border-b bg-gradient-to-r from-gray-50 to-white px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4 flex-1">
             <input
@@ -100,11 +94,14 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
               checked={checkedState}
               onChange={handleToggleSprintIssuesChecked}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              aria-label={`Select all issues in ${sprint.name}`}
             />
             <button
               title="Expand/Collapse Sprint"
               className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded hover:bg-gray-100"
               onClick={() => setIsExpanded(!isExpanded)}
+              aria-expanded={isExpanded}
+              aria-controls={`sprint-content-${sprint.id}`}
             >
               {isExpanded ? <FaChevronDown size={14} /> : <FaChevronRight size={14} />}
             </button>
@@ -133,6 +130,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
                     className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
                       status?.bgColor || "bg-gray-100"
                     } ${status?.textColor || "text-gray-900"}`}
+                    title={`${column.name}: ${count} issues`}
                   >
                     {count}
                   </div>
@@ -144,10 +142,12 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
             <div className="flex items-center space-x-2">
               <div
                 className={`px-3 py-1 rounded-md text-xs font-medium border transition-all ${
-                  isDragging ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-300 text-gray-700"
+                  isCompleted
+                    ? "border-gray-300 bg-gray-100 text-gray-700"
+                    : "border-green-300 bg-green-50 text-green-700"
                 }`}
               >
-                {new Date(sprint.dateStarted).getTime() < new Date().getTime() ? "Completed" : "Active"}
+                {sprintStatus}
               </div>
               {sprint.id !== "backlog" && (
                 <Dropdown
@@ -156,7 +156,10 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
                   open={isOpenButtonMenu}
                   onOpenChange={setIsOpenButtonMenu}
                 >
-                  <button className="p-1.5 rounded border-2 border-transparent hover:border-gray-300 hover:bg-gray-100 transition-all">
+                  <button
+                    className="p-1.5 rounded border-2 border-transparent hover:border-gray-300 hover:bg-gray-100 transition-all"
+                    aria-label="Sprint actions"
+                  >
                     <BsThreeDots size={16} />
                   </button>
                 </Dropdown>
@@ -167,7 +170,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
       </div>
 
       {/* Body */}
-      <div className={`${isExpanded ? "block" : "hidden"}`}>
+      <div id={`sprint-content-${sprint.id}`} className={`${isExpanded ? "block" : "hidden"}`}>
         <div className="p-4 space-y-3 bg-gray-50">
           {/* Issues List */}
           <div className="space-y-2 min-h-[100px]">
@@ -207,7 +210,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
+      <div className="px-4 py-3 border-t bg-white flex items-center justify-between">
         <div className="text-sm text-gray-500">
           {sprint.issues.length} items • {estimate} pts
         </div>
@@ -216,6 +219,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
             <button
               onClick={() => setIsEditSprintModalOpen(true)}
               className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              aria-label={`Edit ${sprint.name}`}
             >
               <FaEdit size={12} />
               Edit
@@ -224,6 +228,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
           <button
             onClick={() => setIsExpanded(true)}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all border border-blue-100 shadow-sm"
+            aria-label="Add new issue"
           >
             <FaPlus size={14} />
             {isExpanded ? "Add Issue +" : "Add Issue"}
@@ -256,9 +261,9 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
           <DeleteSprintModal
             isOpen={isDeleteSprintModalOpen}
             onClose={() => setIsDeleteSprintModalOpen(false)}
-            onConfirm={handleDeleteSprint}
+            sprintId={sprint.id}
             sprintName={sprint.name}
-            isLoading={isLoading}
+            projectId={projectId}
           />
         </>
       )}

@@ -1,7 +1,8 @@
-import { ChevronUp, ChevronDown, Equal, ChevronsUp, ChevronsDown } from "lucide-react";
+import { ChevronDown, Equal, ChevronsUp, ChevronsDown } from "lucide-react";
 import React from "react";
 import type { IssuePriority } from "../../../types/issue";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const priorityOptions: {
   title: IssuePriority;
   icon: React.ReactNode;
@@ -9,31 +10,26 @@ export const priorityOptions: {
   hoverBg: string;
 }[] = [
   {
-    title: "Highest",
+    title: "critical",
     icon: <ChevronsUp size={18} strokeWidth={3.5} className="text-red-600" />,
     textColor: "text-red-600",
     hoverBg: "hover:bg-red-50",
   },
+
   {
-    title: "High",
-    icon: <ChevronUp size={18} strokeWidth={3.5} className="text-red-500" />,
-    textColor: "text-red-500",
-    hoverBg: "hover:bg-red-50",
-  },
-  {
-    title: "Medium",
+    title: "high",
     icon: <Equal size={18} strokeWidth={3.5} className="text-orange-500" />,
     textColor: "text-orange-500",
     hoverBg: "hover:bg-orange-50",
   },
   {
-    title: "Low",
+    title: "medium",
     icon: <ChevronDown size={18} strokeWidth={3.5} className="text-green-600" />,
     textColor: "text-green-600",
     hoverBg: "hover:bg-green-50",
   },
   {
-    title: "Lowest",
+    title: "low",
     icon: <ChevronsDown size={18} strokeWidth={3.5} className="text-blue-600" />,
     textColor: "text-blue-600",
     hoverBg: "hover:bg-blue-50",

@@ -1,7 +1,8 @@
 import { LuBookmark, LuBug, LuClipboardCheck, LuStar } from "react-icons/lu";
 import React from "react";
-import type { IssueType } from "../../../types";
+import { IssueType } from "@/types/issue";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const typeOptions: {
   id: IssueType;
   name: string;
@@ -11,7 +12,7 @@ export const typeOptions: {
   hoverBg: string;
 }[] = [
   {
-    id: "Bug",
+    id: "bug",
     name: "Bug",
     icon: <LuBug className="h-4 w-4 text-red-500" />,
     bgColor: "bg-red-100",
@@ -19,7 +20,7 @@ export const typeOptions: {
     hoverBg: "hover:bg-red-50",
   },
   {
-    id: "Task",
+    id: "task",
     name: "Task",
     icon: <LuClipboardCheck className="h-4 w-4 text-blue-500" />,
     bgColor: "bg-blue-100",
@@ -27,7 +28,7 @@ export const typeOptions: {
     hoverBg: "hover:bg-blue-50",
   },
   {
-    id: "Story",
+    id: "story",
     name: "Story",
     icon: <LuBookmark className="h-4 w-4 text-green-500" />,
     bgColor: "bg-green-100",
@@ -35,7 +36,7 @@ export const typeOptions: {
     hoverBg: "hover:bg-green-50",
   },
   {
-    id: "Epic",
+    id: "epic",
     name: "Epic",
     icon: <LuStar className="h-4 w-4 text-purple-500" />,
     bgColor: "bg-purple-100",

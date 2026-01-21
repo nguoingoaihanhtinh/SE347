@@ -1,6 +1,5 @@
 import api, { type ResponseApi } from "../lib/api";
 import { type IUser, type UpdateUserProfileParams } from "../types/user";
-import type { UserStats } from "../types/project";
 
 const config = {
   withCredentials: true,
@@ -61,5 +60,5 @@ export const users = {
     api.post<ResponseApi<void>>("/users/change-password", data, config),
 
   getUserStats: (body: { id: string; is_sprintId: boolean }) =>
-    api.post<ResponseApi<UserStats>>(`/users/stats/`, body, config),
+    api.post<ResponseApi<any>>(`/users/stats/`, body, config),
 };
