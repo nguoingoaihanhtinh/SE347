@@ -13,18 +13,12 @@ let db: Db | null = null;
 
 export async function connectMongo(): Promise<Db> {
   if (!client || !db) {
-    client = new MongoClient(uri!, {
-      tlsDisableOCSPEndpointCheck: true,
-    } as any);
-
+    client = new MongoClient(uri!, { dbName: dbName! });
     await client.connect();
     db = client.db(dbName!);
 
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(uri!, {
-        dbName: dbName!,
-        tlsDisableOCSPEndpointCheck: true,
-      } as any);
+      await mongoose.connect(uri!, { dbName: dbName! });
       logger.info("Connected to MongoDB via Mongoose");
     }
   }
