@@ -42,7 +42,6 @@ export const projects = {
 
   getActivities: (projectId: string) => api.get<ResponseApi<any[]>>(`/projects/${projectId}/activities`, config),
 
-  // ✅ Sửa getMembers: thay any[] → ProjectMember[]
   getMembers: (
     projectId: string,
     params?: {
@@ -87,7 +86,12 @@ export const projects = {
     const url = new URLSearchParams();
     if (params?.withStats) url.append("withStats", params.withStats.toString());
     const queryString = url.toString() ? `?${url.toString()}` : "";
-    return api.get<ResponseApi<{ data: IColumn[] }>>(`/projects/${projectId}/columns${queryString}`, config);
+    return api.get<
+      ResponseApi<{
+        columns: IColumn[];
+        data: IColumn[];
+      }>
+    >(`/projects/${projectId}/columns${queryString}`, config);
   },
 
   createColumn: (projectId: string, data: CreateColumnProjectParams) =>

@@ -16,12 +16,11 @@ interface AuthState {
     email: string,
     password: string,
     confirmPassword: string,
-    otp: string
+    otp: string,
   ) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
   clearError: () => void;
-  setAuth: (user: User, token: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -33,19 +32,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     try {
       set({ isLoading: true, error: null });
+
       const { data } = await authApi.login(email, password);
-      
-      // CRITICAL: Save token to localStorage (same as setAuth)
-      const token = data.data.token;
       const user = data.data.user;
-      
-      if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-      
+
       set({
-        user: user,
+        user,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -59,19 +51,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (firstName, lastName, email, password, confirmPassword, otp) => {
     try {
       set({ isLoading: true, error: null });
-      const { data } = await authApi.register({ firstName, lastName, email, password, confirmPassword, otp });
-      
-      // CRITICAL: Save token to localStorage (same as login)
-      const token = data.data.token;
+
+      const { data } = await authApi.register({
+        firstName,
+        lastName,
+        email,
+        password,
+        confirmPassword,
+        otp,
+      });
+
       const user = data.data.user;
-      
-      if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-      
+
       set({
-        user: user,
+        user,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -84,8 +77,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     authApi.logout().catch(console.error);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
     set({ user: null, isAuthenticated: false });
   },
 
@@ -93,29 +84,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true });
 
-      // SECURITY: Check token exists before calling API
-      const token = localStorage.getItem("token");
-      if (!token) {
-        set({ user: null, isAuthenticated: false, isLoading: false });
-        return;
-      }
-
       const { data } = await authApi.getCurrentUser();
-      set({ user: data.data, isAuthenticated: true, isLoading: false });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      // API call failed (token invalid/expired)
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+
+      set({
+        user: data.data,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch {
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
 
   clearError: () => set({ error: null }),
-
-  setAuth: (user, token) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    set({ user, isAuthenticated: true });
-  },
 }));
