@@ -1,48 +1,44 @@
-// src/lib/api.ts
 import axios from "axios";
 import type { User, Comment, AuthResponse, ApiResponse } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
 
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`, // ✅ Đảm bảo có /api
+  baseURL: `${API_BASE_URL}/api`,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
-
 // Add token to header if available
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      // Debug: Log when token is attached (only in development and not for auth endpoints)
-      if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
-        console.log(`[API] Request to ${config.url} with auth token`);
-      }
-    } else if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
-      // Only warn for non-auth endpoints when token is missing
-      console.warn(`[API] Request to ${config.url} WITHOUT auth token`);
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
-
+// api.interceptors.request.use(
+//   (config) => {
+//     const token = localStorage.getItem("token");
+//     if (token) {
+//       config.headers.Authorization = `Bearer ${token}`;
+//       // Debug: Log when token is attached (only in development and not for auth endpoints)
+//       if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
+//         console.log(`[API] Request to ${config.url} with auth token`);
+//       }
+//     } else if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
+//       // Only warn for non-auth endpoints when token is missing
+//       console.warn(`[API] Request to ${config.url} WITHOUT auth token`);
+//     }
+//     return config;
+//   },
+//   (error) => {
+//     return Promise.reject(error);
+//   },
+// );
 // Handle errors from server
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect to login on 401 if we're not already on an auth page
     if (error.response?.status === 401) {
       const isAuthPage = ["/login", "/register", "/forgot-password"].includes(window.location.pathname);
 
       if (!isAuthPage) {
         console.warn("401 Unauthorized - clearing token and redirecting to login");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        // localStorage.removeItem("token");
+        // localStorage.removeItem("user");
 
         // Prevent infinite redirect loops
         setTimeout(() => {
@@ -131,10 +127,7 @@ export const authApi = {
       newPassword: data.newPassword,
     }),
 
-  logout: () => {
-    localStorage.removeItem("token");
-    return api.post("/auth/logout");
-  },
+  logout: () => api.post("/auth/logout"),
 };
 
 // User API (Admin)
