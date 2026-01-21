@@ -5,7 +5,6 @@ import {
   type IColumn,
   type CreateColumnProjectParams,
   type UpdateColumnProjectParams,
-  type UpdateColumnOrderParams,
 } from "../types/project";
 import type { ProjectMember } from "../types"; // ✅ Import từ index.ts
 
@@ -51,7 +50,7 @@ export const projects = {
       limit?: number;
       role?: string;
       search?: string;
-    }
+    },
   ) => {
     const url = new URLSearchParams();
     if (params?.page) url.append("page", params.page.toString());
@@ -79,7 +78,7 @@ export const projects = {
     data: {
       email: string;
       role: "admin" | "member" | "viewer";
-    }
+    },
   ) => api.post<ResponseApi<ProjectMember>>(`/projects/${projectId}/members/invite`, data, config),
 
   leaveProject: (projectId: string) => api.post<ResponseApi<void>>(`/projects/${projectId}/leave`, config),

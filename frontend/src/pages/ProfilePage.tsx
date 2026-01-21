@@ -30,7 +30,7 @@ export default function ProfilePage() {
       email: user?.email || "",
       avatar: user?.avatar || "",
     }),
-    [user]
+    [user],
   );
 
   const {
@@ -47,7 +47,7 @@ export default function ProfilePage() {
     reset(defaultValues);
   }, [defaultValues, reset]);
 
-  const onSubmit = async (values: FormValues) => {
+  const onSubmit = async () => {
     setMessage(null);
     // TODO: Gọi API update profile
     setMessage("Đã ghi nhận thay đổi (demo). Vui lòng kết nối API để lưu thực tế.");

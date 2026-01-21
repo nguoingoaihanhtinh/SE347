@@ -9,7 +9,7 @@ export const useUserById = (userId?: string) => {
     if (userId && !users[userId]) {
       fetchUserById(userId).catch(console.error);
     }
-  }, [userId]);
+  }, [fetchUserById, userId, users]);
 
   return {
     user: userId ? users[userId] : undefined,

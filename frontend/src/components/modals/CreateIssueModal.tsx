@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 import Modal from "../ui/modal/Modal";
 import UserAvatar from "../ui/user/userAvatar";
 
-import type { CreateIssueParams, IIssue, UpdateIssueParams } from "../../types/issue";
+import type { IIssue, UpdateIssueParams } from "../../types/issue";
 import { useProjectStore } from "../../stores/projectStore";
 import { useColumnStore } from "../../stores/columnStore";
 import { useSprintStore } from "../../stores/sprintStore";
@@ -62,7 +62,7 @@ const CreateIssueModal = ({
   const { columns, fetchColumns } = useColumnStore();
   const { sprints, fetchSprintsByProject } = useSprintStore();
   const { createIssue, updateIssue } = useIssueStore();
-  const [selectedSprintId, setSelectedSprintId] = useState<string | undefined>(sprintId);
+  const [, setSelectedSprintId] = useState<string | undefined>(sprintId);
   const [files, setFiles] = useState<File[]>([]);
 
   const {
@@ -108,7 +108,7 @@ const CreateIssueModal = ({
     };
 
     loadData();
-  }, [isOpen, projectId]);
+  }, [fetchColumns, fetchSprintsByProject, isOpen, projectId]);
 
   useEffect(() => {
     if (isEditing && initialIssue && columns.length > 0) {
@@ -155,6 +155,7 @@ const CreateIssueModal = ({
     setFiles(selectedFiles);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cleanData = (data: any) => {
     const result = { ...data };
     Object.keys(result).forEach((key) => {
@@ -226,7 +227,7 @@ const CreateIssueModal = ({
       toast.error(
         `Failed to ${isEditing ? "update" : "create"} issue: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     } finally {
       setIsLoading(false);

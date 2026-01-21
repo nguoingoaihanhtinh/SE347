@@ -5,14 +5,15 @@ import { useColumnStore } from "../../stores/columnStore";
 import { useSprintStore } from "../../stores/sprintStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useParams } from "react-router-dom";
-import { format } from "date-fns";
-import { IoLockClosedOutline } from "react-icons/io5";
 import { FaEye, FaEdit, FaCheck, FaTimes, FaRegCommentAlt } from "react-icons/fa";
-import { CiShare2 } from "react-icons/ci";
 import { BsThreeDots } from "react-icons/bs";
 import { IoIosClose } from "react-icons/io";
 import IconRenderer from "../ui/IconRenderer";
 import UserAvatar from "../ui/user/userAvatar";
+import type { IIssue, IssueType } from "../../types/issue";
+import type { IColumn } from "../../types/project";
+import type { ISprint } from "../../types/sprint";
+import type { ReactNode } from "react";
 
 const ISSUE_TYPES = ["task", "story", "bug", "epic"] as const;
 const ISSUE_PRIORITIES = ["low", "medium", "high", "critical"] as const;
@@ -23,25 +24,35 @@ interface IssueDetailProps {
   projectId?: string;
 }
 
+interface EditableFieldProps {
+  label: string;
+  value: unknown;
+  onSave: (newValue: unknown) => Promise<void>;
+  type?: "text" | "textarea" | "date" | "number";
+  options?: { value: string; label: string }[] | null;
+  renderDisplay?: (val: unknown) => ReactNode;
+  isUpdating?: boolean;
+}
+
 const EditableField = ({
   label,
   value,
   onSave,
   type = "text",
   options = null,
-  renderDisplay = null,
+  renderDisplay = (val) => (
+    <span className="text-sm font-medium text-gray-800">{val != null ? String(val) : "Chưa đặt"}</span>
+  ),
+
   isUpdating = false,
-}: {
-  label: string;
-  value: any;
-  onSave: (newValue: any) => Promise<void>;
-  type?: "text" | "textarea" | "date" | "number";
-  options?: { value: string; label: string }[] | null;
-  renderDisplay?: (val: any) => React.ReactNode;
-  isUpdating?: boolean;
-}) => {
+}: EditableFieldProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(value);
+  const [editValue, setEditValue] = useState(value ?? "");
+
+  // Đồng bộ editValue khi value thay đổi từ bên ngoài
+  useEffect(() => {
+    setEditValue(value ?? "");
+  }, [value]);
 
   const handleSave = async () => {
     if (editValue !== value) {
@@ -51,7 +62,7 @@ const EditableField = ({
   };
 
   const handleCancel = () => {
-    setEditValue(value);
+    setEditValue(value ?? "");
     setIsEditing(false);
   };
 
@@ -77,7 +88,7 @@ const EditableField = ({
 
         {options ? (
           <select
-            value={editValue ?? ""}
+            value={String(editValue)}
             onChange={(e) => setEditValue(e.target.value)}
             disabled={isUpdating}
             className="w-full p-2 border border-blue-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
@@ -91,7 +102,7 @@ const EditableField = ({
           </select>
         ) : type === "textarea" ? (
           <textarea
-            value={editValue ?? ""}
+            value={String(editValue)}
             onChange={(e) => setEditValue(e.target.value)}
             disabled={isUpdating}
             className="w-full p-2 border border-blue-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
@@ -101,7 +112,7 @@ const EditableField = ({
         ) : type === "date" ? (
           <input
             type="date"
-            value={editValue ?? ""}
+            value={String(editValue)}
             onChange={(e) => setEditValue(e.target.value)}
             disabled={isUpdating}
             className="w-full p-2 border border-blue-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
@@ -110,7 +121,7 @@ const EditableField = ({
         ) : type === "number" ? (
           <input
             type="number"
-            value={editValue ?? 0}
+            value={String(editValue)}
             onChange={(e) => setEditValue(Number(e.target.value))}
             disabled={isUpdating}
             className="w-full p-2 border border-blue-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
@@ -119,7 +130,7 @@ const EditableField = ({
         ) : (
           <input
             type="text"
-            value={editValue ?? ""}
+            value={String(editValue)}
             onChange={(e) => setEditValue(e.target.value)}
             disabled={isUpdating}
             className="w-full p-2 border border-blue-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
@@ -144,19 +155,19 @@ const EditableField = ({
           <FaEdit size={12} />
         </button>
       </div>
-      <div className="p-2 bg-gray-50 rounded-md min-h-[2.25rem] flex items-center">
-        {renderDisplay ? (
-          renderDisplay(value)
-        ) : (
-          <span className="text-sm font-medium text-gray-800">{value ?? "Chưa đặt"}</span>
-        )}
-      </div>
+      <div className="p-2 bg-gray-50 rounded-md min-h-[2.25rem] flex items-center">{renderDisplay(value)}</div>
     </div>
   );
 };
 
-const DetailsSection = ({ selectedIssue, onUpdate, isUpdating }: any) => {
-  const handleSave = async (field: string, value: any) => {
+interface DetailsSectionProps {
+  selectedIssue: IIssue;
+  onUpdate: (updates: Partial<IIssue>) => Promise<void>;
+  isUpdating: boolean;
+}
+
+const DetailsSection = ({ selectedIssue, onUpdate, isUpdating }: DetailsSectionProps) => {
+  const handleSave = async (field: keyof IIssue, value: unknown) => {
     await onUpdate({ [field]: value });
   };
 
@@ -170,14 +181,14 @@ const DetailsSection = ({ selectedIssue, onUpdate, isUpdating }: any) => {
         type="textarea"
         isUpdating={isUpdating}
         renderDisplay={(value) => (
-          <p className="text-sm text-gray-700 whitespace-pre-line">{value || "Chưa có mô tả"}</p>
+          <p className="text-sm text-gray-700 whitespace-pre-line">{String(value) || "Chưa có mô tả"}</p>
         )}
       />
     </div>
   );
 };
 
-const ActivitySection = ({ issueId }: { issueId: string }) => (
+const ActivitySection = () => (
   <div className="rounded-lg border border-gray-200 p-4">
     <div className="flex justify-between items-center mb-4">
       <h2 className="text-lg font-semibold text-gray-700">Hoạt động</h2>
@@ -187,8 +198,16 @@ const ActivitySection = ({ issueId }: { issueId: string }) => (
   </div>
 );
 
-const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating }: any) => {
-  const handleSave = async (field: string, value: any) => {
+interface MetadataSectionProps {
+  selectedIssue: IIssue;
+  columns: IColumn[];
+  sprints: ISprint[];
+  onUpdate: (updates: Partial<IIssue>) => Promise<void>;
+  isUpdating: boolean;
+}
+
+const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating }: MetadataSectionProps) => {
+  const handleSave = async (field: keyof IIssue, value: unknown) => {
     await onUpdate({ [field]: value });
   };
 
@@ -209,11 +228,19 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
             renderDisplay={(value) => (
               <div className="flex items-center gap-2">
                 <div
-                  className={`rounded p-1 ${value === "bug" ? "bg-red-100" : value === "task" ? "bg-blue-100" : value === "story" ? "bg-green-100" : "bg-purple-100"}`}
+                  className={`rounded p-1 ${
+                    value === "bug"
+                      ? "bg-red-100"
+                      : value === "task"
+                        ? "bg-blue-100"
+                        : value === "story"
+                          ? "bg-green-100"
+                          : "bg-purple-100"
+                  }`}
                 >
-                  <IconRenderer type={value} className="h-4 w-4" />
+                  <IconRenderer type={String(value) as IssueType} className="h-4 w-4" />
                 </div>
-                <span className="font-medium capitalize">{value}</span>
+                <span className="font-medium capitalize">{String(value)}</span>
               </div>
             )}
           />
@@ -234,7 +261,7 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
                       : "bg-green-100 text-green-800"
                 }`}
               >
-                {value}
+                {String(value)}
               </span>
             )}
           />
@@ -243,10 +270,10 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
             label="Trạng thái"
             value={selectedIssue.columnId}
             onSave={(value) => handleSave("columnId", value)}
-            options={columns.map((c: any) => ({ value: c.id, label: c.name }))}
+            options={columns.map((c) => ({ value: c.id, label: c.name }))}
             isUpdating={isUpdating}
             renderDisplay={(value) => {
-              const col = columns.find((c: any) => c.id === value);
+              const col = columns.find((c) => c.id === String(value));
               return (
                 <span
                   className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -269,17 +296,17 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
             onSave={(value) => handleSave("storyPoint", Number(value))}
             type="number"
             isUpdating={isUpdating}
-            renderDisplay={(value) => <span className="font-medium">{value} pts</span>}
+            renderDisplay={(value) => <span className="font-medium">{Number(value)} pts</span>}
           />
 
           <EditableField
             label="Sprint"
             value={selectedIssue.sprintId ?? ""}
             onSave={(value) => handleSave("sprintId", value || null)}
-            options={[{ value: "", label: "Backlog" }, ...sprints.map((s: any) => ({ value: s.id, label: s.name }))]}
+            options={[{ value: "", label: "Backlog" }, ...sprints.map((s) => ({ value: s.id, label: s.name }))]}
             isUpdating={isUpdating}
             renderDisplay={(value) => {
-              const sprint = sprints.find((s: any) => s.id === value);
+              const sprint = sprints.find((s) => s.id === String(value));
               return <span className="font-medium">{sprint?.name || "Backlog"}</span>;
             }}
           />
@@ -294,29 +321,33 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
         <div className="space-y-3 text-sm">
           <div>
             <span className="text-gray-500">Tạo lúc</span>
-            <p className="font-medium">{format(new Date(selectedIssue.createdAt), "dd/MM/yyyy HH:mm")}</p>
+            <p className="font-medium">
+              {selectedIssue.createdAt ? new Date(selectedIssue.createdAt).toLocaleString() : "N/A"}
+            </p>
           </div>
           <div>
             <span className="text-gray-500">Cập nhật lúc</span>
-            <p className="font-medium">{format(new Date(selectedIssue.updatedAt), "dd/MM/yyyy HH:mm")}</p>
+            <p className="font-medium">
+              {selectedIssue.updatedAt ? new Date(selectedIssue.updatedAt).toLocaleString() : "N/A"}
+            </p>
           </div>
 
           <EditableField
             label="Due Date From"
             value={selectedIssue.dueDateFrom ? new Date(selectedIssue.dueDateFrom).toISOString().split("T")[0] : ""}
-            onSave={(value) => handleSave("dueDateFrom", value ? new Date(value).toISOString() : null)}
+            onSave={(value) => handleSave("dueDateFrom", value ? new Date(String(value)).toISOString() : null)}
             type="date"
             isUpdating={isUpdating}
-            renderDisplay={(v) => (v ? format(new Date(v), "dd/MM/yyyy") : "Chưa đặt")}
+            renderDisplay={(v) => (v ? new Date(String(v)).toLocaleDateString() : "Chưa đặt")}
           />
 
           <EditableField
             label="Due Date To"
             value={selectedIssue.dueDateTo ? new Date(selectedIssue.dueDateTo).toISOString().split("T")[0] : ""}
-            onSave={(value) => handleSave("dueDateTo", value ? new Date(value).toISOString() : null)}
+            onSave={(value) => handleSave("dueDateTo", value ? new Date(String(value)).toISOString() : null)}
             type="date"
             isUpdating={isUpdating}
-            renderDisplay={(v) => (v ? format(new Date(v), "dd/MM/yyyy") : "Chưa đặt")}
+            renderDisplay={(v) => (v ? new Date(String(v)).toLocaleDateString() : "Chưa đặt")}
           />
         </div>
       </div>
@@ -341,7 +372,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
             onSave={(value) => handleSave("assigneeId", value || null)}
             options={[
               { value: "", label: "Chưa phân công" },
-              // Thêm user thật nếu có API user
               { value: "user1", label: "User 1" },
               { value: "user2", label: "User 2" },
             ]}
@@ -349,8 +379,8 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
             renderDisplay={(value) =>
               value ? (
                 <div className="flex items-center gap-2">
-                  <UserAvatar userId={value} size={28} />
-                  <span className="font-medium">{value}</span>
+                  <UserAvatar userId={String(value)} size={28} />
+                  <span className="font-medium">{String(value)}</span>
                 </div>
               ) : (
                 <span className="text-gray-500 italic">Chưa phân công</span>
@@ -393,13 +423,16 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
 
   const selectedIssue = getIssueById(selectedIssueId);
 
-  const [localIssue, setLocalIssue] = useState(selectedIssue);
+  // ✅ FIX: Xử lý trường hợp selectedIssue có thể là undefined
+  const [localIssue, setLocalIssue] = useState<IIssue | null>(selectedIssue || null);
   const [isUpdating, setIsUpdating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (selectedIssue) {
       setLocalIssue(selectedIssue);
+    } else {
+      setLocalIssue(null);
     }
   }, [selectedIssue]);
 
@@ -414,24 +447,24 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
   }, [onClose]);
 
   const handleUpdate = useCallback(
-    async (updates: Partial<any>) => {
-      if (!effectiveProjectId || !selectedIssueId) {
-        toast.error("Không thể cập nhật: thiếu project ID hoặc issue ID");
-        console.error("Missing projectId or issueId", { effectiveProjectId, selectedIssueId });
+    async (updates: Partial<IIssue>) => {
+      if (!effectiveProjectId || !selectedIssueId || !localIssue) {
+        toast.error("Không thể cập nhật: thiếu thông tin cần thiết");
         return;
       }
 
       const oldIssue = { ...localIssue };
-      setLocalIssue((prev) => ({ ...prev, ...updates }));
+      setLocalIssue((prev) => (prev ? { ...prev, ...updates } : prev));
       setIsUpdating(true);
 
       try {
-        await updateIssue(effectiveProjectId, selectedIssueId, updates);
+        await updateIssue(effectiveProjectId, selectedIssueId, updates as Record<string, unknown>);
         toast.success("Cập nhật thành công!");
         await fetchIssuesByProject(effectiveProjectId);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Update failed:", error);
-        toast.error(`Cập nhật thất bại: ${error.message || "Lỗi hệ thống"}`);
+        const errorMessage = error instanceof Error ? error.message : "Lỗi hệ thống";
+        toast.error(`Cập nhật thất bại: ${errorMessage}`);
         setLocalIssue(oldIssue);
       } finally {
         setIsUpdating(false);
@@ -439,6 +472,10 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
     },
     [effectiveProjectId, selectedIssueId, localIssue, updateIssue, fetchIssuesByProject],
   );
+
+  if (!effectiveProjectId) {
+    return <div className="p-8 text-center text-red-500">Không tìm thấy project ID</div>;
+  }
 
   if (!localIssue) {
     return <div className="p-8 text-center text-gray-500 animate-pulse">Đang tải thông tin issue...</div>;
@@ -480,7 +517,7 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
           isUpdating={isUpdating}
         />
         <DetailsSection selectedIssue={localIssue} onUpdate={handleUpdate} isUpdating={isUpdating} />
-        <ActivitySection issueId={localIssue.id} />
+        <ActivitySection />
         <CommentSection />
       </div>
     </div>

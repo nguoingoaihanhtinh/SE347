@@ -41,3 +41,8 @@ export interface UpdateColumnProjectParams {
 export interface UpdateColumnOrderParams {
   columnIds: string[];
 }
+export interface ColumnsApiResponse {
+  success: boolean;
+  data: IColumn[] | { data: IColumn[] } | { columns: IColumn[] };
+  message?: string;
+}

@@ -1,5 +1,6 @@
 import type { IColumn } from "../../../types/project";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const statusColors = [
   {
     order: 1,

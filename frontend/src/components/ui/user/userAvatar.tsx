@@ -1,4 +1,3 @@
-// src/components/ui/user/UserAvatar.tsx
 import { memo } from "react";
 import { Avatar } from "antd";
 import { FaUserAltSlash } from "react-icons/fa";
@@ -60,7 +59,9 @@ const UserAvatar = memo(({ userId, size = 28, isDisplayName = true }: Props) => 
           border: "2px solid white",
         }}
       >
-        {!avatarUrl && (user?.fullName?.charAt(0) || "U")}
+        {!avatarUrl && (
+          <span className="select-none">{user?.fullName?.charAt(0) || user?.email?.charAt(0) || "U"}</span>
+        )}
       </Avatar>
 
       {isDisplayName && <p className="text-sm font-medium text-gray-700">{user?.fullName || "Unknown User"}</p>}

@@ -18,6 +18,7 @@ interface ColumnState {
 }
 
 // Utility function để chuẩn hóa response từ backend
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const normalizeColumnResponse = (responseData: any): IColumn | null => {
   if (!responseData) return null;
 
@@ -54,15 +55,14 @@ export const useColumnStore = create<ColumnState>((set) => ({
       }
 
       // Chuẩn hóa response
-      const columnsData = Array.isArray(response.data.data)
-        ? response.data.data
-        : response.data.data?.data || response.data.data?.columns || [];
+      const columnsData = Array.isArray(response.data.data) ? response.data.data : response.data.data?.data || [];
 
       if (!columnsData || columnsData.length === 0) {
         set({ columns: [], isLoading: false });
         return;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const normalizedColumns = columnsData.map((col: any) => {
         // Chuẩn hóa từng column
         if (col.column) return col.column;

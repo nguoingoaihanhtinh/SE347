@@ -19,7 +19,7 @@ interface SprintState {
   clearSprints: () => void;
 }
 
-export const useSprintStore = create<SprintState>((set, get) => ({
+export const useSprintStore = create<SprintState>((set) => ({
   sprints: [],
   currentSprint: null,
   isLoading: false,

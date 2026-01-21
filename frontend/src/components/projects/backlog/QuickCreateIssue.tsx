@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaPlus, FaTimes } from "react-icons/fa";
+import { FaPlus } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useIssueStore } from "../../../stores/issueStore";
 import { useColumnStore } from "../../../stores/columnStore";

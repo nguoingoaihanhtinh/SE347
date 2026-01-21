@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useContext } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useMemo, useCallback, useContext, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -12,8 +11,7 @@ import {
   type DragEndEvent,
   DragOverlay,
 } from "@dnd-kit/core";
-import type { IColumn } from "../../../types/project";
-import type { ISprint } from "../../../types/sprint";
+
 import type { IIssue } from "../../../types/issue";
 import BacklogSprint from "./BacklogSprint";
 import CreateSprintButton from "./CreateSprintButton";
@@ -26,14 +24,21 @@ import { statusOptions } from "../../../constants/list";
 import { toast } from "react-toastify";
 import { LayoutContext } from "../../../layouts/ProjectLayout";
 
-const PageFilter = ({ onFiltersChange, currentProject }) => {
+interface PageFilterProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onFiltersChange?: (filters: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  currentProject?: any;
+}
+
+const PageFilter = ({ onFiltersChange }: PageFilterProps) => {
   const [filters, setFilters] = useState({
     type: "all",
     status: "all",
     assignee: "all",
   });
 
-  const handleFilterChange = (e) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     const newFilters = { ...filters, [name]: value };
     setFilters(newFilters);
@@ -98,19 +103,27 @@ const PageFilter = ({ onFiltersChange, currentProject }) => {
   );
 };
 
-const BacklogBoard = ({ projectId }) => {
-  const { closeIssueDetail } = useContext(LayoutContext);
+interface BacklogBoardProps {
+  projectId: string;
+}
+
+const BacklogBoard = ({ projectId }: BacklogBoardProps) => {
+  useContext(LayoutContext);
   const { columns } = useColumnStore();
 
   const { sprints } = useSprintStore();
-  const { issues } = useIssueStore();
+  const { issues: storeIssues } = useIssueStore();
   const { currentProject } = useProjectStore();
+
+  // Luôn đảm bảo issues là mảng, không bao giờ undefined
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const issues = Array.isArray(storeIssues) ? storeIssues : [];
 
   const [activeIssue, setActiveIssue] = useState<IIssue | null>(null);
   const [overItemId, setOverItemId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [appliedFilters, setAppliedFilters] = useState({ projectId });
+  const [, setAppliedFilters] = useState({ projectId });
 
   const backlogSprint = useMemo(() => {
     if (!projectId) return null;
@@ -130,14 +143,9 @@ const BacklogBoard = ({ projectId }) => {
   }, [projectId]);
 
   const localSprints = useMemo(() => {
-    if (!projectId || !backlogSprint) return [];
+    if (!projectId || !backlogSprint || !issues) return [];
 
-    const validSprints = sprints.filter(
-      (sprint) =>
-        sprint.projectId === projectId && !["completed", "archived"].includes(sprint.status?.toLowerCase() || ""),
-    );
-
-    const allSprints = [backlogSprint, ...validSprints];
+    const allSprints = [backlogSprint, ...sprints];
 
     return allSprints.map((sprint) => {
       if (sprint.id === "backlog") {
@@ -201,8 +209,6 @@ const BacklogBoard = ({ projectId }) => {
       const activeId = active.id as string;
       const overId = over.id as string;
 
-      const isOverSprint = !localSprints.some((sprint) => sprint.issues.some((issue) => issue.id === overId));
-
       const targetSprint = localSprints.find(
         (sprint) => sprint.issues.some((issue) => issue.id === overId) || sprint.id === overId,
       );
@@ -216,11 +222,9 @@ const BacklogBoard = ({ projectId }) => {
 
       if (targetSprint.id === activeSprint.id) {
         if (targetSprint.id === overId) return;
-        // TODO: Implement reorder issues in same sprint if needed
         return;
       }
 
-      // Khác sprint - di chuyển issue
       if (activeId && activeId !== "undefined") {
         const newSprintId = targetSprint.id === "backlog" ? null : targetSprint.id;
         const { updateIssue } = useIssueStore.getState();
@@ -237,7 +241,8 @@ const BacklogBoard = ({ projectId }) => {
   );
 
   const handleFilterChange = useCallback(
-    (filters) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (filters: any) => {
       const newFilters = { projectId, ...filters };
       setAppliedFilters(newFilters);
     },
@@ -279,7 +284,7 @@ const BacklogBoard = ({ projectId }) => {
 
         <PageFilter onFiltersChange={handleFilterChange} currentProject={currentProject} />
 
-        {localSprints.length === 0 && !isLoading ? (
+        {localSprints.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">

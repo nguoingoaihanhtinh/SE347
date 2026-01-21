@@ -4,7 +4,7 @@ import { type ReactNode, useCallback, useState } from "react";
 import { LuEllipsisVertical } from "react-icons/lu";
 import type { CSSProperties } from "react";
 import { CSS } from "@dnd-kit/utilities";
-import type { IIssue } from "../../../types/issue";
+import type { IIssue, IIssueWithoutColumn } from "../../../types/issue";
 import IssueCard from "./issueCard";
 import type { IColumn } from "../../../types/project";
 import RenameColumnModal from "../modals/renameColumnModal";
@@ -12,7 +12,15 @@ import DeleteColumnModal from "../modals/deleteColumnModal";
 import { useDeleteColumn, useUpdateColumn, useUpdateProjectOrderColumn } from "../../../hooks/useProject";
 import { useDroppable } from "@dnd-kit/core";
 
-const SortableIssue = ({ issue, isDraggingPreview }: { issue: IIssue; isDraggingPreview?: boolean }) => {
+const SortableIssue = ({
+  issue,
+  isDraggingPreview,
+  columnId,
+}: {
+  issue: IIssue | IIssueWithoutColumn;
+  isDraggingPreview?: boolean;
+  columnId?: string;
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: issue.id,
   });
@@ -27,7 +35,12 @@ const SortableIssue = ({ issue, isDraggingPreview }: { issue: IIssue; isDragging
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <IssueCard issue={issue} isDragging={isDragging} isDraggingPreview={isDraggingPreview} />
+      <IssueCard
+        issue={issue}
+        isDragging={isDragging}
+        isDraggingPreview={isDraggingPreview}
+        defaultColumnId={columnId}
+      />
     </div>
   );
 };
@@ -37,11 +50,13 @@ export const KanbanColumn = ({
   column,
   projectId,
   isDragging = false,
+  activeId = null,
 }: {
   columns: IColumn[];
   column: IColumn & { issues?: IIssue[] };
   projectId: string;
   isDragging?: boolean;
+  activeId?: string | null;
 }) => {
   const {
     setNodeRef: setSortableRef,
@@ -78,7 +93,7 @@ export const KanbanColumn = ({
     transition,
     opacity: isColumnDragging ? 0.8 : 1,
     cursor: isColumnDragging ? "grabbing" : "grab",
-    border: isOver ? "2px solid #3b82f6" : isColumnDragging ? "2px solid #3b82f6" : "1px solid #e5e7eb",
+    border: isOver || (activeId === column.id && isColumnDragging) ? "2px solid #3b82f6" : "1px solid #e5e7eb",
     backgroundColor: isOver ? "#eff6ff" : "#f9fafb",
   };
 
@@ -91,10 +106,10 @@ export const KanbanColumn = ({
       const newColumns = [...columns];
       [newColumns[currentIndex], newColumns[targetIndex]] = [newColumns[targetIndex], newColumns[currentIndex]];
 
-      const reordered = newColumns.map((col, i) => ({ ...col, order: i }));
+      const reordered = newColumns.map((col, i) => ({ ...col, order: i + 1 }));
       updateOrderColumn({
         projectId,
-        columns: reordered.map((col) => ({ id: col.id, order: col.order + 1 })),
+        columns: reordered.map((col) => ({ id: col.id, order: col.order })),
       });
 
       setPopoverOpen(false);
@@ -184,7 +199,9 @@ export const KanbanColumn = ({
       <SortableContext items={columnIssues.map((i) => i.id)}>
         <div className="flex min-h-[150px] max-h-[70vh] flex-col gap-2 overflow-y-auto pb-4 pr-1">
           {issueCount > 0 ? (
-            columnIssues.map((issue) => <SortableIssue key={issue.id} issue={issue} isDraggingPreview={isDragging} />)
+            columnIssues.map((issue) => (
+              <SortableIssue key={issue.id} issue={issue} isDraggingPreview={isDragging} columnId={column.id} />
+            ))
           ) : (
             <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-100 text-sm text-gray-500 p-4">
               <p>
