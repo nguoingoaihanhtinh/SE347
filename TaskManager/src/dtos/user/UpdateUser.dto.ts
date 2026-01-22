@@ -17,6 +17,7 @@ export const updateUserSchema = z
       .nullable()
       .optional(),
     role: z.enum(["user", "admin", "super_admin"]).optional(),
+    isActive: z.boolean().optional(),
     // Note: updated_at is managed internally, not from client
   })
   .refine((data) => Object.keys(data).length > 0, {

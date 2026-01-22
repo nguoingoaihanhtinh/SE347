@@ -258,7 +258,7 @@
  * /api/projects/{projectId}:
  *   get:
  *     summary: Get a specific project by ID
- *     description: Retrieves details of a specific project. User must be a project member.
+ *     description: Retrieves details of a specific project. User must be a project member OR a Super Admin (for audit purposes).
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
@@ -290,13 +290,13 @@
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden (not a project member)
+ *         description: Forbidden (not a project member or Super Admin)
  *       404:
  *         description: Project not found
  *
  *   put:
  *     summary: Update a project
- *     description: Updates project details. Requires Owner or Admin role.
+ *     description: Updates project details. Requires user to be a project member with Owner or Admin role. Super Admins CANNOT edit projects unless they are explicitly added as project members (Safe Admin Powers: Admin acts as "Janitor" for deletion, not "Dictator" for editing).
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
@@ -336,13 +336,13 @@
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden (insufficient permissions)
+ *         description: Forbidden (user must be a project member with owner/admin role. Super Admin cannot edit unless they are a project member)
  *       404:
  *         description: Project not found
  *
  *   delete:
  *     summary: Delete a project
- *     description: Permanently deletes a project and all associated data. Only the project owner can perform this action.
+ *     description: Permanently deletes a project and all associated data. Can be performed by the project owner or a Super Admin.
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
@@ -372,7 +372,7 @@
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden (only owner can delete)
+ *         description: Forbidden (only owner or Super Admin can delete)
  *       404:
  *         description: Project not found
  */

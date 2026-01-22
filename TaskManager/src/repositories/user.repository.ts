@@ -29,7 +29,14 @@ export class UserRepository {
       ];
     }
 
-    const data = await db.collection(this.collectionName).find(filter).skip(skip).limit(limit).toArray();
+    // Vietnamese collation: Đ sorts after D, Ă/Â sort near A (Vietnamese dictionary order)
+    // Apply collation for proper Vietnamese sorting (frontend does client-side sorting with super_admin on top)
+    // Note: No default sort here - frontend handles sorting with super_admin priority
+    const data = await db.collection(this.collectionName)
+      .find(filter, { collation: { locale: 'vi', strength: 1 } })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
 
     const total = await db.collection(this.collectionName).countDocuments(filter);
 

@@ -114,8 +114,9 @@ const navItems: NavItem[] = [
   },
 ];
 
-export default function AdminLayout({ children, title = "Admin Panel" }: AdminLayoutProps) {
+export default function AdminLayout({ children, title = "" }: AdminLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
@@ -125,12 +126,12 @@ export default function AdminLayout({ children, title = "Admin Panel" }: AdminLa
   };
 
   return (
-    <div className="fixed inset-0 flex h-screen w-screen bg-slate-100 overflow-hidden m-0 p-0 font-['Poppins',sans-serif]">
+    <div className="fixed inset-0 flex h-screen w-screen bg-white overflow-hidden m-0 p-0 font-['Poppins',sans-serif]">
       {/* Sidebar - Light Mode iOS Style - INSTANT SNAP (NO ANIMATION) */}
       <aside
         className={`${
           isCollapsed ? "w-14" : "w-64"
-        } fixed left-0 top-0 h-full bg-white border-r border-slate-200 overflow-visible flex flex-col z-50`}
+        } fixed left-0 top-0 h-full bg-gray-50 border-r border-slate-200 overflow-visible flex flex-col z-50`}
       >
         {/* Sidebar Header - Logo & Hamburger Toggle */}
         <div className={`h-16 flex items-center shrink-0 ${isCollapsed ? "justify-center px-0" : "px-4"}`}>
@@ -144,7 +145,7 @@ export default function AdminLayout({ children, title = "Admin Panel" }: AdminLa
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={`hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors ${isCollapsed ? "p-1.5" : "p-2"}`}
+            className={`hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors focus:outline-none focus-visible:outline-none ${isCollapsed ? "p-1.5" : "p-2"}`}
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -161,63 +162,8 @@ export default function AdminLayout({ children, title = "Admin Panel" }: AdminLa
           })}
         </nav>
 
-        {/* Sidebar Footer - Admin User Info */}
-        <div className={`border-t border-slate-200 shrink-0 ${isCollapsed ? "py-3 px-0 flex flex-col items-center gap-2" : "p-4"}`}>
-          {isCollapsed ? (
-            <>
-              {/* Collapsed: Avatar only (smaller) */}
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </div>
-              {/* Collapsed: Tiny Logout Icon Button */}
-              <button
-                onClick={handleLogout}
-                className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-xl transition-colors"
-                title="Logout"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Expanded: Full user info */}
-              <div className="flex items-center gap-2.5 mb-2.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">
-                    {user?.role === "super_admin" ? "Super Admin" : "Administrator"}
-                  </p>
-                </div>
-              </div>
-              {/* Expanded: Logout Button with Text */}
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-xl text-sm font-medium transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-                Logout
-              </button>
-            </>
-          )}
-        </div>
+        {/* Sidebar Footer - reserved spacing only (profile moved to top-right header) */}
+        <div className="border-t border-slate-200 shrink-0 h-16" />
       </aside>
 
       {/* Main Content Area - INSTANT SNAP (NO ANIMATION) */}
@@ -225,18 +171,65 @@ export default function AdminLayout({ children, title = "Admin Panel" }: AdminLa
         {/* Header */}
         <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 shadow-sm z-30">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
+            {title && <h1 className="text-xl font-semibold text-slate-800">{title}</h1>}
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-slate-900">
-              {user?.firstName} {user?.lastName}
-            </span>
+          <div className="relative flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen((prev) => !prev)}
+              className="flex items-center gap-3 text-left hover:opacity-90 transition-opacity focus:outline-none focus-visible:outline-none"
+            >
+              <div className="hidden sm:flex flex-col items-start">
+                <span className="text-sm font-semibold text-slate-900">
+                  {user?.firstName} {user?.lastName}
+                </span>
+                <div className="flex items-center gap-1">
+                  <svg
+                    className="h-4 w-4 text-slate-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  <span className="text-xs font-medium text-slate-500">
+                    {user?.role === "super_admin" ? "Super Admin" : "Administrator"}
+                  </span>
+                </div>
+              </div>
+              <div className="relative h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                {user?.role === "super_admin"
+                  ? "SA"
+                  : `${user?.firstName?.[0] ?? ""}${user?.lastName?.[0] ?? ""}`}
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white bg-emerald-500" />
+              </div>
+            </button>
+
+            {isProfileOpen && (
+              <div className="absolute right-0 top-full mt-2 w-40 rounded-xl border border-slate-100 bg-white py-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:outline-none"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
+        <main className="flex-1 overflow-y-auto bg-white p-6">
           {children}
         </main>
       </div>

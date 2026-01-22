@@ -8,6 +8,7 @@ export interface User {
   fullName?: string;
   avatar: string | null;
   role: "user" | "admin" | "super_admin";
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
