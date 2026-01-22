@@ -9,6 +9,7 @@ import type { Location } from "react-router-dom";
 import { useState } from "react";
 import AuthBanner from "../components/auth/AuthBanner";
 import AuthFormContainer from "../components/auth/AuthFormContainer";
+import { extractErrorMessage } from "../types/api";
 
 const schema = z.object({
   email: z.string().email("Email không hợp lệ"),
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const location = useLocation();
   const { login } = useAuthStore();
   const [formError, setFormError] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState<boolean>(false);
 
   const {
     register,
@@ -35,23 +37,52 @@ export default function LoginPage() {
     try {
       setFormError(null);
       
-      // Call login - this will save token and update state
-      await login(values.email, values.password);
+      console.log("🔐 Login attempt started for:", values.email, "Remember Me:", rememberMe);
       
-      // Get the updated user from store (login has already set it)
+      // CRITICAL: Wait for login to complete - this ensures token is saved to storage
+      await login(values.email, values.password, rememberMe);
+      
+      // CRITICAL: Verify token is in storage before navigation
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      if (!token) {
+        console.error("❌ Login Failed - Token not found in storage after login");
+        setFormError("Đăng nhập thất bại. Vui lòng thử lại.");
+        return;
+      }
+      
+      console.log("✅ Login Success - Token verified in localStorage");
+      
+      // Get the updated user from store (should be set by login function)
       const loggedInUser = useAuthStore.getState().user;
+      const isAuth = useAuthStore.getState().isAuthenticated;
+      
+      console.log("✅ Login Success - User state:", {
+        user: loggedInUser?.email,
+        role: loggedInUser?.role,
+        isAuthenticated: isAuth,
+      });
+      
+      // CRITICAL: Only navigate if authenticated
+      if (!isAuth) {
+        console.error("❌ Login Failed - isAuthenticated is false after login");
+        setFormError("Đăng nhập thất bại. Vui lòng thử lại.");
+        return;
+      }
       
       // ROLE-BASED REDIRECTION
       if (loggedInUser?.role === "admin" || loggedInUser?.role === "super_admin") {
         // Admin users go to Admin Panel
-        navigate("/admin");
+        console.log("🚀 Redirecting to /admin");
+        navigate("/admin", { replace: true });
       } else {
         // Regular users go to their intended location or dashboard
         const from = (location.state as { from?: Location })?.from?.pathname || "/";
-        navigate(from);
+        console.log("🚀 Redirecting to:", from);
+        navigate(from, { replace: true });
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Đăng nhập thất bại";
+      const message = extractErrorMessage(error);
+      console.error("❌ Login Error:", message);
       setFormError(message);
     }
   };
@@ -88,7 +119,12 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between text-xs pt-1">
               <label className="inline-flex items-center gap-1.5 text-slate-600 cursor-pointer">
-                <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600" />
+                <input 
+                  type="checkbox" 
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 cursor-pointer" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
                 Ghi nhớ đăng nhập
               </label>
               <Link to="/forgot-password" replace className="text-blue-600 hover:underline font-medium">

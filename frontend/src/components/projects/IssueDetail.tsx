@@ -17,6 +17,7 @@ import type { ISprint } from "../../types/sprint";
 import type { ReactNode } from "react";
 import IssueActivitySection from "./activity/IssueActivitySection";
 import { useUpdateIssueFull } from "../../hooks/useIssue"; // Hook update full fields
+import { extractErrorMessage } from "../../types/api";
 
 const ISSUE_TYPES = ["task", "story", "bug", "epic"] as const;
 const ISSUE_PRIORITIES = ["low", "medium", "high", "critical"] as const;
@@ -467,7 +468,7 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
         console.debug("Activities refetched");
       } catch (error: unknown) {
         console.error("Update failed:", error);
-        const errorMessage = error instanceof Error ? error.message : "Lỗi hệ thống";
+        const errorMessage = extractErrorMessage(error);
         toast.error(`Cập nhật thất bại: ${errorMessage}`);
         setLocalIssue(oldIssue);
       } finally {

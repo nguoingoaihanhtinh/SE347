@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import AuthBanner from "../components/auth/AuthBanner";
 import AuthFormContainer from "../components/auth/AuthFormContainer";
 import { authApi } from "../lib/api";
+import { extractErrorMessage } from "../types/api";
 
 const schema = z
   .object({
@@ -85,7 +86,7 @@ export default function RegisterPage() {
       setCountdown(60);
       setOtpError(null);
     } catch (error: unknown) {
-      let message = error instanceof Error ? error.message : "Gửi mã xác nhận thất bại";
+      let message = extractErrorMessage(error);
       // Translate common error codes to Vietnamese
       if (message.includes("400") || message.includes("already exists")) {
         message = "Tài khoản đã tồn tại. Vui lòng đăng nhập.";
@@ -120,7 +121,7 @@ export default function RegisterPage() {
         navigate("/");
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Đăng ký thất bại";
+      const message = extractErrorMessage(error);
       setFormError(message);
       if (message.toLowerCase().includes("otp") || message.toLowerCase().includes("xác nhận")) {
         setValue("otp", "");

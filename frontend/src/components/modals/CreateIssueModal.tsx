@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
 import Modal from "../ui/modal/Modal";
 import UserAvatar from "../ui/user/userAvatar";
+import { extractErrorMessage } from "../../types/api";
 
 import type { IIssue, UpdateIssueParams } from "../../types/issue";
 import { useProjectStore } from "../../stores/projectStore";
@@ -225,9 +226,7 @@ const CreateIssueModal = ({
     } catch (error) {
       console.error("Error creating/updating issue:", error);
       toast.error(
-        `Failed to ${isEditing ? "update" : "create"} issue: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        `Failed to ${isEditing ? "update" : "create"} issue: ${extractErrorMessage(error)}`,
       );
     } finally {
       setIsLoading(false);
