@@ -10,6 +10,7 @@ import projectMemberRoutes from "./routes/project-member.route";
 import projectColumnRoutes from "./routes/project-column.route";
 import issueRoutes from "./routes/issue.route";
 import sprintRoutes from "./routes/sprint.route";
+import activityRoutes from "./routes/activity.route";
 // import commentRoutes from "./routes/comment.route";
 // import projectTeamRoutes from "./routes/project-team.route";
 import { requestLogger, errorHandler } from "@/middlewares";
@@ -52,6 +53,7 @@ export const createApp = async () => {
   // app.use("/api/projects", projectColumnRoutes);
   app.use("/api/issues", issueRoutes);
   app.use("/api/sprints", sprintRoutes);
+  app.use("/api/activities", activityRoutes);
   // app.use("/api/comments", commentRoutes);
   // app.use("/api/project-teams", projectTeamRoutes);
   app.get("/health", (req, res) => {

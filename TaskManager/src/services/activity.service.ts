@@ -30,6 +30,10 @@ export class ActivityService {
   async getProjectActivities(projectId: string, page: number, limit: number) {
     return ActivityRepository.findByProject(projectId, page, limit);
   }
+
+  async getNewActivities(projectId: string, since: Date) {
+    return ActivityRepository.findNewSince(projectId, since);
+  }
 }
 
 export default new ActivityService();

@@ -79,7 +79,7 @@ class ProjectColumnRepository {
           updatedAt: new Date(),
         },
       },
-      { returnDocument: "after" }
+      { returnDocument: "after" },
     );
 
     if (!result) return null;
@@ -152,7 +152,7 @@ class ProjectColumnRepository {
             $pull: { issueIds: issueId },
             $set: { updatedAt: new Date() },
           },
-          { session }
+          { session },
         );
 
         await collection.updateOne(
@@ -161,7 +161,7 @@ class ProjectColumnRepository {
             $addToSet: { issueIds: issueId },
             $set: { updatedAt: new Date() },
           },
-          { session }
+          { session },
         );
       });
     } finally {
