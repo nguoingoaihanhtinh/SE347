@@ -1,10 +1,9 @@
-// src/routes/project.route.ts
 import { Router } from "express";
 import { authenticate } from "@/middlewares/auth.middleware";
 
 // Project handlers
 import { createProject, deleteProject, getProjectById, getProjects, updateProject } from "@/handlers/project.handler";
-import { getProjectActivities } from "@/handlers/activity.handler";
+
 import sprintRoutes from "./sprint.route";
 import issueRoutes from "./issue.route";
 // Project member handlers
@@ -23,6 +22,8 @@ import {
 
 // Project column handlers
 import projectColumnHandler from "@/handlers/project-column.handler";
+
+import activityRoutes from "./activity.route";
 
 const router = Router();
 
@@ -43,7 +44,9 @@ router.post("/", createProject);
 router.get("/:id", getProjectById);
 router.put("/:id", updateProject);
 router.delete("/:id", deleteProject);
-router.get("/:projectId/activities", getProjectActivities);
+
+// Activity routes
+router.use("/:projectId/activities", activityRoutes);
 
 // Project column routes
 router.get("/:projectId/columns", projectColumnHandler.getProjectColumns);

@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: taskmanager-backend
+    runtime: node
+    env: node
+    region: singapore
+    plan: free
+
+    rootDir: TaskManager
+    buildCommand: npm install && npm run build
+    startCommand: node -r module-alias/register ./dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20.15.1"
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Các biến môi trường bí mật → sync từ Render Dashboard
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: TaskManager
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: FRONTEND_URL
+        value: https://your-frontend.onrender.com # hoặc domain thực tế
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
+        value: "TaskManager System"
+    autoDeploy: true
+    branch: main

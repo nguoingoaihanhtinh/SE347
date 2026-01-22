@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AxiosError } from "axios";
 import { ArrowDown, ArrowUp, Clock, Loader2 } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Sector, Tooltip, XAxis, YAxis, type TooltipProps } from "recharts";
-import { adminApi, type SystemStats } from "../../lib/api";
+import { adminApi, type SystemStats, type AdminStatsResponse } from "../../lib/api";
 
 type EnhancedTooltipProps = TooltipProps<number, string> & {
   payload?: {
@@ -117,14 +117,36 @@ export default function AdminDashboard() {
       setLoading(true);
       setError(null);
       const response = await adminApi.getStats();
-      if (response.data?.success && response.data.counts) {
+      
+      // Log raw response for debugging (remove in production)
+      if (import.meta.env.DEV) {
+        console.log("API Response:", response);
+        console.log("Response data:", response.data);
+      }
+      
+      // Backend returns: { success, counts, trends, analytics } directly (NOT wrapped in data)
+      const responseData = response.data;
+      
+      // Validate response structure - Backend returns direct format
+      if (responseData?.success && responseData.counts && responseData.trends && responseData.analytics) {
         setStats({
-          counts: response.data.counts,
-          trends: response.data.trends,
-          analytics: response.data.analytics,
+          counts: responseData.counts,
+          trends: responseData.trends,
+          analytics: responseData.analytics,
         });
       } else {
-        throw new Error("Invalid response format");
+        // Fallback: try wrapped format for backward compatibility (if backend changes in future)
+        const responseWithData = responseData as AdminStatsResponse & { data?: SystemStats };
+        const wrappedData = responseWithData?.data;
+        if (wrappedData?.counts && wrappedData.trends && wrappedData.analytics) {
+          setStats({
+            counts: wrappedData.counts,
+            trends: wrappedData.trends,
+            analytics: wrappedData.analytics,
+          });
+        } else {
+          throw new Error("Invalid response format: missing success flag or required fields (counts, trends, analytics)");
+        }
       }
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;

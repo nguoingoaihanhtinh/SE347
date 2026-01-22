@@ -1,6 +1,4 @@
-// src/components/projects/backlog/BacklogBoard.tsx
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useMemo, useCallback, useContext, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -13,29 +11,34 @@ import {
   type DragEndEvent,
   DragOverlay,
 } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import type { IColumn } from "../../../types/project";
-import type { ISprint } from "../../../types/sprint";
+
 import type { IIssue } from "../../../types/issue";
 import BacklogSprint from "./BacklogSprint";
 import CreateSprintButton from "./CreateSprintButton";
 import IssueCardOverlay from "./IssueCardOverlay";
-import IssueDetail from "../IssueDetail";
 import { useIssueStore } from "../../../stores/issueStore";
 import { useColumnStore } from "../../../stores/columnStore";
 import { useSprintStore } from "../../../stores/sprintStore";
 import { useProjectStore } from "../../../stores/projectStore";
 import { statusOptions } from "../../../constants/list";
 import { toast } from "react-toastify";
+import { LayoutContext } from "../../../layouts/ProjectLayout";
 
-const PageFilter = ({ onFiltersChange, currentProject }) => {
+interface PageFilterProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onFiltersChange?: (filters: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  currentProject?: any;
+}
+
+const PageFilter = ({ onFiltersChange }: PageFilterProps) => {
   const [filters, setFilters] = useState({
     type: "all",
     status: "all",
     assignee: "all",
   });
 
-  const handleFilterChange = (e) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     const newFilters = { ...filters, [name]: value };
     setFilters(newFilters);
@@ -100,19 +103,27 @@ const PageFilter = ({ onFiltersChange, currentProject }) => {
   );
 };
 
-const BacklogBoard = ({ projectId }) => {
-  const { selectedIssueId } = useIssueStore();
+interface BacklogBoardProps {
+  projectId: string;
+}
+
+const BacklogBoard = ({ projectId }: BacklogBoardProps) => {
+  useContext(LayoutContext);
   const { columns } = useColumnStore();
+
   const { sprints } = useSprintStore();
-  const { issues } = useIssueStore();
+  const { issues: storeIssues } = useIssueStore();
   const { currentProject } = useProjectStore();
+
+  // Luôn đảm bảo issues là mảng, không bao giờ undefined
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const issues = Array.isArray(storeIssues) ? storeIssues : [];
 
   const [activeIssue, setActiveIssue] = useState<IIssue | null>(null);
   const [overItemId, setOverItemId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [localSprints, setLocalSprints] = useState<Array<ISprint & { issues: IIssue[] }>>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [appliedFilters, setAppliedFilters] = useState({ projectId });
+  const [, setAppliedFilters] = useState({ projectId });
 
   const backlogSprint = useMemo(() => {
     if (!projectId) return null;
@@ -131,26 +142,12 @@ const BacklogBoard = ({ projectId }) => {
     };
   }, [projectId]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor)
-  );
+  const localSprints = useMemo(() => {
+    if (!projectId || !backlogSprint || !issues) return [];
 
-  // Thêm useEffect để cập nhật localSprints khi issues thay đổi
-  useEffect(() => {
-    if (isLoading || !projectId || !backlogSprint) return;
+    const allSprints = [backlogSprint, ...sprints];
 
-    const validSprints = sprints.filter(
-      (sprint) =>
-        sprint.projectId === projectId && !["completed", "archived"].includes(sprint.status?.toLowerCase() || "")
-    );
-
-    const allSprints = [backlogSprint, ...validSprints];
-    const sprintsWithIssues = allSprints.map((sprint) => {
+    return allSprints.map((sprint) => {
       if (sprint.id === "backlog") {
         return {
           ...sprint,
@@ -163,12 +160,18 @@ const BacklogBoard = ({ projectId }) => {
         issues: issues.filter((issue) => issue.sprintId === sprint.id),
       };
     });
+  }, [sprints, issues, backlogSprint, projectId]);
 
-    setLocalSprints(sprintsWithIssues);
-  }, [sprints, issues, backlogSprint, projectId, isLoading]); // QUAN TRỌNG: Theo dõi sự thay đổi của issues
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor),
+  );
 
   useEffect(() => {
-    // Cài đặt ban đầu khi component mount
     setIsLoading(false);
   }, []);
 
@@ -186,7 +189,7 @@ const BacklogBoard = ({ projectId }) => {
       }
       setIsDragging(true);
     },
-    [localSprints]
+    [localSprints],
   );
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -206,10 +209,8 @@ const BacklogBoard = ({ projectId }) => {
       const activeId = active.id as string;
       const overId = over.id as string;
 
-      const isOverSprint = !localSprints.some((sprint) => sprint.issues.some((issue) => issue.id === overId));
-
       const targetSprint = localSprints.find(
-        (sprint) => sprint.issues.some((issue) => issue.id === overId) || sprint.id === overId
+        (sprint) => sprint.issues.some((issue) => issue.id === overId) || sprint.id === overId,
       );
 
       const activeSprint = localSprints.find((sprint) => sprint.issues.some((issue) => issue.id === activeId));
@@ -219,64 +220,11 @@ const BacklogBoard = ({ projectId }) => {
         return;
       }
 
-      // Cùng sprint - đổi thứ tự
       if (targetSprint.id === activeSprint.id) {
         if (targetSprint.id === overId) return;
-
-        setLocalSprints((prev) => {
-          const newSprints = [...prev];
-          const targetIndex = newSprints.findIndex((s) => s.id === targetSprint.id);
-          if (targetIndex === -1) return prev;
-
-          const activeIndex = newSprints[targetIndex].issues.findIndex((i) => i.id === activeId);
-          const overIndex = newSprints[targetIndex].issues.findIndex((i) => i.id === overId);
-
-          if (activeIndex === -1 || overIndex === -1 || activeIndex === overIndex) return prev;
-
-          const newIssues = [...newSprints[targetIndex].issues];
-          const [movedItem] = newIssues.splice(activeIndex, 1);
-          newIssues.splice(overIndex, 0, movedItem);
-
-          newSprints[targetIndex] = {
-            ...newSprints[targetIndex],
-            issues: newIssues,
-          };
-
-          return newSprints;
-        });
         return;
       }
 
-      // Khác sprint - di chuyển issue
-      setLocalSprints((prev) => {
-        const newSprints = [...prev];
-
-        const activeIndex = newSprints.findIndex((s) => s.id === activeSprint.id);
-        if (activeIndex !== -1) {
-          const activeIssueIndex = newSprints[activeIndex].issues.findIndex((i) => i.id === activeId);
-          if (activeIssueIndex !== -1) {
-            const [issue] = newSprints[activeIndex].issues.splice(activeIssueIndex, 1);
-
-            const targetIndex = newSprints.findIndex((s) => s.id === targetSprint.id);
-            if (targetIndex !== -1) {
-              if (isOverSprint) {
-                newSprints[targetIndex].issues.push(issue);
-              } else {
-                const overIssueIndex = newSprints[targetIndex].issues.findIndex((i) => i.id === overId);
-                if (overIssueIndex !== -1) {
-                  newSprints[targetIndex].issues.splice(overIssueIndex, 0, issue);
-                } else {
-                  newSprints[targetIndex].issues.push(issue);
-                }
-              }
-            }
-          }
-        }
-
-        return newSprints;
-      });
-
-      // Cập nhật backend
       if (activeId && activeId !== "undefined") {
         const newSprintId = targetSprint.id === "backlog" ? null : targetSprint.id;
         const { updateIssue } = useIssueStore.getState();
@@ -286,24 +234,19 @@ const BacklogBoard = ({ projectId }) => {
         } catch (error) {
           console.error("Failed to update issue sprint:", error);
           toast.error("Failed to move issue. Please try again.");
-
-          // Rollback UI khi có lỗi
-          setLocalSprints((prev) => {
-            const newSprints = [...prev];
-            return newSprints;
-          });
         }
       }
     },
-    [localSprints, projectId]
+    [localSprints, projectId],
   );
 
   const handleFilterChange = useCallback(
-    (filters) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (filters: any) => {
       const newFilters = { projectId, ...filters };
       setAppliedFilters(newFilters);
     },
-    [projectId]
+    [projectId],
   );
 
   if (!projectId) {
@@ -330,7 +273,7 @@ const BacklogBoard = ({ projectId }) => {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full flex-col gap-4 p-4">
+      <div className="flex h-full flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="p-2 text-2xl font-bold text-gray-700">{currentProject?.name || "Project"} Backlog</h1>
@@ -341,7 +284,7 @@ const BacklogBoard = ({ projectId }) => {
 
         <PageFilter onFiltersChange={handleFilterChange} currentProject={currentProject} />
 
-        {localSprints.length === 0 && !isLoading ? (
+        {localSprints.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
@@ -355,7 +298,7 @@ const BacklogBoard = ({ projectId }) => {
             </div>
           </div>
         ) : (
-          <div className="flex min-w-[650px] flex-col gap-2 overflow-x-auto">
+          <div className="flex flex-col gap-2">
             {localSprints.map(
               (sprint) =>
                 sprint && (
@@ -367,14 +310,12 @@ const BacklogBoard = ({ projectId }) => {
                     overItemId={overItemId}
                     isDragging={isDragging}
                   />
-                )
+                ),
             )}
           </div>
         )}
 
         <DragOverlay dropAnimation={null}>{activeIssue ? <IssueCardOverlay issue={activeIssue} /> : null}</DragOverlay>
-
-        {selectedIssueId && selectedIssueId !== "undefined" && <IssueDetail selectedIssueId={selectedIssueId} />}
       </div>
     </DndContext>
   );

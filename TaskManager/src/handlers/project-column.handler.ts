@@ -31,7 +31,7 @@ class ProjectColumnHandler {
           description,
           color,
         },
-        currentUserId
+        currentUserId,
       );
 
       await activityService.log({

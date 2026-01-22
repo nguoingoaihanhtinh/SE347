@@ -45,7 +45,7 @@ export class ProjectService {
 
     // Create project first
     const project = await projectRepository.create(projectData);
-    // console.log("✅ Project created:", project.id);
+
     try {
       // console.log("Adding owner as project member...");
       // console.log("Project ID:", project.id);

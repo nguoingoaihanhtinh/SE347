@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { adminApi, projectApi } from "../../lib/api";
 import type { AdminProject } from "../../lib/api";
 import Toast, { type ToastType } from "../../components/ui/Toast";
@@ -9,19 +9,28 @@ import ViewProjectModal from "../../components/admin/ViewProjectModal";
 
 export default function AdminProjectPage() {
   const [projects, setProjects] = useState<AdminProject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false for initial load
   const [error, setError] = useState<string | null>(null);
 
+  // Server-side pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 10;
+
+  // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [privacyFilter, setPrivacyFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+
+  // Server-side sorting: Sort trên ALL data (không phải chỉ 10 items)
   const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: "asc" | "desc" | null }>({
     key: null,
     direction: null,
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const limit = 10;
+
+  // UI states
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -29,31 +38,74 @@ export default function AdminProjectPage() {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const loadProjects = useCallback(async () => {
+  // HYBRID APPROACH: Server-side sorting/filtering trên all data
+  // Initial load: Fast (page 1, no sort) → hiển thị ngay
+  // Khi sort/find: Gọi API với sort/filter params → server sort/filter all data → show loading
+  const loadProjects = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
-      const { data } = await adminApi.getProjects({
-        page: 1,
-        limit: 10000,
-      });
+      const params: {
+        page: number;
+        limit: number;
+        search?: string;
+        type?: "scrum" | "kanban";
+        sortBy?: string;
+        sortOrder?: "asc" | "desc";
+      } = {
+        page: currentPage,
+        limit,
+      };
+
+      // Add search if provided
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+      }
+
+      // Add type filter if not "all"
+      if (typeFilter !== "all") {
+        params.type = typeFilter as "scrum" | "kanban";
+      }
+
+      // Add sorting if user has selected sort (server-side sort trên all data)
+      if (sortConfig.key && sortConfig.direction) {
+        params.sortBy = sortConfig.key;
+        params.sortOrder = sortConfig.direction;
+      }
+
+      const { data } = await adminApi.getProjects(params);
 
       if (Array.isArray(data?.data)) {
         setProjects(data.data);
+
+        // Extract pagination info from API response
+        if (data?.pagination) {
+          setTotalProjects(data.pagination.total || 0);
+          setTotalPages(data.pagination.total_pages || 1);
+        }
       } else {
         console.warn("Unexpected API response format:", data);
         setProjects([]);
+        setTotalProjects(0);
+        setTotalPages(1);
       }
     } catch (err) {
       const error = err as AxiosError<{ message?: string }>;
       const errorMessage = error?.response?.data?.message || error?.message || "Failed to load projects";
       setError(errorMessage);
       console.error("Error loading projects:", err);
+      setProjects([]);
+      setTotalProjects(0);
+      setTotalPages(1);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [currentPage, limit, debouncedSearch, typeFilter, sortConfig]);
 
   // Debounce search term: Update debouncedSearch after 400ms of no typing
   useEffect(() => {
@@ -64,23 +116,32 @@ export default function AdminProjectPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Reset to page 1 when filters or sort change
   useEffect(() => {
-    setCurrentPage((prevPage) => {
-      if (
-        (debouncedSearch.trim() !== "" ||
-          privacyFilter !== "all" ||
-          typeFilter !== "all" ||
-          sortConfig.direction !== null) &&
-        prevPage !== 1
-      ) {
-        return 1;
-      }
-      return prevPage;
-    });
-  }, [debouncedSearch, privacyFilter, typeFilter, sortConfig.direction]);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, typeFilter, sortConfig.key, sortConfig.direction]);
 
+  // Initial load: Fast (không show loading spinner, hiển thị ngay)
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
   useEffect(() => {
-    loadProjects();
+    if (isInitialLoad) {
+      // Initial load: Fast, không show loading spinner
+      loadProjects(false).then(() => {
+        setIsInitialLoad(false);
+      }).catch(() => {
+        // If initial load fails, still set isInitialLoad to false to prevent infinite loop
+        setIsInitialLoad(false);
+        setLoading(false);
+      });
+    } else {
+      // Subsequent loads: Show loading spinner khi user sort/filter
+      loadProjects(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadProjects]);
 
   useEffect(() => {
@@ -106,96 +167,11 @@ export default function AdminProjectPage() {
     }
   }, [currentPage]);
 
-  const filteredProjects = useMemo(() => {
-    let filtered = projects;
-
-    if (debouncedSearch.trim() !== "") {
-      const searchLower = debouncedSearch.toLowerCase();
-      filtered = filtered.filter((project) => {
-        const name = (project.name || "").toLowerCase();
-        const description = (project.description || "").toLowerCase();
-        const key = (project.key || "").toLowerCase();
-        const ownerName = (project.owner?.fullName || "").toLowerCase();
-        const ownerEmail = (project.owner?.email || "").toLowerCase();
-
-        return (
-          name.includes(searchLower) ||
-          description.includes(searchLower) ||
-          key.includes(searchLower) ||
-          ownerName.includes(searchLower) ||
-          ownerEmail.includes(searchLower)
-        );
-      });
-    }
-
-    if (privacyFilter !== "all") {
-      filtered = filtered.filter((p) => p.access === privacyFilter);
-    }
-
-    // Type filter
-    if (typeFilter !== "all") {
-      filtered = filtered.filter((p) => p.type === typeFilter);
-    }
-
-    if (sortConfig.direction !== null && sortConfig.key !== null) {
-      filtered = [...filtered].sort((a, b) => {
-        let aValue: string | number | Date;
-        let bValue: string | number | Date;
-
-        switch (sortConfig.key) {
-          case "name":
-            aValue = (a.name || "").toLowerCase();
-            bValue = (b.name || "").toLowerCase();
-            break;
-          case "key":
-            aValue = (a.key || "").toLowerCase();
-            bValue = (b.key || "").toLowerCase();
-            break;
-          case "owner":
-            aValue = (a.owner?.fullName || "").toLowerCase();
-            bValue = (b.owner?.fullName || "").toLowerCase();
-            break;
-          case "type":
-            aValue = a.type || "";
-            bValue = b.type || "";
-            break;
-          case "privacy":
-            aValue = a.access || "";
-            bValue = b.access || "";
-            break;
-          case "createdAt":
-            aValue = new Date(a.createdAt).getTime();
-            bValue = new Date(b.createdAt).getTime();
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === "asc" ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === "asc" ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return filtered;
-  }, [projects, debouncedSearch, privacyFilter, typeFilter, sortConfig]);
-
-  const filteredTotalProjects = filteredProjects.length;
-  const filteredTotalPages = Math.ceil(filteredTotalProjects / limit);
-  const paginatedProjects = useMemo(() => {
-    const startIndex = (currentPage - 1) * limit;
-    const endIndex = startIndex + limit;
-    return filteredProjects.slice(startIndex, endIndex);
-  }, [filteredProjects, currentPage, limit]);
-
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
   }, []);
 
+  // Khi user click sort → trigger API call với sort params → server sort all data
   const handleSort = useCallback((key: string) => {
     setSortConfig((prev) => {
       if (prev.key !== key) {
@@ -210,7 +186,12 @@ export default function AdminProjectPage() {
         }
       }
     });
+    // Reset to page 1 when sort changes
+    setCurrentPage(1);
   }, []);
+
+  // Display projects directly from API (đã được server sort/filter)
+  const displayedProjects = projects;
 
   const SortableHeader = ({
     label,
@@ -285,7 +266,7 @@ export default function AdminProjectPage() {
     return `${day}-${month}-${year}`;
   };
 
-  // Get initials for avatar
+  // Get initials for avatar (fallback if avatar URL not available)
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -293,6 +274,31 @@ export default function AdminProjectPage() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  // Render avatar with fallback to initials
+  const renderOwnerAvatar = (owner: AdminProject["owner"]) => {
+    // Check if owner has avatar (if API adds it in future)
+    // Type assertion needed as AdminProject interface doesn't include avatar yet
+    const ownerWithAvatar = owner as AdminProject["owner"] & { avatar?: string | null };
+    const hasAvatar = ownerWithAvatar?.avatar;
+    
+    if (hasAvatar) {
+      return (
+        <img
+          src={hasAvatar}
+          alt={owner.fullName}
+          className="h-8 w-8 rounded-full object-cover"
+        />
+      );
+    }
+    
+    // Fallback to initials
+    return (
+      <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
+        {getInitials(owner.fullName)}
+      </div>
+    );
   };
 
   const privacyOptions = [
@@ -307,9 +313,15 @@ export default function AdminProjectPage() {
     { value: "kanban", label: "Kanban" },
   ];
 
-  // Calculate pagination display based on filtered results
-  const startEntry = filteredTotalProjects === 0 ? 0 : (currentPage - 1) * limit + 1;
-  const endEntry = Math.min(currentPage * limit, filteredTotalProjects);
+  // Handle type filter change - triggers API call
+  const handleTypeFilterChange = useCallback((value: string) => {
+    setTypeFilter(value);
+    setCurrentPage(1); // Reset to first page when filter changes
+  }, []);
+
+  // Calculate pagination display based on server-side results
+  const startEntry = totalProjects === 0 ? 0 : (currentPage - 1) * limit + 1;
+  const endEntry = Math.min(currentPage * limit, totalProjects);
 
   const handleOpenViewModal = (project: AdminProject) => {
     setProjectToView(project);
@@ -338,20 +350,24 @@ export default function AdminProjectPage() {
 
     // Close dropdown
     setOpenDropdownId(null);
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    const remainingProjects = filteredProjects.filter((p) => p.id !== projectId);
-    if (remainingProjects.length === 0 && currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
 
     try {
       await projectApi.delete(projectId);
       setToast({ message: `Project "${projectName}" has been deleted successfully.`, type: "success" });
+      
+      // Reload projects after deletion
+      // If current page becomes empty, go to previous page
+      if (projects.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      } else {
+        loadProjects();
+      }
     } catch (err) {
       const error = err as AxiosError<{ message?: string }>;
       const errorMessage = error?.response?.data?.message || "Failed to delete project. Please try again.";
-      loadProjects();
       setToast({ message: errorMessage, type: "error" });
+      // Reload to refresh the list
+      loadProjects();
     }
   };
 
@@ -395,7 +411,7 @@ export default function AdminProjectPage() {
                 <Dropdown
                   options={typeOptions}
                   selectedValue={typeFilter}
-                  onChange={setTypeFilter}
+                  onChange={handleTypeFilterChange}
                   placeholder="Type"
                   className="h-9 text-sm"
                 />
@@ -442,7 +458,7 @@ export default function AdminProjectPage() {
                       </div>
                     </td>
                   </tr>
-                ) : paginatedProjects.length === 0 ? (
+                ) : displayedProjects.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-3 py-12 text-center text-gray-500">
                       <svg
@@ -463,7 +479,7 @@ export default function AdminProjectPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedProjects.map((project) => (
+                  displayedProjects.map((project) => (
                     <tr key={project.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
                         <div className="overflow-hidden">
@@ -479,9 +495,7 @@ export default function AdminProjectPage() {
                       <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="flex-shrink-0">
-                            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
-                              {getInitials(project.owner.fullName)}
-                            </div>
+                            {renderOwnerAvatar(project.owner)}
                           </div>
                           <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                             <div className="text-sm font-medium text-gray-900 truncate">{project.owner.fullName}</div>
@@ -542,11 +556,11 @@ export default function AdminProjectPage() {
           </div>
 
           <div className="flex-shrink-0 border-t border-gray-100 p-4 bg-white rounded-b-lg flex items-center justify-between">
-              {filteredTotalProjects > 0 ? (
+              {totalProjects > 0 ? (
                 <div className="text-sm text-gray-500">
                   Showing <span className="font-medium text-gray-700">{startEntry}</span> to{" "}
                   <span className="font-medium text-gray-700">{endEntry}</span> of{" "}
-                  <span className="font-medium text-gray-700">{filteredTotalProjects}</span> entries
+                  <span className="font-medium text-gray-700">{totalProjects}</span> entries
                 </div>
               ) : (
                 <div className="text-sm text-gray-500">
@@ -554,13 +568,13 @@ export default function AdminProjectPage() {
                 </div>
               )}
 
-              {filteredTotalProjects > 0 && (
+              {totalProjects > 0 && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1 || filteredTotalPages <= 1}
+                    disabled={currentPage === 1 || totalPages <= 1}
                     className={`px-3 py-1.5 text-sm font-medium border rounded transition ${
-                      currentPage === 1 || filteredTotalPages <= 1
+                      currentPage === 1 || totalPages <= 1
                         ? "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
                         : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                     }`}
@@ -568,16 +582,16 @@ export default function AdminProjectPage() {
                     Previous
                   </button>
 
-                  {filteredTotalPages > 1 && (
+                  {totalPages > 1 && (
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(filteredTotalPages, 5) }, (_, i) => {
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                         let pageNum;
-                        if (filteredTotalPages <= 5) {
+                        if (totalPages <= 5) {
                           pageNum = i + 1;
                         } else if (currentPage <= 3) {
                           pageNum = i + 1;
-                        } else if (currentPage >= filteredTotalPages - 2) {
-                          pageNum = filteredTotalPages - 4 + i;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
                         } else {
                           pageNum = currentPage - 2 + i;
                         }
@@ -601,10 +615,10 @@ export default function AdminProjectPage() {
 
                   {/* Next Button */}
                   <button
-                    onClick={() => handlePageChange(Math.min(filteredTotalPages, currentPage + 1))}
-                    disabled={currentPage === filteredTotalPages || filteredTotalPages <= 1}
+                    onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages || totalPages <= 1}
                     className={`px-3 py-1.5 text-sm font-medium border rounded transition ${
-                      currentPage === filteredTotalPages || filteredTotalPages <= 1
+                      currentPage === totalPages || totalPages <= 1
                         ? "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
                         : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                     }`}

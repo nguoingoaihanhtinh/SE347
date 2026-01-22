@@ -13,8 +13,8 @@ declare global {
 
 // src/middlewares/auth.middleware.ts
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  console.log("=== AUTH MIDDLEWARE ===");
-  console.log("Request URL:", req.originalUrl);
+  // console.log("=== AUTH MIDDLEWARE ===");
+  // console.log("Request URL:", req.originalUrl);
 
   try {
     let token: string | undefined;
@@ -28,10 +28,9 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       token = req.cookies.token;
     }
 
-    console.log("Token found:", !!token);
+    // console.log("Token found:", !!token);
 
     if (!token) {
-      console.log("ERROR: No token provided");
       throw new UnauthorizedError({
         message: "No token provided",
         status: "NO_TOKEN",
@@ -39,7 +38,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     }
 
     const decoded = verifyToken(token);
-    console.log("Decoded token:", decoded);
+    // console.log("Decoded token:", decoded);
 
     if (!decoded.userId) {
       console.log("ERROR: Token missing user ID");
@@ -49,7 +48,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       });
     }
 
-    console.log("userId from token:", decoded.userId, "Type:", typeof decoded.userId);
+    // console.log("userId from token:", decoded.userId, "Type:", typeof decoded.userId);
 
     if (typeof decoded.userId !== "string" || !isValidObjectId(decoded.userId)) {
       console.log("ERROR: Invalid user ID format");
@@ -60,7 +59,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     }
 
     req.user = decoded;
-    console.log("Auth middleware completed successfully");
+    // console.log("Auth middleware completed successfully");
     next();
   } catch (error) {
     if (error instanceof Error) {

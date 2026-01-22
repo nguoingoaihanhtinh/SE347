@@ -78,7 +78,7 @@ class ProjectColumnService {
 
   async getProjectColumnsWithStats(
     projectId: string,
-    currentUserId: string
+    currentUserId: string,
   ): Promise<Array<ProjectColumn & { issueCount: number }>> {
     await validationService.validateProjectMemberPermission(projectId, currentUserId);
 

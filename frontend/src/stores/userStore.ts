@@ -3,6 +3,7 @@ import { users } from "../apis/user";
 import { extractErrorMessage } from "../types/api";
 
 interface UserState {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   users: Record<string, any>;
   isLoading: boolean;
   error: string | null;

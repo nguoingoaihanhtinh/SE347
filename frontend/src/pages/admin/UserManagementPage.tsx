@@ -181,16 +181,37 @@ export default function UserManagementPage() {
       filtered = filtered.filter((u) => u.role === roleFilter);
     }
 
-    if (sortConfig.direction !== null && sortConfig.key !== null) {
+    // Default sort: super_admin on top, then by name (when sortConfig is null)
+    // When user clicks sort: follow sortConfig (asc/desc/null cycle)
+    if (sortConfig.direction === null || sortConfig.key === null) {
+      // Default: super_admin on top, then sort by name A-Z with Vietnamese collation
       filtered = [...filtered].sort((a, b) => {
+        // Super admin always on top
+        if (a.role === "super_admin" && b.role !== "super_admin") return -1;
+        if (a.role !== "super_admin" && b.role === "super_admin") return 1;
+        
+        // Then sort by name A-Z with Vietnamese collation
+        const aName = (a.fullName || `${a.firstName || ""} ${a.lastName || ""}`.trim() || "");
+        const bName = (b.fullName || `${b.firstName || ""} ${b.lastName || ""}`.trim() || "");
+        return aName.localeCompare(bName, 'vi', { sensitivity: 'base' });
+      });
+    } else {
+      // User clicked sort: follow sortConfig
+      filtered = [...filtered].sort((a, b) => {
+        // Vietnamese collation: Use localeCompare with 'vi' locale for proper Đ, Ă, Â sorting
+        if (sortConfig.key === "name") {
+          const aName = (a.fullName || `${a.firstName || ""} ${a.lastName || ""}`.trim() || "");
+          const bName = (b.fullName || `${b.firstName || ""} ${b.lastName || ""}`.trim() || "");
+          // Use localeCompare with Vietnamese locale for proper sorting
+          return sortConfig.direction === "asc" 
+            ? aName.localeCompare(bName, 'vi', { sensitivity: 'base' })
+            : bName.localeCompare(aName, 'vi', { sensitivity: 'base' });
+        }
+
         let aValue: string | number | Date;
         let bValue: string | number | Date;
 
         switch (sortConfig.key) {
-          case "name":
-            aValue = (a.fullName || `${a.firstName || ""} ${a.lastName || ""}`.trim() || "").toLowerCase();
-            bValue = (b.fullName || `${b.firstName || ""} ${b.lastName || ""}`.trim() || "").toLowerCase();
-            break;
           case "email":
             aValue = (a.email || "").toLowerCase();
             bValue = (b.email || "").toLowerCase();
@@ -220,8 +241,7 @@ export default function UserManagementPage() {
         if (bValue === null || bValue === undefined) {
           return sortConfig.direction === "asc" ? -1 : 1;
         }
-
-        // Compare values
+        
         if (aValue < bValue) {
           return sortConfig.direction === "asc" ? -1 : 1;
         }

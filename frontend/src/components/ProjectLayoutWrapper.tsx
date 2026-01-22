@@ -11,7 +11,7 @@ export default function ProjectLayoutWrapper() {
     if (projectId) {
       fetchProject(projectId);
     }
-  }, [projectId]);
+  }, [fetchProject, projectId]);
 
   if (!currentProject) {
     return (

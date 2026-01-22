@@ -1,5 +1,5 @@
 /* src/index.css */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 /* Tailwind CSS directives - CSS linter warnings about @tailwind can be safely ignored */
 @tailwind base;
@@ -21,7 +21,7 @@ html,
   overflow: auto;
   min-height: 100%;
   width: 100%;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
 
 /* Toast Animation */
@@ -39,7 +39,6 @@ html,
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
 }
-
 /* Custom Scrollbar Utility */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -57,6 +56,16 @@ html,
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgb(156, 163, 175); /* gray-400 */
+}
+
+/* Hide scrollbar for all browsers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Tooltip appear animation - override Recharts default animation */

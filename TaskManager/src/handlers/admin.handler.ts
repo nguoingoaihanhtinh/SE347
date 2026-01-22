@@ -434,13 +434,13 @@ export async function getSystemStats(req: Request, res: Response) {
 export async function getAllProjectsAdmin(req: Request, res: Response) {
   try {
     const db = await connectMongo();
-    const { page, limit, search } = req.query;
+    const { page, limit, search, type, sortBy, sortOrder } = req.query;
 
     const pageNum = _.toInteger(page) || 1;
     const limitNum = _.toInteger(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
 
-    // Build filter (optional search by name or key)
+    // Build filter (optional search by name or key, and type filter)
     const filter: any = {};
     if (search && typeof search === "string") {
       const searchRegex = new RegExp(search, "i");
@@ -450,12 +450,34 @@ export async function getAllProjectsAdmin(req: Request, res: Response) {
       ];
     }
 
+    // Add type filter if provided (scrum or kanban)
+    if (type && (type === "scrum" || type === "kanban")) {
+      filter.type = type;
+    }
+
+    // Build sort object (default: createdAt desc - giữ nguyên logic đồng đội)
+    const sortObj: any = { createdAt: -1 }; // Default sort (code đồng đội)
+    
+    // Thêm sorting support nếu có sortBy và sortOrder từ FE
+    if (sortBy && typeof sortBy === "string") {
+      const validSortFields = ["name", "key", "type", "access", "createdAt"];
+      if (validSortFields.includes(sortBy)) {
+        const order = sortOrder === "asc" ? 1 : -1;
+        sortObj[sortBy] = order;
+        // Nếu không phải createdAt, vẫn giữ createdAt làm secondary sort
+        if (sortBy !== "createdAt") {
+          sortObj.createdAt = -1;
+        }
+      }
+    }
+
     // Fetch projects with pagination
+    // Vietnamese collation: Đ sorts after D, Ă/Â sort near A (Vietnamese dictionary order)
     const projects = await db.collection("projects")
-      .find(filter)
+      .find(filter, { collation: { locale: 'vi', strength: 1 } })
+      .sort(sortObj)
       .skip(skip)
       .limit(limitNum)
-      .sort({ createdAt: -1 })
       .toArray();
 
     const total = await db.collection("projects").countDocuments(filter);

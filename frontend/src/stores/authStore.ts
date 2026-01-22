@@ -16,11 +16,14 @@ interface AuthState {
     email: string,
     password: string,
     confirmPassword: string,
-    otp: string
+    otp: string,
   ) => Promise<void>;
+
   logout: () => void;
   loadUser: () => Promise<void>;
   clearError: () => void;
+
+  // ✅ dùng cho forgot-password / social-login
   setAuth: (user: User, token: string) => void;
 }
 
@@ -30,22 +33,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: false,
   error: null,
 
+  // ================= LOGIN =================
   login: async (email, password) => {
     try {
       set({ isLoading: true, error: null });
-      const { data } = await authApi.login(email, password);
-      
-      // CRITICAL: Save token to localStorage (same as setAuth)
-      const token = data.data.token;
-      const user = data.data.user;
-      
-      if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-      
+
+      const res = await authApi.login(email, password);
+
+      // nếu backend trả token thì lưu
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const token = (res as any)?.data?.data?.token;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const userFromLogin = (res as any)?.data?.data?.user;
+
+      if (token) localStorage.setItem("token", token);
+      if (userFromLogin) localStorage.setItem("user", JSON.stringify(userFromLogin));
+
+      // fallback: gọi /me (cookie-based)
+      const { data } = await authApi.getCurrentUser();
+
       set({
-        user: user,
+        user: data.data,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -56,22 +64,32 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  // ================= REGISTER =================
   register: async (firstName, lastName, email, password, confirmPassword, otp) => {
     try {
       set({ isLoading: true, error: null });
-      const { data } = await authApi.register({ firstName, lastName, email, password, confirmPassword, otp });
-      
-      // CRITICAL: Save token to localStorage (same as login)
-      const token = data.data.token;
-      const user = data.data.user;
-      
-      if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-      
+
+      const res = await authApi.register({
+        firstName,
+        lastName,
+        email,
+        password,
+        confirmPassword,
+        otp,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const token = (res as any)?.data?.data?.token;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const userFromRegister = (res as any)?.data?.data?.user;
+
+      if (token) localStorage.setItem("token", token);
+      if (userFromRegister) localStorage.setItem("user", JSON.stringify(userFromRegister));
+
+      const { data } = await authApi.getCurrentUser();
+
       set({
-        user: user,
+        user: data.data,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -82,6 +100,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  // ================= LOGOUT =================
   logout: () => {
     authApi.logout().catch(console.error);
     localStorage.removeItem("token");
@@ -89,11 +108,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, isAuthenticated: false });
   },
 
+  // ================= LOAD USER =================
   loadUser: async () => {
     try {
       set({ isLoading: true });
 
-      // SECURITY: Check token exists before calling API
+      // nếu không có token + cookie hết hạn → khỏi gọi API
       const token = localStorage.getItem("token");
       if (!token) {
         set({ user: null, isAuthenticated: false, isLoading: false });
@@ -101,10 +121,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       const { data } = await authApi.getCurrentUser();
-      set({ user: data.data, isAuthenticated: true, isLoading: false });
+
+      set({
+        user: data.data,
+        isAuthenticated: true,
+        isLoading: false,
+      });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      // API call failed (token invalid/expired)
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       set({ user: null, isAuthenticated: false, isLoading: false });
@@ -113,6 +137,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearError: () => set({ error: null }),
 
+  // ================= SET AUTH (FORGOT PASSWORD, OAUTH...) =================
   setAuth: (user, token) => {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
