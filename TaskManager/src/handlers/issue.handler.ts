@@ -1,4 +1,3 @@
-// src/handlers/issue.handler.ts
 import _ from "lodash";
 import { Request, Response } from "express";
 import { BadRequestError } from "@/utils/errors";
@@ -12,8 +11,11 @@ function parseDateFields(data: any) {
   const dateFields = ["dueDateFrom", "dueDateTo", "completedAt"];
   const parsed = { ...data };
   for (const field of dateFields) {
-    if (parsed[field] != null) {
+    if (parsed[field] != null && typeof parsed[field] === "string") {
       parsed[field] = new Date(parsed[field]);
+      if (isNaN(parsed[field].getTime())) {
+        throw new BadRequestError({ message: `Invalid date format for ${field}` });
+      }
     }
   }
   return parsed;
@@ -66,10 +68,20 @@ export async function createIssue(req: Request, res: Response) {
 export async function updateIssue(req: Request, res: Response) {
   const { id } = req.params;
   if (!id) throw new BadRequestError({ message: "Missing issue ID" });
+
   const rawData = validate.schema_validate(updateIssueSchema, req.body);
+
   const data = parseDateFields(rawData);
-  const issue = await IssueService.update(id, data, req.user!.userId);
-  res.status(200).json({ success: true, issue });
+
+  try {
+    // Gọi service update
+    const updatedIssue = await IssueService.update(id, data, req.user!.userId);
+
+    res.status(200).json({ success: true, issue: updatedIssue });
+  } catch (error) {
+    console.error("Update issue error:", error);
+    throw error; // Để middleware error handler xử lý
+  }
 }
 
 export async function deleteIssue(req: Request, res: Response) {

@@ -9,6 +9,14 @@ import { ActivityAction } from "@/enums";
 type CreateIssueInput = Omit<Issue, "id" | "key" | "createdAt" | "updatedAt">;
 type UpdateIssueInput = Partial<Omit<Issue, "id" | "key" | "createdAt" | "updatedAt" | "projectId">>;
 
+interface ChangeLog {
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+}
+
+type UpdatableIssueField = keyof UpdateIssueInput;
+
 export class IssueService {
   async findAll(filters: { projectId?: string; columnId?: string }, page: number, limit: number) {
     return IssueRepository.findAll(filters, page, limit);
@@ -28,9 +36,8 @@ export class IssueService {
         reporterId: data.reporterId,
         assigneeId: data.assigneeId,
       },
-      currentUserId
+      currentUserId,
     );
-
     const project = await ProjectService.findOneById(data.projectId);
     if (!project) throw new BadRequestError({ message: "Invalid projectId" });
 
@@ -60,9 +67,12 @@ export class IssueService {
     if (data.sprintId !== undefined) {
       await ValidationService.validateIssueSprintRelation(existing.projectId, data.sprintId);
     }
+
     if (data.assigneeId !== undefined) {
       await ValidationService.validateIssueAssignee(existing.projectId, data.assigneeId);
     }
+
+    const changes = this.calculateChanges(existing, data);
 
     const updated = await IssueRepository.update(id, data);
 
@@ -71,9 +81,52 @@ export class IssueService {
       issueId: id,
       userId: currentUserId,
       actionType: ActivityAction.ISSUE_UPDATED,
+      changes,
     });
 
     return updated;
+  }
+
+  private calculateChanges(existing: Issue, updateData: UpdateIssueInput): ChangeLog[] {
+    const changes: ChangeLog[] = [];
+
+    const fieldsToTrack: UpdatableIssueField[] = [
+      "title",
+      "summary",
+      "description",
+      "priority",
+      "type",
+
+      "sprintId",
+      "columnId",
+      "assigneeId",
+      "storyPoint",
+      "dueDateFrom",
+      "dueDateTo",
+    ];
+
+    fieldsToTrack.forEach((field) => {
+      const oldRaw = existing[field];
+      const newRaw = updateData[field];
+
+      if (newRaw === undefined) {
+        console.log(`Field ${field}: skipped (undefined in updateData)`);
+        return;
+      }
+
+      let oldNormalized = oldRaw != null ? String(oldRaw) : null;
+      let newNormalized = newRaw != null ? String(newRaw) : null;
+
+      if (oldNormalized !== newNormalized) {
+        changes.push({
+          field,
+          old_value: oldNormalized,
+          new_value: newNormalized,
+        });
+      }
+    });
+
+    return changes;
   }
 
   async delete(id: string, currentUserId: string) {

@@ -4,6 +4,7 @@ import { useIssueStore } from "../../stores/issueStore";
 import { useColumnStore } from "../../stores/columnStore";
 import { useSprintStore } from "../../stores/sprintStore";
 import { useProjectStore } from "../../stores/projectStore";
+import { useActivityStore } from "../../stores/activityStore";
 import { useParams } from "react-router-dom";
 import { FaEye, FaEdit, FaCheck, FaTimes, FaRegCommentAlt } from "react-icons/fa";
 import { BsThreeDots } from "react-icons/bs";
@@ -14,6 +15,8 @@ import type { IIssue, IssueType } from "../../types/issue";
 import type { IColumn } from "../../types/project";
 import type { ISprint } from "../../types/sprint";
 import type { ReactNode } from "react";
+import IssueActivitySection from "./activity/IssueActivitySection";
+import { useUpdateIssueFull } from "../../hooks/useIssue"; // Hook update full fields
 
 const ISSUE_TYPES = ["task", "story", "bug", "epic"] as const;
 const ISSUE_PRIORITIES = ["low", "medium", "high", "critical"] as const;
@@ -28,7 +31,7 @@ interface EditableFieldProps {
   label: string;
   value: unknown;
   onSave: (newValue: unknown) => Promise<void>;
-  type?: "text" | "textarea" | "date" | "number";
+  type?: "text" | "textarea" | "date" | "number" | "select";
   options?: { value: string; label: string }[] | null;
   renderDisplay?: (val: unknown) => ReactNode;
   isUpdating?: boolean;
@@ -43,13 +46,11 @@ const EditableField = ({
   renderDisplay = (val) => (
     <span className="text-sm font-medium text-gray-800">{val != null ? String(val) : "Chưa đặt"}</span>
   ),
-
   isUpdating = false,
 }: EditableFieldProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value ?? "");
 
-  // Đồng bộ editValue khi value thay đổi từ bên ngoài
   useEffect(() => {
     setEditValue(value ?? "");
   }, [value]);
@@ -188,16 +189,6 @@ const DetailsSection = ({ selectedIssue, onUpdate, isUpdating }: DetailsSectionP
   );
 };
 
-const ActivitySection = () => (
-  <div className="rounded-lg border border-gray-200 p-4">
-    <div className="flex justify-between items-center mb-4">
-      <h2 className="text-lg font-semibold text-gray-700">Hoạt động</h2>
-      <button className="text-xs font-medium text-blue-600 hover:text-blue-800">Xem tất cả</button>
-    </div>
-    <div className="space-y-4 text-sm text-gray-600">Hiện chưa có hoạt động nào được ghi nhận.</div>
-  </div>
-);
-
 interface MetadataSectionProps {
   selectedIssue: IIssue;
   columns: IColumn[];
@@ -244,7 +235,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
               </div>
             )}
           />
-
           <EditableField
             label="Độ ưu tiên"
             value={selectedIssue.priority}
@@ -265,7 +255,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
               </span>
             )}
           />
-
           <EditableField
             label="Trạng thái"
             value={selectedIssue.columnId}
@@ -289,7 +278,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
               );
             }}
           />
-
           <EditableField
             label="Story Points"
             value={selectedIssue.storyPoint ?? 0}
@@ -298,7 +286,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
             isUpdating={isUpdating}
             renderDisplay={(value) => <span className="font-medium">{Number(value)} pts</span>}
           />
-
           <EditableField
             label="Sprint"
             value={selectedIssue.sprintId ?? ""}
@@ -331,7 +318,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
               {selectedIssue.updatedAt ? new Date(selectedIssue.updatedAt).toLocaleString() : "N/A"}
             </p>
           </div>
-
           <EditableField
             label="Due Date From"
             value={selectedIssue.dueDateFrom ? new Date(selectedIssue.dueDateFrom).toISOString().split("T")[0] : ""}
@@ -340,7 +326,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
             isUpdating={isUpdating}
             renderDisplay={(v) => (v ? new Date(String(v)).toLocaleDateString() : "Chưa đặt")}
           />
-
           <EditableField
             label="Due Date To"
             value={selectedIssue.dueDateTo ? new Date(selectedIssue.dueDateTo).toISOString().split("T")[0] : ""}
@@ -365,7 +350,6 @@ const MetadataSection = ({ selectedIssue, columns, sprints, onUpdate, isUpdating
               <span className="font-medium">{selectedIssue.reporterId || "Unknown"}</span>
             </div>
           </div>
-
           <EditableField
             label="Người thực hiện"
             value={selectedIssue.assigneeId ?? ""}
@@ -414,16 +398,15 @@ const CommentSection = () => (
 const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: IssueDetailProps) => {
   const { projectId: paramProjectId } = useParams<{ projectId: string }>();
   const { currentProject } = useProjectStore();
-
+  const { fetchProjectActivities, refetchImmediately } = useActivityStore();
   const effectiveProjectId = propProjectId || paramProjectId || currentProject?.id;
 
   const { columns } = useColumnStore();
   const { sprints } = useSprintStore();
-  const { getIssueById, updateIssue, fetchIssuesByProject } = useIssueStore();
+  const { getIssueById, fetchIssuesByProject } = useIssueStore();
+  const { updateIssueFull } = useUpdateIssueFull(); // Hook update full
 
   const selectedIssue = getIssueById(selectedIssueId);
-
-  // ✅ FIX: Xử lý trường hợp selectedIssue có thể là undefined
   const [localIssue, setLocalIssue] = useState<IIssue | null>(selectedIssue || null);
   const [isUpdating, setIsUpdating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -446,6 +429,12 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
+  useEffect(() => {
+    if (effectiveProjectId) {
+      fetchProjectActivities(effectiveProjectId);
+    }
+  }, [effectiveProjectId, fetchProjectActivities]);
+
   const handleUpdate = useCallback(
     async (updates: Partial<IIssue>) => {
       if (!effectiveProjectId || !selectedIssueId || !localIssue) {
@@ -458,9 +447,24 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
       setIsUpdating(true);
 
       try {
-        await updateIssue(effectiveProjectId, selectedIssueId, updates as Record<string, unknown>);
+        // Log chi tiết payload gửi đi
+        console.log("=== DEBUG: Gửi update issue ===");
+        console.log("Issue ID:", selectedIssueId);
+        console.log("Payload gửi:", updates);
+        console.log("Giá trị hiện tại (localIssue):", localIssue);
+        console.log("=================================");
+
+        await updateIssueFull({
+          issueId: selectedIssueId,
+          projectId: effectiveProjectId,
+          data: updates,
+        });
+
         toast.success("Cập nhật thành công!");
         await fetchIssuesByProject(effectiveProjectId);
+        console.debug("Issue updated, refetching activities...");
+        await refetchImmediately(effectiveProjectId);
+        console.debug("Activities refetched");
       } catch (error: unknown) {
         console.error("Update failed:", error);
         const errorMessage = error instanceof Error ? error.message : "Lỗi hệ thống";
@@ -470,7 +474,7 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
         setIsUpdating(false);
       }
     },
-    [effectiveProjectId, selectedIssueId, localIssue, updateIssue, fetchIssuesByProject],
+    [effectiveProjectId, selectedIssueId, localIssue, updateIssueFull, fetchIssuesByProject, refetchImmediately],
   );
 
   if (!effectiveProjectId) {
@@ -495,7 +499,6 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
               <p className="text-sm text-gray-500 font-mono">{localIssue.key}</p>
             </div>
           </div>
-
           <div className="flex gap-2">
             <button className="p-2 rounded hover:bg-gray-100" title="Watch">
               <FaEye size={18} />
@@ -517,7 +520,7 @@ const IssueDetail = ({ selectedIssueId, onClose, projectId: propProjectId }: Iss
           isUpdating={isUpdating}
         />
         <DetailsSection selectedIssue={localIssue} onUpdate={handleUpdate} isUpdating={isUpdating} />
-        <ActivitySection />
+        <IssueActivitySection issueId={selectedIssueId} />
         <CommentSection />
       </div>
     </div>

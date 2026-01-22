@@ -29,10 +29,8 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
     id: sprint.id,
     data: { type: "Sprint", sprint },
   });
-
   const { selectedIssues, setSelectedIssues, clearSelectedIssues } = useIssueStore();
   // const { deleteSprint } = useDeleteSprint();
-
   const [isOpenButtonMenu, setIsOpenButtonMenu] = useState(false);
   const [isCreateIssueModalOpen, setIsCreateIssueModalOpen] = useState(false);
   const [isEditSprintModalOpen, setIsEditSprintModalOpen] = useState(false);
@@ -117,7 +115,6 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
               </div>
             </div>
           </div>
-
           <div className="flex items-center space-x-4">
             {/* Column Count */}
             <div className="flex space-x-1">
@@ -137,7 +134,6 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
                 );
               })}
             </div>
-
             {/* Actions */}
             <div className="flex items-center space-x-2">
               <div
@@ -225,13 +221,18 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
               Edit
             </button>
           )}
+
+          {/* Nút Add Issue - đã sửa để mở modal */}
           <button
-            onClick={() => setIsExpanded(true)}
+            onClick={() => {
+              if (!isExpanded) setIsExpanded(true);
+              setIsCreateIssueModalOpen(true);
+            }}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all border border-blue-100 shadow-sm"
             aria-label="Add new issue"
           >
             <FaPlus size={14} />
-            {isExpanded ? "Add Issue +" : "Add Issue"}
+            Add Issue
           </button>
         </div>
       </div>
@@ -243,6 +244,7 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
         projectId={projectId}
         defaultSprintId={sprint.id !== "backlog" ? sprint.id : undefined}
       />
+
       {sprint.id !== "backlog" && (
         <>
           <CreateSprintModal

@@ -1,4 +1,3 @@
-// src/repositories/issue.repository.ts
 import { Issue } from "@/models/issue.model";
 import { connectMongo } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
