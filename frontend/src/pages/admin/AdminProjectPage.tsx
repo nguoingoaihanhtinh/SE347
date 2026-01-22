@@ -124,7 +124,7 @@ export default function AdminProjectPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, typeFilter, sortConfig.key, sortConfig.direction]);
 
-  // Initial load: Fast (không show loading spinner, hiển thị ngay)
+  // Initial load: Fast
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   useEffect(() => {
@@ -171,7 +171,7 @@ export default function AdminProjectPage() {
     setCurrentPage(newPage);
   }, []);
 
-  // Khi user click sort → trigger API call với sort params → server sort all data
+  // Khi user click sort -> trigger API call với sort params -> server sort all data
   const handleSort = useCallback((key: string) => {
     setSortConfig((prev) => {
       if (prev.key !== key) {
