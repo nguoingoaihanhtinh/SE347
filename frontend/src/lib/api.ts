@@ -5,7 +5,7 @@ import type { User, Comment, AuthResponse, ApiResponse } from "../types";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`, // ✅ Đảm bảo có /api
+  baseURL: `${API_BASE_URL}/api`, 
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
@@ -195,12 +195,38 @@ export const sprintApi = {
 
 // Admin API - System Statistics Interface
 export interface SystemStats {
-  totalUsers: number;
-  totalProjects: number;
-  totalIssues: number;
-  activeIssues: number;
-  totalSprints: number;
-  activeSprints: number;
+  counts: {
+    totalUsers: number;
+    totalProjects: number;
+    totalIssues: number;
+    activeIssues: number;
+    totalSprints: number;
+    activeSprints: number;
+  };
+  trends: {
+    usersTrend: number;
+    projectsTrend: number;
+    activeIssuesTrend: number;
+  };
+  analytics: {
+    userGrowth: Array<{ month: string; count: number }>;
+    weeklyGrowth?: Array<{ week: string; name: string; count: number }>;
+    projectDistribution: Array<{ name: string; value: number }>;
+    issueAgeBuckets?: Array<{ bucket: string; openCount: number; closedCount: number }>;
+    resolutionStats: {
+      avgDays: number;
+      trend: Array<{ date: string; avgDays: number }>;
+      trendPercentage: number | null;
+    };
+    latestProjects: Array<{
+      id: string;
+      name: string;
+      key: string;
+      type: "scrum" | "kanban";
+      createdAt: string;
+      ownerName: string;
+    }>;
+  };
 }
 
 // Admin Project Interface (for admin project management)
@@ -224,7 +250,13 @@ export interface AdminProject {
 
 export const adminApi = {
   // GET /api/admin/stats - Get system statistics
-  getStats: () => api.get<ApiResponse<SystemStats>>("/admin/stats"),
+  getStats: () =>
+    api.get<{
+      success: boolean;
+      counts: SystemStats["counts"];
+      trends: SystemStats["trends"];
+      analytics: SystemStats["analytics"];
+    }>("/admin/stats"),
   
   // GET /api/admin/projects - Get all projects (admin only)
   getProjects: (params?: { page?: number; limit?: number; search?: string }) =>

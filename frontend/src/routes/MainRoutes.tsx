@@ -28,7 +28,7 @@ function DefaultLayoutWrapper() {
 
 function AdminLayoutWrapper() {
   return (
-    <AdminLayout title="Admin Panel">
+    <AdminLayout>
       <Outlet />
     </AdminLayout>
   );

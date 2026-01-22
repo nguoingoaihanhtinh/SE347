@@ -16,7 +16,9 @@ export async function getProjects(req: Request, res: Response) {
 export async function getProjectById(req: Request, res: Response) {
   const { id } = req.params;
   if (!id) throw new BadRequestError({ message: "Missing project ID" });
-  const project = await ProjectService.findOneById(id);
+  const currentUserId = req.user!.userId;
+  const currentUserRole = req.user!.role;
+  const project = await ProjectService.findOneById(id, currentUserId, currentUserRole);
   res.status(200).json({ success: true, data: project });
 }
 
@@ -34,13 +36,18 @@ export async function updateProject(req: Request, res: Response) {
   const { id } = req.params;
   if (!id) throw new BadRequestError({ message: "Missing project ID" });
   const data = validate.schema_validate(updateProjectSchema, req.body);
-  const project = await ProjectService.update(id, data as any, req.user!.userId);
+  const currentUserRole = req.user!.role;
+  const project = await ProjectService.update(id, data as any, req.user!.userId, currentUserRole);
   res.status(200).json({ success: true, data: project });
 }
 
 export async function deleteProject(req: Request, res: Response) {
   const { id } = req.params;
   if (!id) throw new BadRequestError({ message: "Missing project ID" });
-  await ProjectService.delete(id);
+  
+  const currentUserId = req.user!.userId;
+  const currentUserRole = req.user!.role;
+  
+  await ProjectService.delete(id, currentUserId, currentUserRole);
   res.status(200).json({ success: true });
 }

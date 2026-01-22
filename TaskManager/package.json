@@ -18,7 +18,8 @@
     "docker:compose:up": "docker-compose up",
     "docker:compose:down": "docker-compose down",
     "gen-db": "npx supabase gen types typescript --project-id cpkzdkklmowjgvtzqvoh > src/types/database.ts",
-    "migrate:seed": "psql \"$DATABASE_URL\" -f ./db/migrations/001_seed_jobs.sql"
+    "migrate:seed": "psql \"$DATABASE_URL\" -f ./db/migrations/001_seed_jobs.sql",
+    "seed": "ts-node -r tsconfig-paths/register src/scripts/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -44,6 +45,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.2.0",
     "@supabase/supabase-js": "^2.39.3",
     "@types/mongodb": "^4.0.6",
     "@types/nodemailer": "^7.0.4",

@@ -5,14 +5,14 @@ import { type ReactNode, useCallback, useState } from "react";
 import { LuEllipsisVertical } from "react-icons/lu";
 import type { CSSProperties } from "react";
 import { CSS } from "@dnd-kit/utilities";
-import type { IIssue } from "../../../types/issue";
+import type { IIssue, IIssueWithoutColumn } from "../../../types/issue";
 import IssueCard from "./issueCard";
 import type { IColumn } from "../../../types/project";
 import RenameColumnModal from "../modals/renameColumnModal";
 import DeleteColumnModal from "../modals/deleteColumnModal";
 import { useDeleteColumn, useUpdateColumn, useUpdateProjectOrderColumn } from "../../../hooks/useProject";
 
-const SortableIssue = ({ issue }: { issue: IIssue }) => {
+const SortableIssue = ({ issue, projectId, columnId }: { issue: IIssueWithoutColumn; projectId: string; columnId: string }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: issue.id,
   });
@@ -24,9 +24,11 @@ const SortableIssue = ({ issue }: { issue: IIssue }) => {
     touchAction: "none",
   };
 
+  const normalizedIssue: IIssue = { ...issue, columnId };
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab">
-      <IssueCard issue={issue} isDragging={isDragging} />
+      <IssueCard issue={normalizedIssue} projectId={projectId} isDragging={isDragging} />
     </div>
   );
 };
@@ -151,7 +153,7 @@ export const KanbanColumn = ({
       <SortableContext items={safeIssues.map((issue) => issue.id)}>
         <div className="flex max-h-[600px] min-h-40 flex-col gap-2 overflow-auto pb-2">
           {safeIssues.map((issue) => (
-            <SortableIssue key={issue.id} issue={issue} />
+            <SortableIssue key={issue.id} issue={issue} projectId={projectId} columnId={column.id} />
           ))}
         </div>
       </SortableContext>

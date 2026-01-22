@@ -1,49 +1,46 @@
-import { useEffect, useState, useCallback } from "react";
-import { adminApi } from "../../lib/api";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { adminApi, projectApi } from "../../lib/api";
 import type { AdminProject } from "../../lib/api";
-import { Button } from "../../components/ui/Button";
 import Toast, { type ToastType } from "../../components/ui/Toast";
-import { Eye, Trash2 } from "lucide-react";
+import { MoreVertical, Search, ChevronUp, ChevronDown, Trash2, Eye } from "lucide-react";
 import { AxiosError } from "axios";
+import Dropdown from "../../components/ui/Dropdown";
+import ViewProjectModal from "../../components/admin/ViewProjectModal";
 
 export default function AdminProjectPage() {
   const [projects, setProjects] = useState<AdminProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Search State
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  // Pagination State
+  const [privacyFilter, setPrivacyFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: "asc" | "desc" | null }>({
+    key: null,
+    direction: null,
+  });
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalProjects, setTotalProjects] = useState(0);
   const limit = 10;
-
-  // Toast Notification State
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [projectToView, setProjectToView] = useState<AdminProject | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Stable loadProjects function wrapped in useCallback
-  const loadProjects = useCallback(async (page: number, search: string) => {
+  const loadProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const { data } = await adminApi.getProjects({
-        search: search || undefined,
-        page,
-        limit,
+        page: 1,
+        limit: 10000,
       });
 
       if (Array.isArray(data?.data)) {
         setProjects(data.data);
-
-        // Extract pagination info
-        if (data?.pagination) {
-          setTotalPages(data.pagination.total_pages || 1);
-          setTotalProjects(data.pagination.total || 0);
-        }
       } else {
         console.warn("Unexpected API response format:", data);
         setProjects([]);
@@ -56,7 +53,7 @@ export default function AdminProjectPage() {
     } finally {
       setLoading(false);
     }
-  }, [limit]);
+  }, []);
 
   // Debounce search term: Update debouncedSearch after 400ms of no typing
   useEffect(() => {
@@ -67,302 +64,577 @@ export default function AdminProjectPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Reset to page 1 when search changes
   useEffect(() => {
-    if (debouncedSearch !== "" && currentPage !== 1) {
-      setCurrentPage(1);
+    setCurrentPage((prevPage) => {
+      if (
+        (debouncedSearch.trim() !== "" ||
+          privacyFilter !== "all" ||
+          typeFilter !== "all" ||
+          sortConfig.direction !== null) &&
+        prevPage !== 1
+      ) {
+        return 1;
+      }
+      return prevPage;
+    });
+  }, [debouncedSearch, privacyFilter, typeFilter, sortConfig.direction]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    if (openDropdownId) {
+      document.addEventListener("mousedown", handleClickOutside);
     }
-  }, [debouncedSearch]);
 
-  // Load projects when page or debouncedSearch changes
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openDropdownId]);
+
+  // Scroll to top when page changes
   useEffect(() => {
-    loadProjects(currentPage, debouncedSearch);
-  }, [currentPage, debouncedSearch, loadProjects]);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [currentPage]);
 
-  // Handle page change
+  const filteredProjects = useMemo(() => {
+    let filtered = projects;
+
+    if (debouncedSearch.trim() !== "") {
+      const searchLower = debouncedSearch.toLowerCase();
+      filtered = filtered.filter((project) => {
+        const name = (project.name || "").toLowerCase();
+        const description = (project.description || "").toLowerCase();
+        const key = (project.key || "").toLowerCase();
+        const ownerName = (project.owner?.fullName || "").toLowerCase();
+        const ownerEmail = (project.owner?.email || "").toLowerCase();
+
+        return (
+          name.includes(searchLower) ||
+          description.includes(searchLower) ||
+          key.includes(searchLower) ||
+          ownerName.includes(searchLower) ||
+          ownerEmail.includes(searchLower)
+        );
+      });
+    }
+
+    if (privacyFilter !== "all") {
+      filtered = filtered.filter((p) => p.access === privacyFilter);
+    }
+
+    // Type filter
+    if (typeFilter !== "all") {
+      filtered = filtered.filter((p) => p.type === typeFilter);
+    }
+
+    if (sortConfig.direction !== null && sortConfig.key !== null) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: string | number | Date;
+        let bValue: string | number | Date;
+
+        switch (sortConfig.key) {
+          case "name":
+            aValue = (a.name || "").toLowerCase();
+            bValue = (b.name || "").toLowerCase();
+            break;
+          case "key":
+            aValue = (a.key || "").toLowerCase();
+            bValue = (b.key || "").toLowerCase();
+            break;
+          case "owner":
+            aValue = (a.owner?.fullName || "").toLowerCase();
+            bValue = (b.owner?.fullName || "").toLowerCase();
+            break;
+          case "type":
+            aValue = a.type || "";
+            bValue = b.type || "";
+            break;
+          case "privacy":
+            aValue = a.access || "";
+            bValue = b.access || "";
+            break;
+          case "createdAt":
+            aValue = new Date(a.createdAt).getTime();
+            bValue = new Date(b.createdAt).getTime();
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [projects, debouncedSearch, privacyFilter, typeFilter, sortConfig]);
+
+  const filteredTotalProjects = filteredProjects.length;
+  const filteredTotalPages = Math.ceil(filteredTotalProjects / limit);
+  const paginatedProjects = useMemo(() => {
+    const startIndex = (currentPage - 1) * limit;
+    const endIndex = startIndex + limit;
+    return filteredProjects.slice(startIndex, endIndex);
+  }, [filteredProjects, currentPage, limit]);
+
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
   }, []);
 
+  const handleSort = useCallback((key: string) => {
+    setSortConfig((prev) => {
+      if (prev.key !== key) {
+        return { key, direction: "asc" };
+      } else {
+        if (prev.direction === "asc") {
+          return { key, direction: "desc" };
+        } else if (prev.direction === "desc") {
+          return { key: null, direction: null };
+        } else {
+          return { key, direction: "asc" };
+        }
+      }
+    });
+  }, []);
+
+  const SortableHeader = ({
+    label,
+    sortKey,
+    width,
+    isFirst = false,
+  }: {
+    label: string;
+    sortKey: string;
+    width: string;
+    isFirst?: boolean;
+  }) => {
+    const isActive = sortConfig.key === sortKey;
+    const isAsc = isActive && sortConfig.direction === "asc";
+    const isDesc = isActive && sortConfig.direction === "desc";
+
+    return (
+      <th
+        className={`px-3 py-3 text-left text-xs font-bold text-gray-700 capitalize tracking-normal bg-gray-100 cursor-pointer select-none ${width} ${
+          isFirst ? "first:rounded-l-lg" : ""
+        }`}
+        onClick={() => handleSort(sortKey)}
+      >
+        <div className="flex items-center gap-1">
+          <span>{label}</span>
+          <div className="flex items-center gap-0.5">
+            <ChevronUp
+              className={`w-3 h-3 ${
+                isAsc ? "text-gray-900" : "text-gray-400"
+              }`}
+            />
+            <ChevronDown
+              className={`w-3 h-3 ${
+                isDesc ? "text-gray-900" : "text-gray-400"
+              }`}
+            />
+          </div>
+        </div>
+      </th>
+    );
+  };
+
   const getAccessBadge = (access: "public" | "private") => {
     return access === "public" ? (
-      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-600">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
         Public
       </span>
     ) : (
-      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
         Private
       </span>
     );
   };
 
   const getTypeBadge = (type: "scrum" | "kanban") => {
-    return (
-      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600">
-        {type === "scrum" ? "Scrum" : "Kanban"}
+    return type === "scrum" ? (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+        Scrum
+      </span>
+    ) : (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+        Kanban
       </span>
     );
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const privacyOptions = [
+    { value: "all", label: "All Privacy" },
+    { value: "public", label: "Public" },
+    { value: "private", label: "Private" },
+  ];
+
+  const typeOptions = [
+    { value: "all", label: "All Types" },
+    { value: "scrum", label: "Scrum" },
+    { value: "kanban", label: "Kanban" },
+  ];
+
+  // Calculate pagination display based on filtered results
+  const startEntry = filteredTotalProjects === 0 ? 0 : (currentPage - 1) * limit + 1;
+  const endEntry = Math.min(currentPage * limit, filteredTotalProjects);
+
+  const handleOpenViewModal = (project: AdminProject) => {
+    setProjectToView(project);
+    setIsViewModalOpen(true);
+    setOpenDropdownId(null);
+  };
+
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setProjectToView(null);
+  };
+
+  const handleDeleteProject = async (project: AdminProject) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete project "${project.name}"? This action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      setOpenDropdownId(null);
+      return;
+    }
+
+    // Store project info
+    const projectName = project.name;
+    const projectId = project.id;
+
+    // Close dropdown
+    setOpenDropdownId(null);
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    const remainingProjects = filteredProjects.filter((p) => p.id !== projectId);
+    if (remainingProjects.length === 0 && currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+
+    try {
+      await projectApi.delete(projectId);
+      setToast({ message: `Project "${projectName}" has been deleted successfully.`, type: "success" });
+    } catch (err) {
+      const error = err as AxiosError<{ message?: string }>;
+      const errorMessage = error?.response?.data?.message || "Failed to delete project. Please try again.";
+      loadProjects();
+      setToast({ message: errorMessage, type: "error" });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="space-y-6 max-w-7xl mx-auto">
-        {/* Header - Flexbox Row: Title Left, Search/Actions Right */}
-        <div className="flex justify-between items-end mb-6">
-          {/* Left: Page Title - Strict Left Align */}
-          <div className="flex flex-col items-start text-left">
-            <h2 className="text-2xl font-bold text-gray-800">Project Management</h2>
-            <p className="text-slate-600 mt-1">View and manage all system projects</p>
-          </div>
-          
-          {/* Right: Search Input */}
-          <div className="flex items-center gap-3">
-            {/* Minimalist Underline Search Bar */}
-            <div className="relative w-64">
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+    <div className="min-h-screen bg-white p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 h-[calc(100vh-120px)] flex flex-col">
+          <div className="p-5 pb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">Project List</h2>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search projects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-9 pl-9 pr-4 w-64 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoComplete="off"
+                />
+                {loading && debouncedSearch && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  </div>
+                )}
               </div>
-              <input
-                type="text"
-                placeholder="Search by project name or key..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-4 py-2 bg-transparent border-0 border-b border-slate-300 rounded-none focus:outline-none focus:ring-0 focus:border-slate-800 transition-colors"
-                autoComplete="off"
-              />
-              {loading && debouncedSearch && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-400"></div>
-                </div>
-              )}
+
+              {/* Privacy Filter */}
+              <div className="w-40">
+                <Dropdown
+                  options={privacyOptions}
+                  selectedValue={privacyFilter}
+                  onChange={setPrivacyFilter}
+                  placeholder="Privacy"
+                  className="h-9 text-sm"
+                />
+              </div>
+
+              <div className="w-40">
+                <Dropdown
+                  options={typeOptions}
+                  selectedValue={typeFilter}
+                  onChange={setTypeFilter}
+                  placeholder="Type"
+                  className="h-9 text-sm"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-      {/* Error Banner */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          <p className="font-medium">Error loading projects</p>
-          <p className="text-sm mt-1">{error}</p>
-          <button onClick={() => loadProjects(currentPage, debouncedSearch)} className="mt-3 text-sm underline hover:no-underline">
-            Try again
-          </button>
-        </div>
-      )}
+          {/* Error Banner */}
+          {error && (
+            <div className="mx-5 mt-5 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+              <p className="font-medium">Error loading projects</p>
+              <p className="text-sm mt-1">{error}</p>
+              <button
+                onClick={() => loadProjects()}
+                className="mt-3 text-sm underline hover:no-underline"
+              >
+                Try again
+              </button>
+            </div>
+          )}
 
-      {/* Projects Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50/50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Project Name
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Key
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Owner
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Access
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Members
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Created At
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
-              {loading ? (
+          <div ref={scrollContainerRef} className="flex-1 overflow-auto px-3 min-h-0 custom-scrollbar">
+            <table className="w-full table-fixed border-separate border-spacing-0">
+              <thead className="sticky top-0 z-20 bg-gray-100">
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
-                      <p className="text-slate-600 text-sm">Loading projects...</p>
-                    </div>
-                  </td>
+                  <SortableHeader label="Name" sortKey="name" width="w-[300px]" isFirst={true} />
+                  <SortableHeader label="Key" sortKey="key" width="w-[100px]" />
+                  <SortableHeader label="Owner" sortKey="owner" width="w-[250px]" />
+                  <SortableHeader label="Type" sortKey="type" width="w-[120px]" />
+                  <SortableHeader label="Privacy" sortKey="privacy" width="w-[120px]" />
+                  <SortableHeader label="Created At" sortKey="createdAt" width="w-[150px]" />
+                  <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 capitalize tracking-normal bg-gray-100 last:rounded-r-lg w-[80px]">
+                    Actions
+                  </th>
                 </tr>
-              ) : projects.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                    <svg
-                      className="mx-auto h-12 w-12 text-slate-400 mb-3"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                      />
-                    </svg>
-                    <p className="font-medium">No projects found</p>
-                    <p className="text-sm mt-1">Try adjusting your search criteria</p>
-                  </td>
-                </tr>
-              ) : (
-                projects.map((project, index) => (
-                  <tr key={project.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'} hover:bg-indigo-50 transition`}>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="flex items-center">
-                        <div>
-                          <div className="text-sm font-bold text-slate-900">{project.name}</div>
-                          {project.description && (
-                            <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{project.description}</div>
-                          )}
-                        </div>
+              </thead>
+              <tbody className="bg-white">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                        <p className="text-gray-600 text-sm">Loading projects...</p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="flex items-center gap-2">
-                        {getTypeBadge(project.type)}
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600">
-                          {project.key}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="text-sm font-medium text-slate-900">{project.owner.fullName}</div>
-                      <div className="text-xs text-slate-500">{project.owner.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      {getAccessBadge(project.access)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left">
-                      <div className="text-sm text-slate-900">{project.memberCount} {project.memberCount === 1 ? "user" : "users"}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-left text-sm text-slate-500">
-                      {formatDate(project.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => {
-                          // Navigate to project board
-                          window.location.href = `/projects/${project.id}/board`;
-                        }}
-                        className="inline-flex items-center text-blue-600 hover:text-blue-900"
-                        title="View Project"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setToast({ message: "Delete project functionality coming soon", type: "info" });
-                        }}
-                        className="inline-flex items-center text-red-600 hover:text-red-900"
-                        title="Delete Project"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </td>
                   </tr>
-                ))
+                ) : paginatedProjects.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-12 text-center text-gray-500">
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400 mb-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                        />
+                      </svg>
+                      <p className="font-medium">No projects found</p>
+                      <p className="text-sm mt-1">Try adjusting your search criteria</p>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedProjects.map((project) => (
+                    <tr key={project.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
+                        <div className="overflow-hidden">
+                          <div className="text-sm font-medium text-gray-900 truncate">{project.name}</div>
+                          {project.description && (
+                            <div className="text-xs text-gray-500 truncate">{project.description}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
+                        <span className="text-sm text-gray-900 font-mono truncate block">{project.key}</span>
+                      </td>
+                      <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex-shrink-0">
+                            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                              {getInitials(project.owner.fullName)}
+                            </div>
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                            <div className="text-sm font-medium text-gray-900 truncate">{project.owner.fullName}</div>
+                            <div className="text-xs text-gray-500 truncate">{project.owner.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
+                        <div className="truncate">
+                          {getTypeBadge(project.type)}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
+                        <div className="truncate">
+                          {getAccessBadge(project.access)}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-left text-sm text-gray-500 border-b border-gray-200 whitespace-nowrap">
+                        <span className="truncate block">{formatDate(project.createdAt)}</span>
+                      </td>
+                      <td className="px-3 py-3 text-left border-b border-gray-200 whitespace-nowrap">
+                        <div className="relative" ref={openDropdownId === project.id ? dropdownRef : null}>
+                          <button
+                            onClick={() => setOpenDropdownId(openDropdownId === project.id ? null : project.id)}
+                            className="text-gray-500 hover:text-gray-700 transition-colors"
+                            title="More Actions"
+                          >
+                            <MoreVertical className="w-4 h-4" strokeWidth={1.5} />
+                          </button>
+
+                          {openDropdownId === project.id && (
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50 py-1">
+                              <button
+                                onClick={() => handleOpenViewModal(project)}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View Details
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleDeleteProject(project);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete Project
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex-shrink-0 border-t border-gray-100 p-4 bg-white rounded-b-lg flex items-center justify-between">
+              {filteredTotalProjects > 0 ? (
+                <div className="text-sm text-gray-500">
+                  Showing <span className="font-medium text-gray-700">{startEntry}</span> to{" "}
+                  <span className="font-medium text-gray-700">{endEntry}</span> of{" "}
+                  <span className="font-medium text-gray-700">{filteredTotalProjects}</span> entries
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">
+                  No entries to display
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
 
-        {/* Footer - Pagination */}
-        {projects.length > 0 && (
-          <div className="bg-slate-50/50 px-6 py-4 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-600">
-                Showing <span className="font-medium">{(currentPage - 1) * limit + 1}</span> to{" "}
-                <span className="font-medium">{Math.min(currentPage * limit, totalProjects)}</span> of{" "}
-                <span className="font-medium">{totalProjects}</span> project{totalProjects !== 1 ? "s" : ""}
-              </div>
-
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex items-center gap-2">
+              {filteredTotalProjects > 0 && (
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
-                      currentPage === 1
-                        ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                    disabled={currentPage === 1 || filteredTotalPages <= 1}
+                    className={`px-3 py-1.5 text-sm font-medium border rounded transition ${
+                      currentPage === 1 || filteredTotalPages <= 1
+                        ? "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     Previous
                   </button>
 
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
+                  {filteredTotalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(filteredTotalPages, 5) }, (_, i) => {
+                        let pageNum;
+                        if (filteredTotalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= filteredTotalPages - 2) {
+                          pageNum = filteredTotalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
 
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition ${
-                            currentPage === pageNum
-                              ? "bg-blue-600 text-white"
-                              : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`w-9 h-9 text-sm font-medium border rounded transition ${
+                              currentPage === pageNum
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
+                  {/* Next Button */}
                   <button
-                    onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
-                      currentPage === totalPages
-                        ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                    onClick={() => handlePageChange(Math.min(filteredTotalPages, currentPage + 1))}
+                    disabled={currentPage === filteredTotalPages || filteredTotalPages <= 1}
+                    className={`px-3 py-1.5 text-sm font-medium border rounded transition ${
+                      currentPage === filteredTotalPages || filteredTotalPages <= 1
+                        ? "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     Next
                   </button>
                 </div>
               )}
-            </div>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-          duration={5000}
-        />
-      )}
+        {isViewModalOpen && projectToView && (
+          <ViewProjectModal
+            project={projectToView}
+            onClose={handleCloseViewModal}
+            getAccessBadge={getAccessBadge}
+            getTypeBadge={getTypeBadge}
+            formatDate={formatDate}
+            getInitials={getInitials}
+          />
+        )}
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+            duration={5000}
+          />
+        )}
       </div>
     </div>
   );

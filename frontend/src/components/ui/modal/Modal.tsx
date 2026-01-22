@@ -1,7 +1,6 @@
 import { type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { LuX } from "react-icons/lu";
-import { Button } from "../Button";
 
 interface BaseModalProps {
   title: string;
@@ -43,33 +42,42 @@ export default function Modal({
       className="fixed inset-0 bg-black/40 flex items-center justify-center"
       style={{ zIndex: 9999 }}
     >
-      <div className={`bg-white rounded-lg shadow-xl min-w-[500px] p-6 animate-fade-in ${className}`}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className={`text-2xl font-semibold ${style?.textColor}`}>{title}</h2>
+      <div className={`bg-white rounded-xl shadow-xl max-w-[500px] w-full animate-fade-in p-6 ${className}`}>
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+          <h2 className={`text-lg font-bold text-gray-800 ${style?.textColor || ""}`}>{title}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 focus:outline-none">
-            <LuX className="w-7 h-7 cursor-pointer" />
+            <LuX className="w-5 h-5 cursor-pointer" />
           </button>
         </div>
-        {children}
 
-        <div className="flex justify-end mt-4 space-x-3">
+        {/* Content */}
+        <div className="mb-6">
+          {children}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end pt-4 border-t border-gray-200 space-x-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all"
           >
             Cancel
           </button>
-          <Button
-            isLoading={isLoadingButton}
+          <button
+            type="button"
             onClick={() => {
               if (onSubmit) onSubmit();
             }}
-            disabled={isSubmitDisabled}
-            className={`px-4 py-2 cursor-pointer text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed ${style?.confirmButtonColor}`}
+            disabled={isSubmitDisabled || isLoadingButton}
+            className={`px-4 py-2 cursor-pointer text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center ${style?.confirmButtonColor || ""}`}
           >
+            {isLoadingButton && (
+              <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            )}
             {buttonContent}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

@@ -1,19 +1,35 @@
-import { NotFoundError, BadRequestError } from "@/utils/errors";
+import { NotFoundError, BadRequestError, ForbiddenError } from "@/utils/errors";
 import projectRepository from "@/repositories/project.repository";
 import projectColumnService from "@/services/project-column.service";
 import { Project } from "@/models/project.model";
 import ActivityService from "@/services/activity.service";
 import { ActivityAction } from "@/enums";
 import projectMemberRepository from "@/repositories/project-member.repository";
+import validationService from "@/services/validation.service";
 
 export class ProjectService {
   async findAll(page: number = 1, limit: number = 10) {
     return projectRepository.findAll({}, page, limit);
   }
 
-  async findOneById(id: string) {
+  async findOneById(id: string, currentUserId?: string, currentUserRole?: string) {
     const project = await projectRepository.findOne({ id });
     if (!project) throw new NotFoundError({ message: `Project with ID ${id} not found` });
+    
+    // Safe Admin Powers: Allow Super Admin to view project metadata for audit purposes
+    // even if they are not a project member
+    if (currentUserId && currentUserRole) {
+      const isSuperAdmin = currentUserRole === "super_admin";
+      const isMember = await projectMemberRepository.findByProjectAndUser(id, currentUserId);
+      
+      // Allow access if user is a project member OR if user is super_admin (for audit)
+      if (!isMember && !isSuperAdmin) {
+        throw new ForbiddenError({
+          message: "You do not have permission to view this project. You must be a project member or a Super Admin.",
+        });
+      }
+    }
+    
     return project;
   }
 
@@ -70,9 +86,14 @@ export class ProjectService {
     return project;
   }
 
-  async update(id: string, updateData: Partial<Project>, currentUserId: string) {
+  async update(id: string, updateData: Partial<Project>, currentUserId: string, currentUserRole?: string) {
     const existing = await this.findOneById(id);
     if (!existing) throw new NotFoundError({ message: `Project with ID ${id} not found` });
+
+    // Safe Admin Powers: Super Admin CANNOT edit projects unless they are project members
+    // Only project members (owner/admin) can update project details
+    // This ensures Super Admin acts as "Janitor" (can delete) but not "Dictator" (cannot edit)
+    await validationService.validateProjectMemberPermission(id, currentUserId, ["owner", "admin"]);
 
     if (updateData.key && updateData.key !== existing.key) {
       const dup = await projectRepository.findOne({ key: updateData.key });
@@ -96,9 +117,20 @@ export class ProjectService {
     return updated;
   }
 
-  async delete(id: string) {
-    const exists = await projectRepository.findOne({ id });
-    if (!exists) throw new NotFoundError({ message: `Project with ID ${id} not found` });
+  async delete(id: string, currentUserId: string, currentUserRole: string) {
+    const project = await projectRepository.findOne({ id });
+    if (!project) throw new NotFoundError({ message: `Project with ID ${id} not found` });
+    
+    // Allow deletion if user is the project owner OR user is a super_admin
+    const isOwner = project.ownerId === currentUserId;
+    const isSuperAdmin = currentUserRole === "super_admin";
+    
+    if (!isOwner && !isSuperAdmin) {
+      throw new ForbiddenError({
+        message: "Only the project owner or a Super Admin can delete this project.",
+      });
+    }
+    
     const deleted = await projectRepository.delete(id);
     if (!deleted) throw new BadRequestError({ message: `Failed to delete project ${id}` });
     return true;

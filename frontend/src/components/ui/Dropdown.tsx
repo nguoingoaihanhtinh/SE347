@@ -49,7 +49,7 @@ const Dropdown = ({
       <div
         className={`flex w-full cursor-pointer items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-left hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 ${className}`}
       >
-        <span className="truncate">{displayText}</span>
+        <span className={`truncate ${className.includes('text-sm') ? 'text-sm' : ''}`}>{displayText}</span>
         <DownOutlined className="text-gray-400" />
       </div>
     </AntDropdown>
