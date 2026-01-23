@@ -265,6 +265,13 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
         onClose={() => setIsCreateIssueModalOpen(false)}
         projectId={projectId}
         defaultSprintId={sprint.id !== "backlog" ? sprint.id : undefined}
+        onSuccess={async () => {
+          // Refresh backlog data after creating issue
+          const { fetchIssuesByProject } = useIssueStore.getState();
+          if (projectId) {
+            await fetchIssuesByProject(projectId);
+          }
+        }}
       />
 
       {sprint.id !== "backlog" && (

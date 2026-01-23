@@ -21,12 +21,24 @@ export default function BacklogPage() {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        await Promise.all([
-          fetchProject(projectId),
-          fetchSprintsByProject(projectId),
-          fetchIssuesByProject(projectId),
-          fetchColumns(projectId),
+        // Fetch project, sprints, issues, and columns in parallel
+        // If any fail, catch and log but don't throw
+        await Promise.allSettled([
+          fetchProject(projectId).catch((err) => {
+            console.error("Failed to fetch project:", err);
+          }),
+          fetchSprintsByProject(projectId).catch((err) => {
+            console.error("Failed to fetch sprints:", err);
+          }),
+          fetchIssuesByProject(projectId).catch((err) => {
+            console.error("Failed to fetch issues:", err);
+          }),
+          fetchColumns(projectId).catch((err) => {
+            console.error("Failed to fetch columns:", err);
+          }),
         ]);
+      } catch (error) {
+        console.error("Failed to load backlog data:", error);
       } finally {
         setIsLoading(false);
       }

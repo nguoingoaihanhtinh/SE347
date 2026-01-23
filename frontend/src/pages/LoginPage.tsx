@@ -75,10 +75,11 @@ export default function LoginPage() {
         console.log("🚀 Redirecting to /admin");
         navigate("/admin", { replace: true });
       } else {
-        // Regular users go to their intended location or dashboard
-        const from = (location.state as { from?: Location })?.from?.pathname || "/";
-        console.log("🚀 Redirecting to:", from);
-        navigate(from, { replace: true });
+        // Regular users go to projects page
+        const from = (location.state as { from?: Location })?.from?.pathname;
+        const redirectTo = from && from !== "/" ? from : "/project";
+        console.log("🚀 Redirecting to:", redirectTo);
+        navigate(redirectTo, { replace: true });
       }
     } catch (error: unknown) {
       const message = extractErrorMessage(error);

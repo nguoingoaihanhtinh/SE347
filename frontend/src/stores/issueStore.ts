@@ -53,12 +53,15 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
           isLoading: false,
         });
       } else {
-        throw new Error("Invalid issues data format");
+        set({ issues: [], isLoading: false });
+        console.warn("Invalid issues data format");
+        return;
       }
     } catch (error) {
       const msg = extractErrorMessage(error);
-      set({ error: msg, isLoading: false });
-      throw new Error(msg);
+      set({ error: msg, isLoading: false, issues: [] });
+      // Don't throw - let component handle the error gracefully
+      console.error("Failed to fetch issues:", msg);
     }
   },
 
@@ -120,12 +123,15 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
           isLoading: false,
         });
       } else {
-        throw new Error(response.data.message || "Failed to fetch issues");
+        set({ issues: [], isLoading: false });
+        console.warn("Failed to fetch issues:", response.data.message);
+        return;
       }
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
-      set({ error: errorMessage, isLoading: false });
-      throw new Error(errorMessage);
+      set({ error: errorMessage, isLoading: false, issues: [] });
+      // Don't throw - let component handle the error gracefully
+      console.error("Failed to fetch issues by column:", errorMessage);
     }
   },
 
@@ -149,14 +155,43 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await issues.create(issueData.projectId, issueData);
-      if (response.data.success && response.data.data) {
-        const newIssue = response.data.data;
+      
+      // Backend returns { success: true, issue } (not wrapped in data property)
+      // Axios wraps it in response.data, so response.data = { success: true, issue }
+      const newIssue = response.data.issue || response.data.data;
+      
+      if (response.data.success && newIssue) {
+        // Normalize date fields to ensure they're valid ISO strings
+        const normalizeDate = (date: string | null | undefined): string | null => {
+          if (!date) return null;
+          try {
+            const d = new Date(date);
+            return isNaN(d.getTime()) ? null : d.toISOString();
+          } catch {
+            return null;
+          }
+        };
+
+        // Ensure the issue has all required fields with defaults
+        const normalizedIssue: IIssue = {
+          ...newIssue,
+          id: newIssue.id || newIssue._id || "",
+          createdAt: normalizeDate(newIssue.createdAt) || new Date().toISOString(),
+          updatedAt: normalizeDate(newIssue.updatedAt) || new Date().toISOString(),
+          attachments: newIssue.attachments || [],
+          dueDateFrom: normalizeDate(newIssue.dueDateFrom),
+          dueDateTo: normalizeDate(newIssue.dueDateTo),
+          completedAt: normalizeDate(newIssue.completedAt),
+        };
+        
         set((state) => ({
-          issues: [...state.issues, newIssue],
+          issues: [...state.issues, normalizedIssue],
           isLoading: false,
         }));
-        return newIssue;
+        return normalizedIssue;
       } else {
+        // Log the actual response for debugging
+        console.error("Create issue response:", JSON.stringify(response.data, null, 2));
         throw new Error(response.data.message || "Failed to create issue");
       }
     } catch (error) {

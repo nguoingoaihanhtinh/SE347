@@ -1,11 +1,13 @@
 export type TeamMemberRole = "owner" | "admin" | "member" | "viewer";
+export type MemberStatus = "active" | "pending_invite" | "pending_request";
 
 export interface IProjectMember {
   id: string;
   projectId: string;
   userId: string;
   role: TeamMemberRole;
-  isPending: boolean;
+  isPending: boolean; // Deprecated: Use status instead
+  status?: MemberStatus; // New: 'active' | 'pending_invite' | 'pending_request'
   createdAt: string;
   updatedAt: string;
   user?: {
@@ -13,6 +15,12 @@ export interface IProjectMember {
     email: string;
     fullName: string;
     avatar: string | null;
+  };
+  project?: {
+    id: string;
+    name: string;
+    key: string;
+    description?: string | null;
   };
 }
 

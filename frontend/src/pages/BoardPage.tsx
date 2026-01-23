@@ -44,18 +44,33 @@ export default function BoardPage() {
 
   useEffect(() => {
     if (!projectId) return;
+    
     const load = async () => {
       try {
-        await fetchProject(projectId);
-        await fetchColumns(projectId);
-        const meta = await fetchIssuesForBoard(projectId);
-        setHasActiveSprint(meta.hasActiveSprint);
+        // Only fetch project if not already loaded
+        if (!currentProject || currentProject.id !== projectId) {
+          await fetchProject(projectId).catch((err) => {
+            console.error("Failed to fetch project:", err);
+          });
+        }
+        await fetchColumns(projectId).catch((err) => {
+          console.error("Failed to fetch columns:", err);
+        });
+        const meta = await fetchIssuesForBoard(projectId).catch((err) => {
+          console.error("Failed to fetch issues:", err);
+          // Return default meta if fetch fails
+          return { hasActiveSprint: false, mode: "kanban" as const };
+        });
+        if (meta) {
+          setHasActiveSprint(meta.hasActiveSprint);
+        }
       } catch (error) {
+        // Log error but don't throw - let component handle gracefully
         console.error("Failed to load board data:", error);
       }
     };
     load();
-  }, [projectId, fetchProject, fetchColumns, fetchIssuesForBoard]);
+  }, [projectId, currentProject, fetchProject, fetchColumns, fetchIssuesForBoard]);
 
   const issues = storeIssues || [];
 

@@ -6,12 +6,18 @@ import PriorityBadge from "../../ui/badge/priorityBadge";
 import UserAvatar from "../../ui/user/userAvatar";
 import { useIssueStore } from "../../../stores/issueStore";
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  } catch {
+    return "";
+  }
 };
 
 const ensureIssueHasColumnId = (issue: IIssue | IIssueWithoutColumn, defaultColumnId?: string): IIssue => {
@@ -19,16 +25,26 @@ const ensureIssueHasColumnId = (issue: IIssue | IIssueWithoutColumn, defaultColu
     return issue as IIssue;
   }
 
+  // Ensure all date fields are valid ISO strings or null
+  const normalizeDate = (date: string | null | undefined): string | null => {
+    if (!date) return null;
+    try {
+      const d = new Date(date);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    } catch {
+      return null;
+    }
+  };
+
   return {
     ...issue,
     columnId: defaultColumnId || "unassigned",
-
-    createdAt: issue.createdAt || new Date().toISOString(),
-    updatedAt: issue.updatedAt || new Date().toISOString(),
+    createdAt: normalizeDate(issue.createdAt) || new Date().toISOString(),
+    updatedAt: normalizeDate(issue.updatedAt) || new Date().toISOString(),
     attachments: issue.attachments || [],
-    dueDateFrom: issue.dueDateFrom || null,
-    dueDateTo: issue.dueDateTo || null,
-    completedAt: issue.completedAt || null,
+    dueDateFrom: normalizeDate(issue.dueDateFrom),
+    dueDateTo: normalizeDate(issue.dueDateTo),
+    completedAt: normalizeDate(issue.completedAt),
     reporterId: issue.reporterId || "unknown",
   } as IIssue;
 };
@@ -119,10 +135,12 @@ const IssueCard = ({
             <span className="italic text-gray-400 text-xs">Unassigned</span>
           )}
         </div>
-        <span title={issue.createdAt} className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-gray-300"></span>
-          Created {formatDate(issue.createdAt)}
-        </span>
+        {issue.createdAt && (
+          <span title={issue.createdAt} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+            Created {formatDate(issue.createdAt)}
+          </span>
+        )}
       </div>
     </div>
   );

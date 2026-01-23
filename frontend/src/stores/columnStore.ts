@@ -77,8 +77,9 @@ export const useColumnStore = create<ColumnState>((set) => ({
       });
     } catch (error) {
       const msg = extractErrorMessage(error);
-      set({ error: msg, isLoading: false });
-      throw new Error(msg);
+      set({ error: msg, isLoading: false, columns: [] });
+      // Don't throw - let component handle the error gracefully
+      console.error("Failed to fetch columns:", msg);
     }
   },
 

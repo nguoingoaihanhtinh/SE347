@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, createContext } from "react";
+import { useCallback, useEffect, useMemo, createContext } from "react";
 import { Navigate, Outlet, useParams } from "react-router-dom";
-import IssueDetail from "../components/projects/IssueDetail";
+import IssueDetailDrawer from "../components/projects/IssueDetailDrawer";
 import { useProjectStore } from "../stores/projectStore";
+import { useIssueStore } from "../stores/issueStore";
 import ProjectHeader from "../components/layout/ProjectHeader";
 
 /* ================= CONTEXT ================= */
@@ -20,32 +21,33 @@ export { LayoutContext };
 export default function ProjectLayout() {
   const { projectId } = useParams<{ projectId: string }>();
   const { currentProject, isLoading, fetchProject } = useProjectStore();
+  const { selectedIssueId, openIssueDetail, closeIssueDetail } = useIssueStore();
 
   const isCorrectProjectLoaded = useMemo(() => {
     return !!projectId && !!currentProject && currentProject.id === projectId;
   }, [currentProject, projectId]);
 
-  const [issueDetailOpen, setIssueDetailOpen] = useState(false);
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  // Wrap store functions for LayoutContext compatibility
+  const handleOpenIssueDetail = useCallback(
+    (issueId: string) => {
+      openIssueDetail(issueId);
+    },
+    [openIssueDetail],
+  );
 
-  const openIssueDetail = useCallback((issueId: string) => {
-    setSelectedIssueId(issueId);
-    setIssueDetailOpen(true);
-  }, []);
-
-  const closeIssueDetail = useCallback(() => {
-    setIssueDetailOpen(false);
-    setSelectedIssueId(null);
-  }, []);
+  const handleCloseIssueDetail = useCallback(() => {
+    closeIssueDetail();
+  }, [closeIssueDetail]);
 
   useEffect(() => {
     if (!projectId) return;
 
     // Fetch only when currentProject is missing or mismatched
     if (!currentProject || currentProject.id !== projectId) {
-      fetchProject(projectId).catch(() => {
-        // If fetching fails (404/403), isLoading will be set to false
-        // and we'll redirect to /projects below
+      fetchProject(projectId).catch((error) => {
+        // If fetching fails, log but don't throw
+        // Component will handle the error state gracefully
+        console.error("Failed to fetch project in ProjectLayout:", error);
       });
     }
   }, [projectId, currentProject, fetchProject]);
@@ -79,7 +81,7 @@ export default function ProjectLayout() {
   }
 
   return (
-    <LayoutContext.Provider value={{ openIssueDetail, closeIssueDetail }}>
+    <LayoutContext.Provider value={{ openIssueDetail: handleOpenIssueDetail, closeIssueDetail: handleCloseIssueDetail }}>
       <div className="flex flex-col h-[calc(100vh-64px)]">
         <ProjectHeader project={currentProject} />
 
@@ -87,31 +89,12 @@ export default function ProjectLayout() {
           <div className="h-full">
             <Outlet />
           </div>
-
-          {/* Issue detail panel (keeps existing behavior used by backlog/board components) */}
-          {issueDetailOpen && (
-            <div className="hidden md:block absolute top-0 right-0 h-full w-[420px] bg-white border-l border-slate-200 shadow-lg">
-              <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">Issue Details</div>
-                <button
-                  type="button"
-                  onClick={closeIssueDetail}
-                  className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="h-[calc(100%-52px)] overflow-auto">
-                {selectedIssueId && (
-                  <IssueDetail selectedIssueId={selectedIssueId} onClose={closeIssueDetail} projectId={projectId} />
-                )}
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Issue Detail Drawer */}
+        {selectedIssueId && (
+          <IssueDetailDrawer issueId={selectedIssueId} onClose={handleCloseIssueDetail} projectId={projectId} />
+        )}
       </div>
     </LayoutContext.Provider>
   );

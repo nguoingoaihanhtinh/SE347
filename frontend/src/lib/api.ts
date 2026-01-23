@@ -50,19 +50,33 @@ api.interceptors.response.use(
     
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-      const isAuthPage = ["/login", "/register", "/forgot-password"].includes(window.location.pathname);
+      const currentPath = window.location.pathname;
+      const isAuthPage = ["/login", "/register", "/forgot-password"].includes(currentPath);
+      const isProjectPage = currentPath.includes("/project/");
+      const isProjectsPage = currentPath === "/projects" || currentPath.startsWith("/projects/");
 
-      if (!isAuthPage) {
+      // Don't redirect if:
+      // 1. We're already on an auth page
+      // 2. We're in a project context (project pages might have permission errors)
+      // 3. We're on projects page (might be loading projects list)
+      if (!isAuthPage && !isProjectPage && !isProjectsPage) {
         console.warn("401 Unauthorized - clearing token and redirecting to login");
         // localStorage.removeItem("token");
         // localStorage.removeItem("user");
 
         // Prevent infinite redirect loops
         setTimeout(() => {
-          if (window.location.pathname !== "/login") {
+          const stillNotOnLogin = window.location.pathname !== "/login";
+          const stillNotOnAuth = !["/login", "/register", "/forgot-password"].includes(window.location.pathname);
+          if (stillNotOnLogin && stillNotOnAuth) {
             window.location.href = "/login";
           }
         }, 100);
+      } else {
+        // Log but don't redirect for project/projects pages
+        if (import.meta.env.DEV) {
+          console.warn(`401 Unauthorized on ${currentPath} - not redirecting (project/projects context)`);
+        }
       }
     }
     

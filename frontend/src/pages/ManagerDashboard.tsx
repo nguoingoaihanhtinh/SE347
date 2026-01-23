@@ -68,8 +68,9 @@ export default function ManagerDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Overview</h1>
           <p className="text-sm text-slate-600 mt-1">Manager overview & project health</p>
@@ -208,6 +209,7 @@ export default function ManagerDashboard() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -72,6 +72,9 @@ const CreateIssueModal = ({
 
   // Compact mode: when opened from column footer (has defaultColumnId) and not editing
   const isCompactMode = !!defaultColumnId && !isEditing;
+  
+  // Check if project is Kanban (hide Sprint and Story Points)
+  const isKanbanProject = currentProject?.type === "kanban";
 
   const {
     register,
@@ -206,7 +209,10 @@ const CreateIssueModal = ({
   const cleanData = (data: any) => {
     const result = { ...data };
     Object.keys(result).forEach((key) => {
-      if (result[key] === null || result[key] === undefined || result[key] === "") {
+      // Keep null values for fields that explicitly need to be null (like sprintId for Kanban)
+      // Only remove undefined and empty strings
+      // But keep empty string for description if it's explicitly set
+      if (result[key] === undefined || (result[key] === "" && key !== "description")) {
         delete result[key];
       }
     });
@@ -237,43 +243,70 @@ const CreateIssueModal = ({
           description: data.description,
           columnId: data.columnId,
           priority: data.priority,
-          sprintId: data.sprintId || null,
+          sprintId: isKanbanProject ? null : (data.sprintId || null),
           assigneeId: data.assigneeId || null,
           dueDateFrom: formattedDueDateFrom,
           dueDateTo: formattedDueDateTo,
-          storyPoint: data.storyPoint,
+          storyPoint: isKanbanProject ? 0 : data.storyPoint,
         };
 
         await updateIssue(projectId, initialIssue.id, updateData);
         toast.success("Issue updated successfully!");
+        reset();
+        onClose();
       } else {
-        const cleanedData = cleanData({
+        // For Kanban projects, explicitly set sprintId to null and storyPoint to 0
+        const issueData: any = {
           title: data.title,
-          summary: data.summary,
-          description: data.description,
+          summary: data.summary || data.title, // Ensure summary exists
+          description: data.description || "",
           columnId: data.columnId,
           priority: data.priority,
           type: data.type,
           projectId: projectId,
+          // Note: reporterId is set by backend from authenticated user, but we send it for validation
           reporterId: currentProject?.ownerId || "",
           assigneeId: data.assigneeId || null,
-          sprintId: data.sprintId || null,
           dueDateFrom: formattedDueDateFrom,
           dueDateTo: formattedDueDateTo,
-          storyPoint: data.storyPoint,
-        });
+        };
 
+        // Only include sprintId and storyPoint for Scrum projects
+        if (!isKanbanProject) {
+          issueData.sprintId = data.sprintId || null;
+          issueData.storyPoint = data.storyPoint || 0;
+        } else {
+          // Explicitly set to null/0 for Kanban to avoid backend validation errors
+          issueData.sprintId = null;
+          issueData.storyPoint = 0;
+        }
+
+        // Ensure summary is set (backend requires it)
+        if (!issueData.summary) {
+          issueData.summary = issueData.title;
+        }
+
+        // Clean empty strings but keep null values
+        const cleanedData = cleanData(issueData);
+
+        // Create issue and wait for success (throws on error)
         await createIssue(cleanedData);
+        
+        // If we get here, creation was successful
         toast.success("Issue created successfully!");
 
-        // ✅ GỌI CALLBACK SAU KHI TẠO THÀNH CÔNG
+        // Reset form and close modal immediately on success
+        reset();
+        onClose();
+
+        // ✅ GỌI CALLBACK SAU KHI TẠO THÀNH CÔNG (for refreshing board/backlog)
         if (onSuccess) {
-          onSuccess();
+          // Use setTimeout to ensure modal closes first, then refresh
+          setTimeout(() => {
+            onSuccess();
+          }, 100);
         }
       }
-
-      onClose();
-      reset();
     } catch (error) {
       console.error("Error creating/updating issue:", error);
       toast.error(
@@ -291,14 +324,19 @@ const CreateIssueModal = ({
     <Modal
       title={isEditing ? "Update Issue" : "Create Issue"}
       onClose={onClose}
-      buttonContent={isLoading ? "Loading..." : isEditing ? "Update Issue" : "Create Issue"}
+      buttonContent={isLoading ? (isEditing ? "Updating..." : "Creating...") : isEditing ? "Update Issue" : "Create Issue"}
       onSubmit={onSubmit}
+      formId="create-issue-form"
       className={isCompactMode ? "max-w-lg w-full" : "max-w-3xl w-full"}
       isLoadingButton={isLoading}
-      isSubmitDisabled={columns.length === 0}
+      isSubmitDisabled={columns.length === 0 || isLoading}
     >
       <div className="p-4">
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSubmit(e); }}>
+        <form 
+          id="create-issue-form"
+          className="space-y-4" 
+          onSubmit={onSubmit}
+        >
           {!isCompactMode && (
             <div className="mb-6 space-y-4">
               <div>
@@ -308,20 +346,23 @@ const CreateIssueModal = ({
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Sprint (Optional)</label>
-                <Dropdown
-                  options={[
-                    { value: "", label: "None (Backlog)" },
-                    ...sprints.map((sprint) => ({ value: sprint.id, label: sprint.name })),
-                  ]}
-                  selectedValue={watch("sprintId") || ""}
-                  onChange={(value) => {
-                    setValue("sprintId", value);
-                    setSelectedSprintId(value || undefined);
-                  }}
-                />
-              </div>
+              {/* Only show Sprint dropdown for Scrum projects */}
+              {!isKanbanProject && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Sprint (Optional)</label>
+                  <Dropdown
+                    options={[
+                      { value: "", label: "None (Backlog)" },
+                      ...sprints.map((sprint) => ({ value: sprint.id, label: sprint.name })),
+                    ]}
+                    selectedValue={watch("sprintId") || ""}
+                    onChange={(value) => {
+                      setValue("sprintId", value);
+                      setSelectedSprintId(value || undefined);
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -413,7 +454,7 @@ const CreateIssueModal = ({
           )}
 
           {!isCompactMode && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className={isKanbanProject ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
               <div>
                 <label htmlFor="column" className="mb-1 block text-sm font-medium text-gray-700">
                   Status <span className="text-red-500">*</span>
@@ -426,19 +467,22 @@ const CreateIssueModal = ({
                 {errors.columnId && <p className="mt-1 text-sm text-red-500">{errors.columnId.message}</p>}
               </div>
 
-              <div>
-                <label htmlFor="storyPoint" className="mb-1 block text-sm font-medium text-gray-700">
-                  Story Point
-                </label>
-                <input
-                  id="storyPoint"
-                  type="number"
-                  min="0"
-                  {...register("storyPoint", { valueAsNumber: true })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="0"
-                />
-              </div>
+              {/* Only show Story Points for Scrum projects */}
+              {!isKanbanProject && (
+                <div>
+                  <label htmlFor="storyPoint" className="mb-1 block text-sm font-medium text-gray-700">
+                    Story Point
+                  </label>
+                  <input
+                    id="storyPoint"
+                    type="number"
+                    min="0"
+                    {...register("storyPoint", { valueAsNumber: true })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="0"
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -482,36 +526,39 @@ const CreateIssueModal = ({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="storyPoint" className="mb-1 block text-sm font-medium text-gray-700">
-                        Story Point
-                      </label>
-                      <input
-                        id="storyPoint"
-                        type="number"
-                        min="0"
-                        {...register("storyPoint", { valueAsNumber: true })}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        placeholder="0"
-                      />
-                    </div>
+                  {/* Only show Story Points and Sprint for Scrum projects */}
+                  {!isKanbanProject && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="storyPoint" className="mb-1 block text-sm font-medium text-gray-700">
+                          Story Point
+                        </label>
+                        <input
+                          id="storyPoint"
+                          type="number"
+                          min="0"
+                          {...register("storyPoint", { valueAsNumber: true })}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          placeholder="0"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">Sprint (Optional)</label>
-                      <Dropdown
-                        options={[
-                          { value: "", label: "None (Backlog)" },
-                          ...sprints.map((sprint) => ({ value: sprint.id, label: sprint.name })),
-                        ]}
-                        selectedValue={watch("sprintId") || ""}
-                        onChange={(value) => {
-                          setValue("sprintId", value);
-                          setSelectedSprintId(value || undefined);
-                        }}
-                      />
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Sprint (Optional)</label>
+                        <Dropdown
+                          options={[
+                            { value: "", label: "None (Backlog)" },
+                            ...sprints.map((sprint) => ({ value: sprint.id, label: sprint.name })),
+                          ]}
+                          selectedValue={watch("sprintId") || ""}
+                          onChange={(value) => {
+                            setValue("sprintId", value);
+                            setSelectedSprintId(value || undefined);
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>

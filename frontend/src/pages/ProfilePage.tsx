@@ -54,7 +54,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 pt-8">
       <div className="flex items-center gap-4">
         <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
           {user?.avatar ? (
@@ -81,7 +81,13 @@ export default function ProfilePage() {
           <InputField label="Họ" error={errors.firstName?.message} {...register("firstName")} />
           <InputField label="Tên" error={errors.lastName?.message} {...register("lastName")} />
         </div>
-        <InputField label="Email" type="email" error={errors.email?.message} {...register("email")} />
+        <InputField 
+          label="Email" 
+          type="email" 
+          error={errors.email?.message} 
+          disabled
+          {...register("email")} 
+        />
         <InputField label="Avatar URL" error={errors.avatar?.message} {...register("avatar")} />
 
         {message && <p className="text-sm text-blue-600">{message}</p>}

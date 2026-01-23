@@ -33,7 +33,6 @@ export default function MyTasksPage() {
     };
 
     loadMyTasks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getPriorityColor = (priority: string) => {
@@ -88,16 +87,18 @@ export default function MyTasksPage() {
 
   if (isLoadingAll) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">My Tasks</h1>
-          <p className="text-sm text-slate-600 mt-1">Tasks assigned to you across all projects</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 p-6">
-          <div className="animate-pulse space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
-            ))}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">My Tasks</h1>
+            <p className="text-sm text-slate-600 mt-1">Tasks assigned to you across all projects</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 p-6">
+            <div className="animate-pulse space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-20 bg-gray-200 rounded"></div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -105,16 +106,17 @@ export default function MyTasksPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">My Tasks</h1>
-        <p className="text-sm text-slate-600 mt-1">
-          {myIssues.length > 0
-            ? `${myIssues.length} task${myIssues.length !== 1 ? "s" : ""} assigned to you`
-            : "Tasks assigned to you across all projects"}
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">My Tasks</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            {myIssues.length > 0
+              ? `${myIssues.length} task${myIssues.length !== 1 ? "s" : ""} assigned to you`
+              : "Tasks assigned to you across all projects"}
+          </p>
+        </div>
 
       {/* Error Message */}
       {error && (
@@ -153,16 +155,15 @@ export default function MyTasksPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {myIssues.map((issue) => (
-            <Link
+            <div
               key={issue.id}
-              to={`/project/${issue.projectId}/board`}
-              className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md hover:border-blue-300 transition-all"
+              className="block rounded-lg border border-gray-200 bg-white p-3 hover:shadow-md hover:border-blue-300 transition-all"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-mono text-slate-500">{issue.key}</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getPriorityColor(issue.priority)}`}>
                       {issue.priority}
@@ -171,20 +172,20 @@ export default function MyTasksPage() {
                       {getTypeIcon(issue.type)}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-slate-900 mb-1">{issue.title}</h3>
+                  <h3 className="text-sm font-semibold text-slate-900 mb-1">{issue.title}</h3>
                   {issue.summary && (
-                    <p className="text-sm text-slate-600 line-clamp-2 mb-2">{issue.summary}</p>
+                    <p className="text-xs text-slate-600 line-clamp-1 mb-1">{issue.summary}</p>
                   )}
-                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                       </svg>
                       Project: {issue.projectId}
                     </span>
                     {issue.dueDateTo && (
                       <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         {new Date(issue.dueDateTo).toLocaleDateString()}
@@ -192,7 +193,7 @@ export default function MyTasksPage() {
                     )}
                   </div>
                 </div>
-                <div className="ml-4 flex-shrink-0">
+                <div className="flex-shrink-0">
                   <Link
                     to={`/project/${issue.projectId}/board`}
                     className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
@@ -202,10 +203,11 @@ export default function MyTasksPage() {
                   </Link>
                 </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

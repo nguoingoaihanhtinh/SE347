@@ -20,6 +20,7 @@ export function InputField({ label, error, className, as = "input", type, ...pro
           className={clsx(
             "w-full h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100",
             error ? "border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-100" : "",
+            props.disabled ? "cursor-not-allowed opacity-60 bg-slate-100" : "",
             className
           )}
           aria-invalid={Boolean(error)}

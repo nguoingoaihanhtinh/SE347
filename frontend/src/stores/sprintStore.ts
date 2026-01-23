@@ -36,12 +36,15 @@ export const useSprintStore = create<SprintState>((set) => ({
           isLoading: false,
         });
       } else {
-        throw new Error("Invalid sprint data format");
+        set({ sprints: [], isLoading: false });
+        console.warn("Invalid sprint data format");
+        return;
       }
     } catch (error) {
       const msg = extractErrorMessage(error);
-      set({ error: msg, isLoading: false });
-      throw new Error(msg);
+      set({ error: msg, isLoading: false, sprints: [] });
+      // Don't throw - let component handle the error gracefully
+      console.error("Failed to fetch sprints:", msg);
     }
   },
 

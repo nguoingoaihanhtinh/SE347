@@ -21,6 +21,7 @@ import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminProjectPage from "../pages/admin/AdminProjectPage";
 import BacklogPage from "../pages/BacklogPage";
 import BoardPage from "@/pages/BoardPage";
+import ProjectOverviewPage from "../pages/ProjectOverviewPage";
 
 // Wrappers
 function UserLayoutWrapper() {
@@ -60,6 +61,7 @@ export default function MainRoutes() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<ManagerDashboard />} />
+            <Route path="project" element={<Navigate to="/projects" replace />} />
             <Route path="projects" element={<ProjectsPage />} />
             <Route path="my-tasks" element={<MyTasksPage />} />
             <Route path="profile" element={<ProfilePage />} />
@@ -67,6 +69,7 @@ export default function MainRoutes() {
             {/* Project Board - Nested in Project Layout */}
             <Route path="project/:projectId" element={<ProjectLayout />}>
               <Route index element={<Navigate to="board" replace />} />
+              <Route path="overview" element={<ProjectOverviewPage />} />
               <Route path="board" element={<BoardPage />} />
               <Route path="backlog" element={<BacklogPage />} />
               <Route path="members" element={<ProjectMembersPage />} />

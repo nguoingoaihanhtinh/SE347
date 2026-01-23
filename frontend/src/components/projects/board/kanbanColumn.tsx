@@ -12,6 +12,7 @@ import DeleteColumnModal from "../modals/deleteColumnModal";
 import CreateIssueModal from "../../modals/CreateIssueModal";
 import { useDeleteColumn, useUpdateColumn, useUpdateProjectOrderColumn } from "../../../hooks/useProject";
 import { useDroppable } from "@dnd-kit/core";
+import { useIssueStore } from "../../../stores/issueStore";
 
 const SortableIssue = ({
   issue,
@@ -128,6 +129,7 @@ export const KanbanColumn = ({
   const { updateOrderColumn } = useUpdateProjectOrderColumn();
   const { deleteColumn } = useDeleteColumn();
   const { updateColumn } = useUpdateColumn();
+  const { fetchIssuesForBoard } = useIssueStore();
 
   const [showRenameColumnModal, setShowRenameColumnModal] = useState(false);
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
@@ -305,6 +307,13 @@ export const KanbanColumn = ({
           onClose={() => setShowCreateIssueModal(false)}
           projectId={projectId}
           defaultColumnId={column.id}
+          onSuccess={async () => {
+            // Refresh board data after creating issue
+            // Note: The store already adds the issue optimistically, this refresh ensures consistency
+            if (projectId) {
+              await fetchIssuesForBoard(projectId);
+            }
+          }}
         />
       )}
     </div>

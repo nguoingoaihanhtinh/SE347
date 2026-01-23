@@ -61,4 +61,14 @@ export const users = {
 
   getUserStats: (body: { id: string; is_sprintId: boolean }) =>
     api.post<ResponseApi<any>>(`/users/stats/`, body, config),
+
+  // Search users by email
+  search: (query: string) => {
+    const url = new URLSearchParams();
+    url.append("query", query);
+    return api.get<ResponseApi<Array<{ id: string; email: string; fullName: string; avatar: string | null }>>>(
+      `/users/search?${url.toString()}`,
+      config
+    );
+  },
 };
