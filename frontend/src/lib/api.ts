@@ -10,54 +10,79 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// ✅ HYBRID AUTH: Support both Cookie and Token
+// Request interceptor for debugging
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-
-    // Nếu có token, gửi qua Authorization header
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-
-      if (import.meta.env.DEV && !config.url?.includes("/auth/login") && !config.url?.includes("/auth/register")) {
-        console.log(`[API] 🔑 Request to ${config.url} with Bearer token`);
-      }
-    } else {
-      // Không có token, dùng cookie (withCredentials: true)
-      if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
-        console.log(`[API] 🍪 Request to ${config.url} with cookie auth`);
-      }
+    if (import.meta.env.DEV) {
+      // console.log(`🔵 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+      //   data: config.data,
+      //   headers: config.headers,
+      //   withCredentials: config.withCredentials,
+      // });
     }
-
     return config;
   },
   (error) => {
+    console.error("❌ [API Request Error]:", error);
     return Promise.reject(error);
-  },
+  }
 );
 
-// ✅ FIXED: Chỉ redirect khi thực sự unauthorized
+// Response interceptor for debugging and error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (import.meta.env.DEV) {
+      // console.log(`✅ [API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+      //   status: response.status,
+      //   data: response.data,
+      // });
+    }
+    return response;
+  },
   (error) => {
+    if (import.meta.env.DEV) {
+      // console.error(`❌ [API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
+      //   status: error.response?.status,
+      //   statusText: error.response?.statusText,
+      //   data: error.response?.data,
+      //   message: error.message,
+      // });
+    }
+    
+    // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-      const isAuthPage = ["/login", "/register", "/forgot-password"].includes(window.location.pathname);
+      const currentPath = window.location.pathname;
+      const isAuthPage = ["/login", "/register", "/forgot-password"].includes(currentPath);
+      const isProjectPage = currentPath.includes("/project/");
+      const isProjectsPage = currentPath === "/projects" || currentPath.startsWith("/projects/");
 
-      if (!isAuthPage) {
+      // Don't redirect if:
+      // 1. We're already on an auth page
+      // 2. We're in a project context (project pages might have permission errors)
+      // 3. We're on projects page (might be loading projects list)
+      if (!isAuthPage && !isProjectPage && !isProjectsPage) {
         console.warn("401 Unauthorized - clearing token and redirecting to login");
         localStorage.removeItem("token");
         localStorage.removeItem("user");
 
         // Prevent infinite redirect loops
         setTimeout(() => {
-          if (window.location.pathname !== "/login") {
+          const stillNotOnLogin = window.location.pathname !== "/login";
+          const stillNotOnAuth = !["/login", "/register", "/forgot-password"].includes(window.location.pathname);
+          if (stillNotOnLogin && stillNotOnAuth) {
             window.location.href = "/login";
           }
         }, 100);
+      } else {
+        // Log but don't redirect for project/projects pages
+        if (import.meta.env.DEV) {
+          console.warn(`401 Unauthorized on ${currentPath} - not redirecting (project/projects context)`);
+        }
       }
     }
+    
     return Promise.reject(error);
-  },
+  }
 );
 
 export interface ResponseApi<T> {

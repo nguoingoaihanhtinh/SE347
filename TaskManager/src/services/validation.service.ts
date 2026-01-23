@@ -36,6 +36,16 @@ class ValidationService {
     if (!assigneeId) return; // Assignee is optional
 
     try {
+      const project = await projectRepository.findOne({ id: projectId });
+      if (!project) {
+        throw new NotFoundError({ message: "Project not found" });
+      }
+
+      // Allow project owner to be assignee even if not in members table
+      if (project.ownerId?.toString?.() === assigneeId.toString()) {
+        return;
+      }
+
       const isMember = await projectMemberRepository.isUserProjectMember(projectId, assigneeId);
       if (!isMember) {
         throw new BadRequestError({
@@ -53,6 +63,16 @@ class ValidationService {
    */
   async validateIssueReporter(projectId: string, reporterId: string): Promise<void> {
     try {
+      const project = await projectRepository.findOne({ id: projectId });
+      if (!project) {
+        throw new NotFoundError({ message: "Project not found" });
+      }
+
+      // Allow project owner to be reporter even if not in members table
+      if (project.ownerId?.toString?.() === reporterId.toString()) {
+        return;
+      }
+
       const isMember = await projectMemberRepository.isUserProjectMember(projectId, reporterId);
       if (!isMember) {
         throw new BadRequestError({
@@ -89,6 +109,17 @@ class ValidationService {
     requiredRoles: string[] = ["owner", "admin", "member"]
   ): Promise<void> {
     try {
+      // First, allow project owner to bypass member table checks
+      const project = await projectRepository.findOne({ id: projectId });
+      if (!project) {
+        throw new NotFoundError({ message: "Project not found" });
+      }
+
+      if (project.ownerId?.toString?.() === userId.toString()) {
+        // Owner always has full project permissions
+        return;
+      }
+
       const member = await projectMemberRepository.findByProjectAndUser(projectId, userId);
       if (!member) {
         throw new BadRequestError({

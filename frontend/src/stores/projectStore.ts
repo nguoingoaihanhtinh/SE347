@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { extractErrorMessage } from "../types/api";
 import { projects } from "../apis/project";
-import type { IProject } from "../types/project";
+import type { IProject, CreateProjectParams } from "../types/project";
 import type { Activity } from "../types";
 
 interface ProjectState {
@@ -13,7 +13,7 @@ interface ProjectState {
 
   fetchProjects: () => Promise<void>;
   fetchProject: (id: string) => Promise<void>;
-  createProject: (data: Omit<IProject, "id" | "createdAt" | "updatedAt">) => Promise<IProject>;
+  createProject: (data: CreateProjectParams) => Promise<IProject>;
   updateProject: (id: string, data: Partial<IProject>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   fetchActivities: (projectId: string) => Promise<void>;
@@ -30,20 +30,49 @@ export const useProjectStore = create<ProjectState>((set) => ({
   fetchProjects: async () => {
     try {
       set({ isLoading: true, error: null });
-      const response = await projects.list();
+      // IMPORTANT: load a large page so "My Projects" doesn't miss newly created items
+      // (backend defaults to page=1, limit=10)
+      const response = await projects.list({ page: 1, limit: 1000 });
 
-      if (response.data.success && Array.isArray(response.data.data)) {
-        set({
-          projects: response.data.data,
-          isLoading: false,
-        });
-      } else {
-        throw new Error(response.data.message || "Invalid project data format");
+      // console.log("Projects API Response:", response);
+
+      // Backend returns: { success: true, data: [...projects], pagination: {...} }
+      // Axios wraps it: response.data = { success: true, data: [...projects], pagination: {...} }
+      let projectsData: IProject[] = [];
+      
+      if (response.data) {
+        const responseData = response.data;
+        
+        // Check if response.data.data is an array (standard format)
+        if (responseData.success && Array.isArray(responseData.data)) {
+          projectsData = responseData.data;
+        }
+        // Fallback: check if response.data is already an array
+        else if (Array.isArray(responseData)) {
+          projectsData = responseData;
+        }
+        // Fallback: check if response.data.data exists and is array
+        else if (responseData.data && Array.isArray(responseData.data)) {
+          projectsData = responseData.data;
+        }
+        else {
+          // console.warn("Unexpected response format:", responseData);
+          projectsData = [];
+        }
       }
+
+      // console.log("✅ Parsed projects:", projectsData.length, "projects");
+
+      set({
+        projects: projectsData,
+        isLoading: false,
+        error: null,
+      });
     } catch (error) {
       const msg = extractErrorMessage(error);
-      set({ error: msg, isLoading: false });
-      throw new Error(msg);
+      console.error("Error fetching projects:", error);
+      set({ error: msg, isLoading: false, projects: [] });
+      // Don't throw - just set error state so UI can show error message
     }
   },
 
@@ -58,30 +87,40 @@ export const useProjectStore = create<ProjectState>((set) => ({
       }
     } catch (error) {
       const msg = extractErrorMessage(error);
-      set({ error: msg, isLoading: false });
-      throw new Error(msg);
+      set({ error: msg, isLoading: false, currentProject: null });
+      // Don't throw - let component handle the error gracefully
+      // This prevents unhandled promise rejections that might trigger redirects
+      console.error("Failed to fetch project:", msg);
     }
   },
 
   createProject: async (projectData) => {
     try {
+      // console.log("🔵 [projectStore] createProject called with:", projectData);
       set({ isLoading: true, error: null });
+      
+      // console.log("🔵 [projectStore] Calling projects.create API...");
       const response = await projects.create(projectData);
+      // console.log("🔵 [projectStore] API Response received:", response);
 
       if (!response.data.success) {
+        console.error("❌ [projectStore] API returned success: false", response.data);
         throw new Error(response.data.message || "Failed to create project");
       }
       if (!response.data.data) {
+        console.error("❌ [projectStore] Missing project data in response", response.data);
         throw new Error("Missing project data in response");
       }
 
       const newProject = response.data.data;
+      // console.log("✅ [projectStore] Project created successfully:", newProject);
       set((state) => ({
         projects: [...state.projects, newProject],
         isLoading: false,
       }));
       return newProject;
     } catch (error) {
+      console.error("❌ [projectStore] Error in createProject:", error);
       const msg = extractErrorMessage(error);
       set({ error: msg, isLoading: false });
       throw new Error(msg);

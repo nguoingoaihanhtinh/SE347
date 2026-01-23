@@ -14,6 +14,7 @@ interface ColumnState {
   updateColumn: (projectId: string, columnId: string, data: UpdateColumnProjectParams) => Promise<void>;
   deleteColumn: (projectId: string, columnId: string) => Promise<void>;
   reorderColumns: (projectId: string, columnOrders: { columnId: string; order: number }[]) => Promise<void>;
+  setColumns: (columns: IColumn[]) => void; // For immediate local state updates
   clearColumns: () => void;
 }
 
@@ -76,8 +77,9 @@ export const useColumnStore = create<ColumnState>((set) => ({
       });
     } catch (error) {
       const msg = extractErrorMessage(error);
-      set({ error: msg, isLoading: false });
-      throw new Error(msg);
+      set({ error: msg, isLoading: false, columns: [] });
+      // Don't throw - let component handle the error gracefully
+      console.error("Failed to fetch columns:", msg);
     }
   },
 
@@ -203,5 +205,6 @@ export const useColumnStore = create<ColumnState>((set) => ({
     }
   },
 
+  setColumns: (newColumns: IColumn[]) => set({ columns: newColumns }),
   clearColumns: () => set({ columns: [] }),
 }));

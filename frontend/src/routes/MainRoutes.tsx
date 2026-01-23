@@ -1,30 +1,35 @@
 // src/routes/MainRoutes.tsx
-import { BrowserRouter, Route, Routes, Outlet } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router-dom";
 import ThemeProvider from "../providers/ThemeProvider";
 import PageNotFound from "../layouts/PageNotFound";
 import AdminLayout from "../layouts/AdminLayout";
-import DefaultLayout from "../layouts/DefaultLayout";
+import UserLayout from "../layouts/UserLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AdminRoute from "./AdminRoute";
-import ProjectLayoutWrapper from "../components/ProjectLayoutWrapper";
+import ProjectLayout from "../layouts/ProjectLayout";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import AcceptInvitationPage from "../pages/AcceptInvitationPage";
 import ProjectsPage from "../pages/ProjectsPage";
 import ProfilePage from "../pages/ProfilePage";
+import MyTasksPage from "../pages/MyTasksPage";
+import ManagerDashboard from "../pages/ManagerDashboard";
+import ProjectMembersPage from "../pages/ProjectMembersPage";
+import ProjectSettingsPage from "../pages/ProjectSettingsPage";
 import UserManagementPage from "../pages/admin/UserManagementPage";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminProjectPage from "../pages/admin/AdminProjectPage";
 import BacklogPage from "../pages/BacklogPage";
 import BoardPage from "@/pages/BoardPage";
+import ProjectOverviewPage from "../pages/ProjectOverviewPage";
 
 // Wrappers
-function DefaultLayoutWrapper() {
+function UserLayoutWrapper() {
   return (
-    <DefaultLayout title="Project Manager">
+    <UserLayout>
       <Outlet />
-    </DefaultLayout>
+    </UserLayout>
   );
 }
 
@@ -45,27 +50,33 @@ export default function MainRoutes() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-
           {/* ✅ Accept Invitation - Public route that redirects to login if needed */}
           <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
 
-          {/* Protected Routes - Default Layout */}
+          {/* Protected Routes - User Layout (Dashboard) */}
           <Route
             path="/"
             element={
               <ProtectedRoute>
-                <DefaultLayoutWrapper />
+                <UserLayoutWrapper />
               </ProtectedRoute>
             }
           >
-            <Route index element={<ProjectsPage />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<ManagerDashboard />} />
+            <Route path="project" element={<Navigate to="/projects" replace />} />
             <Route path="projects" element={<ProjectsPage />} />
+            <Route path="my-tasks" element={<MyTasksPage />} />
             <Route path="profile" element={<ProfilePage />} />
 
             {/* Project Board - Nested in Project Layout */}
-            <Route path="projects/:projectId" element={<ProjectLayoutWrapper />}>
+            <Route path="project/:projectId" element={<ProjectLayout />}>
+              <Route index element={<Navigate to="board" replace />} />
+              <Route path="overview" element={<ProjectOverviewPage />} />
               <Route path="board" element={<BoardPage />} />
               <Route path="backlog" element={<BacklogPage />} />
+              <Route path="members" element={<ProjectMembersPage />} />
+              <Route path="settings" element={<ProjectSettingsPage />} />
             </Route>
 
             <Route path="*" element={<PageNotFound />} />

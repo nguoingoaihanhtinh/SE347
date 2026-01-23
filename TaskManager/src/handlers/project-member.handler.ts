@@ -136,9 +136,9 @@ export async function getProjectStats(req: Request, res: Response) {
 }
 
 export async function getUserInvitations(req: Request, res: Response) {
-  const { email } = req.user!;
+  const { userId } = req.user!;
 
-  const invitations = await projectMemberService.getUserInvitations(email);
+  const invitations = await projectMemberService.getPendingInvitationsByUserId(userId);
 
   res.status(200).json({
     success: true,
@@ -180,6 +180,151 @@ export async function leaveProject(req: Request, res: Response) {
   res.status(200).json({
     success: true,
     data: result,
+  });
+}
+
+// Direct add member (without invitation flow)
+export async function addMemberDirect(req: Request, res: Response) {
+  console.log("📧 [HANDLER] addMemberDirect called with params:", req.params, "body:", req.body);
+  const { projectId } = req.params;
+  const { userId } = req.body;
+  const requesterId = req.user!.userId;
+  console.log("📧 [HANDLER] projectId:", projectId, "userId:", userId, "requesterId:", requesterId);
+
+  if (!projectId) {
+    console.log("📧 [HANDLER] Missing projectId");
+    return res.status(400).json({
+      success: false,
+      message: "Project ID is required",
+    });
+  }
+
+  if (!userId) {
+    console.log("📧 [HANDLER] Missing userId");
+    return res.status(400).json({
+      success: false,
+      message: "User ID is required",
+    });
+  }
+
+  try {
+    console.log("📧 [HANDLER] Calling service.addMemberDirect...");
+    const result = await projectMemberService.addMemberDirect({
+      projectId,
+      requesterId,
+      userId,
+      role: "member", // Default role
+    });
+    console.log("📧 [HANDLER] Service returned:", result);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("📧 [HANDLER] Error in addMemberDirect:", error);
+    throw error;
+  }
+}
+
+// Remove member (simplified endpoint)
+export async function removeMemberDirect(req: Request, res: Response) {
+  console.log("🗑️ [HANDLER] removeMemberDirect called with params:", req.params);
+  const { projectId, userId } = req.params;
+  const requesterId = req.user!.userId;
+  console.log("🗑️ [HANDLER] projectId:", projectId, "userId:", userId, "requesterId:", requesterId);
+
+  if (!projectId) {
+    console.log("🗑️ [HANDLER] Missing projectId");
+    return res.status(400).json({
+      success: false,
+      message: "Project ID is required",
+    });
+  }
+
+  if (!userId) {
+    console.log("🗑️ [HANDLER] Missing userId");
+    return res.status(400).json({
+      success: false,
+      message: "User ID is required",
+    });
+  }
+
+  try {
+    console.log("🗑️ [HANDLER] Calling service.removeMember...");
+    const result = await projectMemberService.removeMember(projectId, requesterId, userId);
+    console.log("🗑️ [HANDLER] Service returned:", result);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("🗑️ [HANDLER] Error in removeMemberDirect:", error);
+    throw error;
+  }
+}
+
+// Request to join a private project by key
+export async function requestToJoin(req: Request, res: Response) {
+  console.log("🔔 [HANDLER] requestToJoin called with body:", req.body);
+  const { projectKey } = req.body;
+  const userId = req.user!.userId;
+  console.log("🔔 [HANDLER] projectKey:", projectKey, "userId:", userId);
+
+  if (!projectKey) {
+    console.log("🔔 [HANDLER] Missing projectKey");
+    return res.status(400).json({
+      success: false,
+      message: "Project key is required",
+    });
+  }
+
+  try {
+    console.log("🔔 [HANDLER] Calling service.requestToJoin...");
+    const result = await projectMemberService.requestToJoin(projectKey, userId);
+    console.log("🔔 [HANDLER] Service returned:", result);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("🔔 [HANDLER] Error in requestToJoin:", error);
+    throw error;
+  }
+}
+
+// Update member status (accept/reject invite or request)
+export async function updateMemberStatus(req: Request, res: Response) {
+  const { projectId, userId } = req.params;
+  const { status } = req.body;
+
+  if (!projectId || !userId) {
+    return res.status(400).json({
+      success: false,
+      message: "Project ID and User ID are required",
+    });
+  }
+
+  if (!status || !["active", "pending_invite", "pending_request"].includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid status is required (active, pending_invite, pending_request)",
+    });
+  }
+
+  const result = await projectMemberService.updateMemberStatus(
+    projectId,
+    req.user!.userId,
+    userId,
+    status as "active" | "pending_invite" | "pending_request"
+  );
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+    data: result.member,
   });
 }
 

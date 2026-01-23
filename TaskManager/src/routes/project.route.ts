@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "@/middlewares/auth.middleware";
 
 // Project handlers
-import { createProject, deleteProject, getProjectById, getProjects, updateProject } from "@/handlers/project.handler";
+import { createProject, deleteProject, getProjectById, getProjects, updateProject, searchProjectByKey } from "@/handlers/project.handler";
 
 import sprintRoutes from "./sprint.route";
 import issueRoutes from "./issue.route";
@@ -13,11 +13,15 @@ import {
   declineInvitation,
   updateMemberRole,
   removeMember,
+  removeMemberDirect,
+  addMemberDirect,
   getProjectMembers,
   getProjectStats,
   getUserInvitations,
   cancelInvitation,
   leaveProject,
+  requestToJoin,
+  updateMemberStatus,
 } from "@/handlers/project-member.handler";
 
 // Project column handlers
@@ -27,17 +31,24 @@ import activityRoutes from "./activity.route";
 
 const router = Router();
 
-// Public routes
-router.get("/", getProjects);
-
-// Protected routes
+// Protected routes - All project routes require authentication
 router.use(authenticate);
+
+// Get projects for current user (filtered by membership)
+router.get("/", getProjects);
+// Search route - MUST be before /:id route to avoid matching "search" as an id
+router.get("/search", searchProjectByKey);
+// Request to join route - MUST be before /:id route
+router.post("/request-join", requestToJoin);
 // Project member routes
+router.get("/my-invitations", getUserInvitations);
 router.get("/:projectId/members", getProjectMembers);
 router.get("/:projectId/stats", getProjectStats);
 router.post("/:projectId/members/invite", inviteMember);
+router.post("/:projectId/members", addMemberDirect);
+router.put("/:projectId/members/:userId/status", updateMemberStatus);
 router.put("/:projectId/members/:userId/role", updateMemberRole);
-router.delete("/:projectId/members/:userId", removeMember);
+router.delete("/:projectId/members/:userId", removeMemberDirect);
 router.post("/:projectId/leave", leaveProject);
 // Project routes
 router.post("/", createProject);

@@ -5,11 +5,102 @@ import { Project } from "@/models/project.model";
 import ActivityService from "@/services/activity.service";
 import { ActivityAction } from "@/enums";
 import projectMemberRepository from "@/repositories/project-member.repository";
+import userRepository from "@/repositories/user.repository";
 import validationService from "@/services/validation.service";
+import { connectMongo } from "@/config/mongodb";
+import { ObjectId } from "mongodb";
 
 export class ProjectService {
-  async findAll(page: number = 1, limit: number = 10) {
-    return projectRepository.findAll({}, page, limit);
+  async findAll(page: number = 1, limit: number = 10, currentUserId?: string, currentUserRole?: string) {
+    // If user is super_admin, return all projects (for admin dashboard)
+    if (currentUserRole === "super_admin") {
+      return projectRepository.findAll({}, page, limit);
+    }
+
+    // For regular users, return projects where they are:
+    // 1. A member or owner, OR
+    // 2. Public projects (accessible to all users)
+    if (currentUserId) {
+      // Get all project IDs where user is a member
+      const userMemberships = await projectMemberRepository.findByUser(currentUserId);
+      const memberProjectIds = userMemberships.map((member) => member.projectId);
+      
+      // Also include projects where user is the owner
+      const ownedProjectsResult = await projectRepository.findAll({ ownerId: currentUserId }, 1, 1000);
+      const ownedProjectIds = ownedProjectsResult.data.map((p) => p.id);
+      
+      // Get all public projects
+      const publicProjectsResult = await projectRepository.findAll({ access: "public" }, 1, 1000);
+      const publicProjectIds = publicProjectsResult.data.map((p) => p.id);
+      
+      // Combine and deduplicate: member projects + owned projects + public projects
+      const allAccessibleProjectIds = [...new Set([...memberProjectIds, ...ownedProjectIds, ...publicProjectIds])];
+      
+      if (allAccessibleProjectIds.length === 0) {
+        // User has no accessible projects
+        return {
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            total_pages: 0,
+          },
+        };
+      }
+      
+      // Query projects by IDs using MongoDB $in operator
+      const db = await connectMongo();
+      const skip = (page - 1) * limit;
+      const projectObjectIds = allAccessibleProjectIds.map((id) => new ObjectId(id));
+      
+      const projects = await db.collection("projects")
+        .find({ _id: { $in: projectObjectIds } })
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      
+      const total = await db.collection("projects").countDocuments({ _id: { $in: projectObjectIds } });
+      
+      const mappedData = projects.map((doc) => ({
+        id: doc._id.toString(),
+        name: doc.name,
+        key: doc.key,
+        description: doc.description ?? null,
+        access: doc.access,
+        type: doc.type,
+        ownerId: doc.ownerId.toString(),
+        relationship:
+          doc.ownerId?.toString?.() === currentUserId
+            ? "owner"
+            : memberProjectIds.includes(doc._id.toString())
+              ? "member"
+              : "public",
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      }));
+      
+      return {
+        data: mappedData,
+        pagination: {
+          page,
+          limit,
+          total,
+          total_pages: Math.ceil(total / limit),
+        },
+      };
+    }
+
+    // If no user ID provided, return empty (should not happen in protected route)
+    return {
+      data: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        total_pages: 0,
+      },
+    };
   }
 
   async findOneById(id: string, currentUserId?: string, currentUserRole?: string) {
@@ -20,10 +111,16 @@ export class ProjectService {
     // even if they are not a project member
     if (currentUserId && currentUserRole) {
       const isSuperAdmin = currentUserRole === "super_admin";
+      const isOwner = project.ownerId.toString() === currentUserId.toString();
       const isMember = await projectMemberRepository.findByProjectAndUser(id, currentUserId);
+      const isPublicProject = project.access === "public";
       
-      // Allow access if user is a project member OR if user is super_admin (for audit)
-      if (!isMember && !isSuperAdmin) {
+      // Allow access if:
+      // - user is the project owner, OR
+      // - project is public (any authenticated user can view), OR
+      // - user is a project member, OR
+      // - user is super_admin (for audit)
+      if (!isOwner && !isPublicProject && !isMember && !isSuperAdmin) {
         throw new ForbiddenError({
           message: "You do not have permission to view this project. You must be a project member or a Super Admin.",
         });
@@ -37,6 +134,25 @@ export class ProjectService {
     const project = await projectRepository.findOne({ key });
     if (!project) throw new NotFoundError({ message: `Project with key ${key} not found` });
     return project;
+  }
+
+  async searchByKey(key: string, currentUserId?: string): Promise<{ name: string; ownerName: string; key: string; access: string } | null> {
+    const project = await projectRepository.findOne({ key });
+    if (!project) return null;
+
+    // Only return private projects (public projects are visible in list)
+    if (project.access !== "private") return null;
+
+    // Get owner info
+    const owner = await userRepository.findOne({ userId: project.ownerId.toString() });
+    const ownerName = owner ? `${owner.firstName || ""} ${owner.lastName || ""}`.trim() || owner.email : "Unknown";
+
+    return {
+      name: project.name,
+      ownerName,
+      key: project.key,
+      access: project.access,
+    };
   }
 
   async create(projectData: Omit<Project, "id" | "createdAt" | "updatedAt">) {
@@ -57,6 +173,7 @@ export class ProjectService {
         teamIds: [],
         role: "owner",
         isPending: false,
+        status: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
       });

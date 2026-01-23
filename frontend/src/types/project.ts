@@ -9,10 +9,15 @@ export interface IProject {
   access: "public" | "private";
   type: "scrum" | "kanban";
   ownerId: string;
+  // Relationship of current logged-in user to this project (computed by backend)
+  relationship?: "owner" | "member" | "public";
   createdAt: string;
   updatedAt: string;
   columns?: IColumn[];
 }
+
+// Type for creating a project (without ownerId, as backend sets it from req.user.userId)
+export type CreateProjectParams = Omit<IProject, "id" | "createdAt" | "updatedAt" | "ownerId">;
 
 export interface IColumn {
   id: string;

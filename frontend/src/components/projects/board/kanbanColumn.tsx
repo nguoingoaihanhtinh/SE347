@@ -9,8 +9,10 @@ import IssueCard from "./issueCard";
 import type { IColumn } from "../../../types/project";
 import RenameColumnModal from "../modals/renameColumnModal";
 import DeleteColumnModal from "../modals/deleteColumnModal";
+import CreateIssueModal from "../../modals/CreateIssueModal";
 import { useDeleteColumn, useUpdateColumn, useUpdateProjectOrderColumn } from "../../../hooks/useProject";
 import { useDroppable } from "@dnd-kit/core";
+import { useIssueStore } from "../../../stores/issueStore";
 
 const SortableIssue = ({
   issue,
@@ -23,6 +25,11 @@ const SortableIssue = ({
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: issue.id,
+    data: {
+      type: "Issue",
+      issue,
+      columnId: columnId || (issue as IIssue).columnId,
+    },
   });
 
   const style: CSSProperties = {
@@ -43,6 +50,53 @@ const SortableIssue = ({
       />
     </div>
   );
+};
+
+// Helper to compute header color classes based on column name (ClickUp-style)
+const getHeaderColorClass = (name: string): string => {
+  const normalized = name.trim().toLowerCase();
+
+  if (normalized === "to do" || normalized === "todo") {
+    return "bg-slate-200 text-slate-700";
+  }
+
+  if (normalized === "in progress") {
+    return "bg-blue-500 text-white";
+  }
+
+  if (normalized === "review") {
+    return "bg-orange-500 text-white";
+  }
+
+  if (normalized === "done" || normalized === "complete" || normalized === "completed") {
+    return "bg-green-500 text-white";
+  }
+
+  return "bg-slate-300 text-slate-800";
+};
+
+// Helper to compute a very light background tint for the empty state area,
+// matching the header color but much softer
+const getEmptyStateBgClass = (name: string): string => {
+  const normalized = name.trim().toLowerCase();
+
+  if (normalized === "to do" || normalized === "todo") {
+    return "bg-slate-100";
+  }
+
+  if (normalized === "in progress") {
+    return "bg-blue-50";
+  }
+
+  if (normalized === "review") {
+    return "bg-orange-50";
+  }
+
+  if (normalized === "done" || normalized === "complete" || normalized === "completed") {
+    return "bg-emerald-50";
+  }
+
+  return "bg-slate-100";
 };
 
 export const KanbanColumn = ({
@@ -80,10 +134,12 @@ export const KanbanColumn = ({
   const { updateOrderColumn } = useUpdateProjectOrderColumn();
   const { deleteColumn } = useDeleteColumn();
   const { updateColumn } = useUpdateColumn();
+  const { fetchIssuesForBoard } = useIssueStore();
 
   const [showRenameColumnModal, setShowRenameColumnModal] = useState(false);
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [showCreateIssueModal, setShowCreateIssueModal] = useState(false);
 
   const columnIssues = column.issues || [];
   const issueCount = columnIssues.length;
@@ -93,8 +149,10 @@ export const KanbanColumn = ({
     transition,
     opacity: isColumnDragging ? 0.8 : 1,
     cursor: isColumnDragging ? "grabbing" : "grab",
-    border: isOver || (activeId === column.id && isColumnDragging) ? "2px solid #3b82f6" : "1px solid #e5e7eb",
-    backgroundColor: isOver ? "#eff6ff" : "#f9fafb",
+    border: isOver || (activeId === column.id && isColumnDragging) ? "2px solid #3b82f6" : "1px solid transparent",
+    // Only set a background color while an item is dragged over this column.
+    // When not over, leave it undefined so Tailwind bg-* classes can control the background.
+    backgroundColor: isOver ? "#e5edff" : undefined,
   };
 
   const handleMove = useCallback(
@@ -172,15 +230,19 @@ export const KanbanColumn = ({
       style={columnStyle}
       {...attributes}
       {...listeners}
-      className={`mx-2 w-80 flex-shrink-0 rounded-lg p-3 shadow-sm border transition-all duration-200 ${
+      className={`mx-2 w-80 min-w-[320px] max-h-[calc(100%-20px)] flex flex-col shrink-0 rounded-xl p-3 shadow-sm transition-all duration-200 ${getEmptyStateBgClass(column.name)} ${
         isColumnDragging || isDragging ? "shadow-lg scale-[1.01]" : ""
       }`}
     >
       {/* Header */}
-      <div className="mb-3 flex items-center justify-between px-2 py-1">
-        <div>
-          <h2 className="text-base font-semibold text-gray-800">{column.name}</h2>
-          <span className="text-xs text-gray-500">{issueCount} issues</span>
+      <div className="mb-2 flex items-center justify-between px-1 py-1">
+        <div className="flex flex-col gap-1">
+          <div
+            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase ${getHeaderColorClass(column.name)}`}
+          >
+            <span>{column.name}</span>
+            <span className="ml-2 text-[10px] opacity-80">{issueCount}</span>
+          </div>
         </div>
         <Popover
           content={content}
@@ -197,24 +259,35 @@ export const KanbanColumn = ({
 
       {/* Issues List */}
       <SortableContext items={columnIssues.map((i) => i.id)}>
-        <div className="flex min-h-[150px] max-h-[70vh] flex-col gap-2 overflow-y-auto pb-4 pr-1">
+        <div className="flex-1 min-h-0 flex flex-col gap-2 overflow-y-auto pb-3 pr-1 rounded-lg bg-slate-50 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
           {issueCount > 0 ? (
             columnIssues.map((issue) => (
-              <SortableIssue key={issue.id} issue={issue} isDraggingPreview={isDragging} columnId={column.id} />
+              <SortableIssue
+                key={issue.id}
+                issue={issue}
+                isDraggingPreview={activeId === issue.id && !!isDragging}
+                columnId={column.id}
+              />
             ))
           ) : (
-            <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-100 text-sm text-gray-500 p-4">
-              <p>
-                Drag issues here or <span className="text-blue-600 cursor-pointer">create new issue</span>
-              </p>
+            <div className="flex h-full items-center justify-center rounded-lg text-xs text-gray-500 p-3 bg-white/70">
+              <p>No tasks yet. Use the button below to add one.</p>
             </div>
           )}
         </div>
       </SortableContext>
 
-      {/* Footer với tổng số issues */}
-      <div className="mt-3 pt-2 border-t border-gray-200 text-sm font-medium text-gray-600 text-center">
-        {issueCount} issues
+      {/* Footer: quick create + count */}
+      <div className="mt-2 pt-2 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600">
+        <button
+          type="button"
+          onClick={() => setShowCreateIssueModal(true)}
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-200/60 transition-colors"
+        >
+          <span className="text-sm">+</span>
+          Add Issue
+        </button>
+        <span>{issueCount} issues</span>
       </div>
 
       {/* Modals */}
@@ -230,6 +303,22 @@ export const KanbanColumn = ({
           onClose={() => setShowDeleteColumnModal(false)}
           onSubmit={handleDeleteColumn}
           hasIssues={issueCount > 0}
+        />
+      )}
+
+      {showCreateIssueModal && (
+        <CreateIssueModal
+          isOpen={showCreateIssueModal}
+          onClose={() => setShowCreateIssueModal(false)}
+          projectId={projectId}
+          defaultColumnId={column.id}
+          onSuccess={async () => {
+            // Refresh board data after creating issue
+            // Note: The store already adds the issue optimistically, this refresh ensures consistency
+            if (projectId) {
+              await fetchIssuesForBoard(projectId);
+            }
+          }}
         />
       )}
     </div>

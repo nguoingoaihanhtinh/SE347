@@ -30,6 +30,7 @@ export class IssueRepository {
     if (filters.projectId) mongoFilter.projectId = new ObjectId(filters.projectId);
     if (filters.columnId) mongoFilter.columnId = new ObjectId(filters.columnId);
     if (filters.assigneeId) mongoFilter.assigneeId = new ObjectId(filters.assigneeId);
+    if (filters.sprintId) mongoFilter.sprintId = new ObjectId(filters.sprintId);
 
     const data = await db.collection(this.collectionName).find(mongoFilter).skip(skip).limit(limit).toArray();
     const total = await db.collection(this.collectionName).countDocuments(mongoFilter);

@@ -5,6 +5,7 @@ import ValidationService from "@/services/validation.service";
 import { Issue } from "@/models/issue.model";
 import ActivityService from "@/services/activity.service";
 import { ActivityAction } from "@/enums";
+import sprintRepository from "@/repositories/sprint.repository";
 
 type CreateIssueInput = Omit<Issue, "id" | "key" | "createdAt" | "updatedAt">;
 type UpdateIssueInput = Partial<Omit<Issue, "id" | "key" | "createdAt" | "updatedAt" | "projectId">>;
@@ -18,8 +19,66 @@ interface ChangeLog {
 type UpdatableIssueField = keyof UpdateIssueInput;
 
 export class IssueService {
-  async findAll(filters: { projectId?: string; columnId?: string }, page: number, limit: number) {
+  async findAll(filters: { projectId?: string; columnId?: string; assigneeId?: string }, page: number, limit: number) {
     return IssueRepository.findAll(filters, page, limit);
+  }
+
+  async findForBoard(projectId: string, page: number, limit: number) {
+    // Determine project type to apply Scrum vs Kanban logic
+    const project = await ProjectService.findOneById(projectId);
+    if (!project) {
+      throw new BadRequestError({ message: "Invalid projectId" });
+    }
+
+    const isScrum = project.type === "scrum";
+
+    // Kanban: board shows all issues in the project
+    if (!isScrum) {
+      const result = await IssueRepository.findAll({ projectId }, page, limit);
+      return {
+        ...result,
+        meta: {
+          mode: "kanban",
+          hasActiveSprint: true,
+        },
+      };
+    }
+
+    // Scrum: board shows only issues of the currently active sprint
+    const now = new Date();
+    const activeSprint = await sprintRepository.findActiveByProject(projectId, now);
+
+    if (!activeSprint) {
+      return {
+        data: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          total_pages: 0,
+        },
+        meta: {
+          mode: "scrum",
+          hasActiveSprint: false,
+        },
+      };
+    }
+
+    const result = await IssueRepository.findAll(
+      { projectId, sprintId: activeSprint.id },
+      page,
+      limit,
+    );
+
+    return {
+      ...result,
+      meta: {
+        mode: "scrum",
+        hasActiveSprint: true,
+        activeSprintId: activeSprint.id,
+        activeSprintName: activeSprint.name,
+      },
+    };
   }
 
   async findOneById(id: string) {

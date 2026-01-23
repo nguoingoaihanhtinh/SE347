@@ -14,6 +14,22 @@ import { generateToken } from "@/utils/jwt.util";
 import otpService from "@/services/otp.service";
 import { UserQueryParams } from "@/types/query-param";
 
+// Helper function to normalize MongoDB _id to id (consistent with other repositories)
+const normalizeUser = (user: any): any => {
+  if (!user) return user;
+  // If user has _id but no id, map _id to id
+  if (user._id && !user.id) {
+    const { _id, ...rest } = user;
+    return { ...rest, id: _id.toString() };
+  }
+  return user;
+};
+
+// Helper function to normalize array of users
+const normalizeUsers = (users: any[]): any[] => {
+  return users.map(normalizeUser);
+};
+
 export class UserService {
   async login(input: { loginData: LoginDto }) {
     const { loginData } = input;
@@ -35,13 +51,14 @@ export class UserService {
     }
 
     const { passwordHash, ...user } = curUser;
+    const normalizedUser = normalizeUser(user);
     const token = generateToken({
-      userId: user._id?.toString() ?? "",
-      email: user.email,
-      role: user.role,
+      userId: normalizedUser.id ?? normalizedUser._id?.toString() ?? "",
+      email: normalizedUser.email,
+      role: normalizedUser.role,
     });
 
-    return { user, token };
+    return { user: normalizedUser, token };
   }
 
   async register(input: { registerData: RegisterDto }) {
@@ -80,14 +97,15 @@ export class UserService {
     });
 
     const { passwordHash: _, ...userWithoutPassword } = newUser;
+    const normalizedUser = normalizeUser(userWithoutPassword);
     const token = generateToken({
-      userId: newUser._id?.toString() ?? "",
-      email: newUser.email,
-      role: newUser.role,
+      userId: normalizedUser.id ?? normalizedUser._id?.toString() ?? "",
+      email: normalizedUser.email,
+      role: normalizedUser.role,
     });
 
     return {
-      user: userWithoutPassword,
+      user: normalizedUser,
       token,
     };
   }
@@ -111,8 +129,9 @@ export class UserService {
     });
 
     const { passwordHash, ...userWithoutPassword } = updatedUser;
+    const normalizedUser = normalizeUser(userWithoutPassword);
     return {
-      ...userWithoutPassword,
+      ...normalizedUser,
       message: "Account verified successfully",
     };
   }
@@ -143,7 +162,12 @@ export class UserService {
   }
 
   async findAll(input: UserQueryParams) {
-    return await userRepository.findAll(input);
+    const result = await userRepository.findAll(input);
+    // Normalize users in the array
+    return {
+      ...result,
+      data: normalizeUsers(result.data || []),
+    };
   }
 
   async countSuperAdmins(): Promise<number> {
@@ -152,9 +176,9 @@ export class UserService {
 
   async findOne(input: { userId: string }) {
     const user = await userRepository.findOne({ userId: input.userId });
-    console.log("findOne user:", JSON.stringify(user, null, 2));
+    // console.log("findOne user:", JSON.stringify(user, null, 2));
     if (!user) throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
-    return user;
+    return normalizeUser(user);
   }
 
   async createUser(input: { userData: CreateUserDto }) {
@@ -181,7 +205,7 @@ export class UserService {
       },
     });
 
-    return newUser;
+    return normalizeUser(newUser);
   }
 
   async updateUser(input: { userId: string; userData: UpdateUserDto }) {
@@ -201,7 +225,7 @@ export class UserService {
     };
 
     const updatedUser = await userRepository.update({ userId, userData: updateData });
-    return updatedUser;
+    return normalizeUser(updatedUser);
   }
 
   async deleteUser(userId: string) {
@@ -313,20 +337,21 @@ export class UserService {
     }
 
     // Auto-login: Generate token after successful password reset
-    console.log(`[DEBUG] Generating access token for auto-login...`);
+    // console.log(`[DEBUG] Generating access token for auto-login...`);
     const { passwordHash: _, ...userWithoutPassword } = user;
+    const normalizedUser = normalizeUser(userWithoutPassword);
     const token = generateToken({
-      userId: userId,
-      email: user.email,
-      role: user.role,
+      userId: normalizedUser.id ?? userId,
+      email: normalizedUser.email,
+      role: normalizedUser.role,
     });
 
-    console.log(`[DEBUG] Token generated successfully for user: ${userId}`);
+    // console.log(`[DEBUG] Token generated successfully for user: ${userId}`);
 
     return {
       message: "Mật khẩu đã được đặt lại thành công. Bạn đã được đăng nhập tự động.",
       token,
-      user: userWithoutPassword,
+      user: normalizedUser,
     };
   }
 }

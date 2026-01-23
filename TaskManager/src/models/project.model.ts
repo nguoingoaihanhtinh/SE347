@@ -26,13 +26,16 @@ export interface ProjectColumn {
   order: number;
 }
 
+export type MemberStatus = "active" | "pending_invite" | "pending_request";
+
 export interface ProjectMember {
   id?: string;
   projectId: string;
   teamIds: string[];
   userId: string;
   role: TeamMemberRole;
-  isPending: boolean;
+  isPending: boolean; // Deprecated: Use status instead
+  status?: MemberStatus; // New: 'active' | 'pending_invite' | 'pending_request'
   createdAt: Date;
   updatedAt: Date;
   user?: any;

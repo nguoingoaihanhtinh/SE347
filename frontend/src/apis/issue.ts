@@ -13,6 +13,33 @@ const config = {
 };
 
 export const issues = {
+  myTasks: async (params?: { page?: number; limit?: number }) => {
+    const url = new URLSearchParams();
+    if (params?.page) url.append("page", params.page.toString());
+    if (params?.limit) url.append("limit", params.limit.toString());
+    const queryString = url.toString() ? `?${url.toString()}` : "";
+    return api.get<
+      ResponseApi<{
+        data: IIssue[];
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          total_pages: number;
+        };
+      }>
+    >(`/issues/my-tasks${queryString}`, config);
+  },
+
+  board: async (projectId: string, params?: { page?: number; limit?: number }) => {
+    const url = new URLSearchParams();
+    if (params?.page) url.append("page", params.page.toString());
+    if (params?.limit) url.append("limit", params.limit.toString());
+    const queryString = url.toString() ? `?${url.toString()}` : "";
+
+    return api.get<ResponseApi<any>>(`/projects/${projectId}/issues/board${queryString}`, config);
+  },
+
   list: async (params: {
     projectId: string;
     page?: number;

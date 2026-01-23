@@ -49,6 +49,29 @@ export class SprintRepository {
     };
   }
 
+  async findActiveByProject(projectId: string, now: Date = new Date()) {
+    const db = await connectMongo();
+    const doc = await db.collection(this.collectionName).findOne({
+      projectId: new ObjectId(projectId),
+      dateStarted: { $lte: now },
+      dateEnded: { $gte: now },
+    });
+
+    if (!doc) return null;
+
+    return {
+      id: doc._id.toString(),
+      name: doc.name,
+      dateStarted: doc.dateStarted,
+      dateEnded: doc.dateEnded,
+      duration: doc.duration,
+      goal: doc.goal,
+      projectId: doc.projectId.toString(),
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  }
+
   async create(sprintData: Omit<Sprint, "id" | "createdAt" | "updatedAt" | "duration">) {
     const db = await connectMongo();
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { FaBars } from "react-icons/fa";
 import type { IIssue, IIssueWithoutColumn } from "../../../types/issue";
 import TypeBadge from "../../ui/badge/typeBadge";
@@ -6,21 +6,18 @@ import PriorityBadge from "../../ui/badge/priorityBadge";
 import UserAvatar from "../../ui/user/userAvatar";
 import { useIssueStore } from "../../../stores/issueStore";
 
-// ✅ Hàm helper an toàn để format ngày
 const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return "—"; // hoặc "N/A", "Unknown", v.v.
-
-  const date = new Date(dateString);
-  // Kiểm tra xem date có hợp lệ không
-  if (isNaN(date.getTime())) {
-    console.warn("Invalid date string:", dateString);
-    return "—";
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  } catch {
+    return "";
   }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
 };
 
 const ensureIssueHasColumnId = (issue: IIssue | IIssueWithoutColumn, defaultColumnId?: string): IIssue => {
@@ -28,15 +25,26 @@ const ensureIssueHasColumnId = (issue: IIssue | IIssueWithoutColumn, defaultColu
     return issue as IIssue;
   }
 
+  // Ensure all date fields are valid ISO strings or null
+  const normalizeDate = (date: string | null | undefined): string | null => {
+    if (!date) return null;
+    try {
+      const d = new Date(date);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    } catch {
+      return null;
+    }
+  };
+
   return {
     ...issue,
     columnId: defaultColumnId || "unassigned",
-    createdAt: issue.createdAt || new Date().toISOString(),
-    updatedAt: issue.updatedAt || new Date().toISOString(),
+    createdAt: normalizeDate(issue.createdAt) || new Date().toISOString(),
+    updatedAt: normalizeDate(issue.updatedAt) || new Date().toISOString(),
     attachments: issue.attachments || [],
-    dueDateFrom: issue.dueDateFrom || null,
-    dueDateTo: issue.dueDateTo || null,
-    completedAt: issue.completedAt || null,
+    dueDateFrom: normalizeDate(issue.dueDateFrom),
+    dueDateTo: normalizeDate(issue.dueDateTo),
+    completedAt: normalizeDate(issue.completedAt),
     reporterId: issue.reporterId || "unknown",
   } as IIssue;
 };
@@ -56,34 +64,6 @@ const IssueCard = ({
 
   const [isHovered, setIsHovered] = useState(false);
   const { openIssueDetail } = useIssueStore();
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isDragging && cardRef.current) {
-      const clone = cardRef.current.cloneNode(true) as HTMLElement;
-      clone.style.position = "fixed";
-      clone.style.pointerEvents = "none";
-      clone.style.zIndex = "1000";
-      clone.style.width = `${cardRef.current.offsetWidth}px`;
-      clone.style.opacity = "0.85";
-      clone.style.transform = "scale(1.05)";
-      clone.style.boxShadow = "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)";
-
-      document.body.appendChild(clone);
-
-      const onMouseMove = (e: MouseEvent) => {
-        clone.style.left = `${e.clientX + 10}px`;
-        clone.style.top = `${e.clientY + 10}px`;
-      };
-
-      document.addEventListener("mousemove", onMouseMove);
-
-      return () => {
-        document.removeEventListener("mousemove", onMouseMove);
-        clone.remove();
-      };
-    }
-  }, [isDragging]);
 
   if (isDraggingPreview) {
     return (
@@ -97,20 +77,21 @@ const IssueCard = ({
 
   return (
     <div
-      ref={cardRef}
-      className={`cursor-grab rounded-md border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 ${
+      className={`cursor-grab rounded-md bg-white p-2.5 shadow-sm transition-all duration-200 ${
         isDragging
-          ? "shadow-lg scale-[1.02] border-blue-400"
+          ? "opacity-50"
+          : isDraggingPreview
+          ? "opacity-0"
           : isHovered
-            ? "border-blue-300 shadow-md z-10"
-            : "hover:border-blue-200 hover:shadow-md"
+          ? "shadow-md z-10 ring-1 ring-blue-200"
+          : "hover:shadow-md"
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => openIssueDetail(issue.id)}
     >
       {/* Header */}
-      <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
+      <div className="mb-1.5 flex items-center justify-between text-[11px] text-gray-500">
         <div className="flex items-center gap-2">
           <TypeBadge type={issue.type} isShowLabel={false} />
           <span className="font-medium">{issue.key}</span>
@@ -123,12 +104,12 @@ const IssueCard = ({
       </div>
 
       {/* Title */}
-      <h3 className="mb-2 line-clamp-2 text-sm font-medium text-gray-800 hover:text-blue-600 transition-colors">
+      <h3 className="mb-1.5 line-clamp-2 text-sm font-medium text-gray-800 hover:text-blue-600 transition-colors">
         {issue.summary}
       </h3>
 
       {/* Metadata */}
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
         <PriorityBadge priority={issue.priority} isShowLabel={false} />
         {issue.storyPoint > 0 && (
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
@@ -154,10 +135,12 @@ const IssueCard = ({
             <span className="italic text-gray-400 text-xs">Unassigned</span>
           )}
         </div>
-        <span title={issue.createdAt} className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-gray-300"></span>
-          Created {formatDate(issue.createdAt)}
-        </span>
+        {issue.createdAt && (
+          <span title={issue.createdAt} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+            Created {formatDate(issue.createdAt)}
+          </span>
+        )}
       </div>
     </div>
   );
