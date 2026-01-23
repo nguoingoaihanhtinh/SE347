@@ -21,6 +21,7 @@ import { useUpdateProjectOrderColumn } from "../hooks/useProject";
 import NewColumnPlaceholder from "@/components/projects/board/newColumnPlaceholder";
 import IssueCard from "@/components/projects/board/issueCard";
 import type { IIssue } from "../types/issue";
+import { toast } from "react-toastify";
 
 export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -28,6 +29,7 @@ export default function BoardPage() {
   const { fetchColumns, columns, isLoading: isColumnsLoading, createColumn } = useColumnStore();
   const { fetchIssuesByProject, issues: storeIssues, updateIssue } = useIssueStore();
   const { updateOrderColumn } = useUpdateProjectOrderColumn();
+
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [activeIssue, setActiveIssue] = useState<IIssue | null>(null);
   const [currentColumnIndex, setCurrentColumnIndex] = useState(0);
@@ -58,40 +60,57 @@ export default function BoardPage() {
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveIssue(null);
     setActiveId(null);
+
     const { active, over } = event;
     if (!over || active.id === over.id || !projectId) return;
 
-    // Xác định loại drag: column hay issue
     const isDraggingColumn = columns.some((col) => col.id === active.id);
 
     if (isDraggingColumn) {
-      // Xử lý drag column
+      // Xử lý drag column (giữ nguyên logic cũ)
       const activeColumnId = active.id as string;
       const overColumnId = over.id as string;
-
       const currentIndex = columns.findIndex((col) => col.id === activeColumnId);
       const overIndex = columns.findIndex((col) => col.id === overColumnId);
-
       if (currentIndex === -1 || overIndex === -1) return;
-
       const newOrder = [...columns.map((col) => col.id)];
       const [movedItem] = newOrder.splice(currentIndex, 1);
       newOrder.splice(overIndex, 0, movedItem);
-
       await handleReorderColumns(newOrder);
     } else {
-      // Xử lý drag issue
+      // Xử lý drag issue → tìm đúng column đích
       const activeIssueId = active.id as string;
-      const overColumnId = over.id as string;
+
+      let targetColumnId: string | null = null;
+
+      // Trường hợp 1: Drop trực tiếp vào column (vùng trống hoặc header)
+      if (over.data.current?.type === "Column") {
+        targetColumnId = over.id as string;
+      }
+      // Trường hợp 2: Drop lên một issue trong column → lấy column của issue đó
+      else {
+        const overIssue = issues.find((i) => i.id === over.id);
+        if (overIssue?.columnId) {
+          targetColumnId = overIssue.columnId;
+        }
+      }
+
+      if (!targetColumnId) {
+        console.warn("Không tìm thấy column đích khi drop issue", { activeId: active.id, overId: over.id });
+        toast.warn("Không thể di chuyển issue: không xác định được cột đích");
+        return;
+      }
 
       const issue = issues.find((i) => i.id === activeIssueId);
       if (!issue) return;
 
-      if (issue.columnId !== overColumnId) {
+      if (issue.columnId !== targetColumnId) {
         try {
-          await updateIssue(projectId, activeIssueId, { columnId: overColumnId });
+          await updateIssue(projectId, activeIssueId, { columnId: targetColumnId });
+          toast.success("Di chuyển issue thành công");
         } catch (error) {
-          console.error("Failed to update issue:", error);
+          console.error("Failed to update issue column:", error);
+          toast.error("Không thể di chuyển issue");
         }
       }
     }
@@ -99,7 +118,6 @@ export default function BoardPage() {
 
   const handleCreateColumn = async (name: string, description: string = "") => {
     if (!projectId || !name.trim()) return;
-
     try {
       await createColumn(projectId, {
         name: name.trim(),
@@ -119,14 +137,12 @@ export default function BoardPage() {
 
   const handleReorderColumns = async (newColumnOrder: string[]) => {
     if (!projectId) return;
-
     const newColumns = columns
       .map((col) => ({
         ...col,
         order: newColumnOrder.indexOf(col.id) + 1,
       }))
       .sort((a, b) => a.order - b.order);
-
     await updateOrderColumn({
       projectId,
       columns: newColumns.map((col) => ({ id: col.id, order: col.order })),
@@ -136,7 +152,6 @@ export default function BoardPage() {
   const handleNavigateColumns = (direction: "left" | "right") => {
     const totalColumns = columns.length + (isCreatingColumn ? 1 : 0);
     if (totalColumns <= 1) return;
-
     if (direction === "left") {
       setCurrentColumnIndex((prev) => (prev > 0 ? prev - 1 : totalColumns - 1));
     } else {
@@ -199,7 +214,6 @@ export default function BoardPage() {
             <FaChevronRight className="h-4 w-4" />
           </button>
         </div>
-
         <div className="text-sm text-gray-500">
           Column {currentColumnIndex + 1} of {columns.length + (isCreatingColumn ? 1 : 0)}
         </div>
@@ -223,11 +237,9 @@ export default function BoardPage() {
                 activeId={activeId as string | null}
               />
             ))}
-
             {isCreatingColumn && currentColumnIndex <= columns.length && (
               <NewColumnPlaceholder onCancel={handleCancelCreateColumn} onSubmit={handleCreateColumn} />
             )}
-
             {!isCreatingColumn && currentColumnIndex + visibleColumnsCount() > columns.length && (
               <div
                 onClick={() => setIsCreatingColumn(true)}
@@ -245,7 +257,6 @@ export default function BoardPage() {
               </div>
             )}
           </div>
-
           {columns.length + (isCreatingColumn ? 1 : 0) > visibleColumnsCount() && (
             <div className="mt-4 text-center text-sm text-gray-500">Use the navigation buttons to see more columns</div>
           )}

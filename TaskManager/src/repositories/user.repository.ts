@@ -1,5 +1,6 @@
-import { User } from "@/models/user.model";
+// src/repositories/user.repository.ts
 
+import { User } from "@/models/user.model";
 import { NotFoundError } from "@/utils/errors";
 import { connectMongo } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
@@ -7,6 +8,24 @@ import { UserQueryParams } from "@/types/query-param";
 
 export class UserRepository {
   private collectionName = "users";
+
+  async findById(userId: string) {
+    if (!ObjectId.isValid(userId)) {
+      return null;
+    }
+    const db = await connectMongo();
+    const user = await db.collection(this.collectionName).findOne({ _id: new ObjectId(userId) });
+    return user
+      ? {
+          id: user._id.toString(),
+          email: user.email,
+          fullName: user.fullName,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+        }
+      : null;
+  }
 
   async findAll(input: UserQueryParams) {
     const db = await connectMongo();
@@ -19,18 +38,13 @@ export class UserRepository {
     if (input.email) filter.email = input.email;
     if (input.fullName) filter.firstName = input.fullName;
     if (input.role) filter.role = input.role;
-    
-    // Add fuzzy search for email and fullName
+
     if (input.search) {
       const searchRegex = new RegExp(input.search, "i"); // Case-insensitive search
-      filter.$or = [
-        { email: searchRegex },
-        { fullName: searchRegex },
-      ];
+      filter.$or = [{ email: searchRegex }, { fullName: searchRegex }];
     }
 
     const data = await db.collection(this.collectionName).find(filter).skip(skip).limit(limit).toArray();
-
     const total = await db.collection(this.collectionName).countDocuments(filter);
 
     return {
@@ -51,7 +65,6 @@ export class UserRepository {
     if (input.email) filter.email = input.email;
 
     const user = await db.collection(this.collectionName).findOne(filter);
-    console.log("findOne filter:", JSON.stringify(filter, null, 2));
     return user;
   }
 
@@ -70,37 +83,27 @@ export class UserRepository {
 
   async update(input: { userId: string; userData: Partial<User> }) {
     const db = await connectMongo();
-    
-    console.log(`[REPO DEBUG] Updating user with ID: ${input.userId}`);
-    console.log(`[REPO DEBUG] Update data:`, JSON.stringify(input.userData, null, 2));
-    
-    // Validate ObjectId format (from HEAD)
+
     if (!ObjectId.isValid(input.userId)) {
-      console.error(`[REPO ERROR] Invalid ObjectId format: ${input.userId}`);
       throw new NotFoundError({ message: `Invalid user ID format: ${input.userId}` });
     }
-    
-    // Auto add updatedAt timestamp (from origin/main)
+
     const updateData = {
       ...input.userData,
       updatedAt: new Date(),
     };
-    
+
     const result = await db
       .collection(this.collectionName)
-      .findOneAndUpdate(
-        { _id: new ObjectId(input.userId) }, 
-        { $set: updateData }, 
-        { returnDocument: "after" }
-      );
-    
+      .findOneAndUpdate({ _id: new ObjectId(input.userId) }, { $set: updateData }, { returnDocument: "after" });
+
     console.log(`[REPO DEBUG] Update result:`, result ? "Success" : "Null");
-    
+
     if (!result) {
       console.error(`[REPO ERROR] User not found for ID: ${input.userId}`);
       throw new NotFoundError({ message: `User with ID ${input.userId} not found` });
     }
-    
+
     return result;
   }
 

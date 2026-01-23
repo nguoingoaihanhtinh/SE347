@@ -1,12 +1,10 @@
 // src/routes/invitation.route.ts
 import { Router } from "express";
-import { authenticate } from "@/middlewares/auth.middleware";
-import { acceptInvitation, declineInvitation } from "@/handlers/project-member.handler";
+import { getInvitationDetails } from "@/handlers/project-member.handler";
 
 const router = Router();
 
-router.post("/:token/accept", authenticate, acceptInvitation);
-
-router.post("/:token/decline", authenticate, declineInvitation);
+// Public route - chỉ để lấy thông tin invitation (không accept ngay)
+router.get("/:token", getInvitationDetails);
 
 export default router;

@@ -1,3 +1,5 @@
+// src/repositories/activity.repository.ts
+
 import { Activity, ActivityChange } from "@/models/activity.model";
 import { connectMongo } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
@@ -47,7 +49,6 @@ export class ActivityRepository {
     const skip = (page - 1) * limit;
     const filter = { projectId: new ObjectId(projectId) };
 
-    // Thêm kiểm tra null safety
     const data = await db
       .collection(this.collectionName)
       .find(filter)

@@ -6,7 +6,7 @@ import InputField from "../components/ui/InputField";
 import { Button } from "../components/ui/Button";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import type { Location } from "react-router-dom";
-import { useState } from "react";
+import { useMemo, useState } from "react"; // Chỉ dùng useMemo thay vì useEffect + setState
 import AuthBanner from "../components/auth/AuthBanner";
 import AuthFormContainer from "../components/auth/AuthFormContainer";
 
@@ -21,7 +21,13 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuthStore();
+
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Fix: Dùng useMemo thay vì useEffect + setState đồng bộ
+  const hasPendingInvitation = useMemo(() => {
+    return !!localStorage.getItem("pendingInvitation");
+  }, []); // Chỉ tính 1 lần khi mount
 
   const {
     register,
@@ -34,19 +40,28 @@ export default function LoginPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       setFormError(null);
-      
-      // Call login - this will save token and update state
+
       await login(values.email, values.password);
-      
-      // Get the updated user from store (login has already set it)
+
       const loggedInUser = useAuthStore.getState().user;
-      
+
+      const hadPendingInvitation = hasPendingInvitation;
+
+      // Xóa pending invitation sau khi xử lý
+      localStorage.removeItem("pendingInvitation");
+      localStorage.removeItem("pendingProjectId");
+
+      if (hadPendingInvitation) {
+        navigate("/projects", {
+          state: { message: "Successfully joined the project!" },
+        });
+        return;
+      }
+
       // ROLE-BASED REDIRECTION
       if (loggedInUser?.role === "admin" || loggedInUser?.role === "super_admin") {
-        // Admin users go to Admin Panel
         navigate("/admin");
       } else {
-        // Regular users go to their intended location or dashboard
         const from = (location.state as { from?: Location })?.from?.pathname || "/";
         navigate(from);
       }
@@ -57,17 +72,44 @@ export default function LoginPage() {
   };
 
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center overflow-hidden py-12 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100"
-    >
-      <div className="w-[90%] h-full max-w-5xl flex rounded-3xl overflow-hidden bg-white/85 backdrop-blur-md" style={{ boxShadow: '0 0 50px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255,255,255,0.08)' }}>
+    <div className="fixed inset-0 flex items-center justify-center overflow-hidden py-12 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100">
+      <div
+        className="w-[90%] h-full max-w-5xl flex rounded-3xl overflow-hidden bg-white/85 backdrop-blur-md"
+        style={{ boxShadow: "0 0 50px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255,255,255,0.08)" }}
+      >
         <AuthBanner subtitle="Quản lý dự án, sprint và issue trong một nền tảng." />
-
         <AuthFormContainer
           title="Đăng nhập"
-          subtitle="Đăng nhập để tiếp tục làm việc cùng đội ngũ của bạn."
+          subtitle={
+            hasPendingInvitation
+              ? "Đăng nhập để chấp nhận lời mời tham gia dự án."
+              : "Đăng nhập để tiếp tục làm việc cùng đội ngũ của bạn."
+          }
           swapLink={{ text: "Đăng ký", href: "/register" }}
         >
+          {hasPendingInvitation && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <svg
+                  className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium">Bạn có lời mời tham gia dự án</p>
+                  <p className="text-xs text-blue-600 mt-1">Đăng nhập để chấp nhận lời mời</p>
+                </div>
+              </div>
+            </div>
+          )}
           <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
             <InputField
               type="email"
@@ -83,9 +125,7 @@ export default function LoginPage() {
               error={errors.password?.message}
               {...register("password")}
             />
-
             {formError && <p className="text-xs text-red-600 mt-1">{formError}</p>}
-
             <div className="flex items-center justify-between text-xs pt-1">
               <label className="inline-flex items-center gap-1.5 text-slate-600 cursor-pointer">
                 <input type="checkbox" className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600" />
@@ -95,9 +135,8 @@ export default function LoginPage() {
                 Quên mật khẩu?
               </Link>
             </div>
-
             <Button type="submit" className="w-full mt-4" size="md" isLoading={isSubmitting}>
-              Đăng nhập
+              {hasPendingInvitation ? "Đăng nhập và tham gia dự án" : "Đăng nhập"}
             </Button>
           </form>
         </AuthFormContainer>
@@ -105,4 +144,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

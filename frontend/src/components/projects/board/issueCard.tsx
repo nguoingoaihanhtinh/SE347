@@ -6,8 +6,17 @@ import PriorityBadge from "../../ui/badge/priorityBadge";
 import UserAvatar from "../../ui/user/userAvatar";
 import { useIssueStore } from "../../../stores/issueStore";
 
-const formatDate = (dateString: string): string => {
+// ✅ Hàm helper an toàn để format ngày
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return "—"; // hoặc "N/A", "Unknown", v.v.
+
   const date = new Date(dateString);
+  // Kiểm tra xem date có hợp lệ không
+  if (isNaN(date.getTime())) {
+    console.warn("Invalid date string:", dateString);
+    return "—";
+  }
+
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -22,7 +31,6 @@ const ensureIssueHasColumnId = (issue: IIssue | IIssueWithoutColumn, defaultColu
   return {
     ...issue,
     columnId: defaultColumnId || "unassigned",
-
     createdAt: issue.createdAt || new Date().toISOString(),
     updatedAt: issue.updatedAt || new Date().toISOString(),
     attachments: issue.attachments || [],

@@ -36,8 +36,7 @@ export async function inviteMember(req: Request, res: Response) {
 }
 
 export async function acceptInvitation(req: Request, res: Response) {
-  const { token } = req.params;
-
+  const token = req.body.token;
   if (!token) {
     return res.status(400).json({
       success: false,
@@ -153,7 +152,7 @@ export async function cancelInvitation(req: Request, res: Response) {
   const result = await projectMemberService.cancelInvitation(
     cancelData.projectId,
     req.user!.userId,
-    cancelData.invitationId
+    cancelData.invitationId,
   );
 
   res.status(200).json({
@@ -175,8 +174,67 @@ export async function leaveProject(req: Request, res: Response) {
   const result = await projectMemberService.removeMember(
     projectId,
     req.user!.userId,
-    req.user!.userId // Self-removal
+    req.user!.userId, // Self-removal
   );
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+}
+
+export async function getInvitationDetails(req: Request, res: Response) {
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: "Token is required",
+    });
+  }
+
+  const invitation = await projectMemberService.getInvitationDetails(token);
+
+  res.status(200).json({
+    success: true,
+    data: invitation,
+  });
+}
+
+// Handler để accept (authenticated)
+export async function acceptInvitationWithToken(req: Request, res: Response) {
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: "Token is required",
+    });
+  }
+
+  const result = await projectMemberService.acceptInvitation({
+    token,
+    userId: req.user!.userId,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+}
+
+// Handler để decline (authenticated)
+export async function declineInvitationWithToken(req: Request, res: Response) {
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).json({
+      success: false,
+      message: "Token is required",
+    });
+  }
+
+  const result = await projectMemberService.declineInvitation(token);
 
   res.status(200).json({
     success: true,
