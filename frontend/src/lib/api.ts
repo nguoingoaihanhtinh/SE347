@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { User, Comment, AuthResponse, ApiResponse } from "../types";
+import { IIssue } from "@/types/issue";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
 
@@ -60,7 +61,7 @@ api.interceptors.response.use(
 );
 
 export interface ResponseApi<T> {
-  issue: import("e:/Hoc/SE347/frontend/src/types/issue").IIssue;
+  issue: IIssue;
   success: boolean;
   status_code: number;
   status: string;
