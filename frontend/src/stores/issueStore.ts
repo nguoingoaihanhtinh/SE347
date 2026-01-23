@@ -27,6 +27,7 @@ interface IssueState {
   openIssueDetail: (issueId: string) => void;
   closeIssueDetail: () => void;
   getIssueById: (issueId: string) => IIssue | undefined;
+  updateIssueColumnOptimistic: (issueId: string, columnId: string) => void;
 
   setSelectedIssues: (sprintId: string, issues: IIssue[]) => void;
   toggleIssueSelection: (sprintId: string, issue: IIssue) => void;
@@ -295,5 +296,18 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
   isIssueSelected: (sprintId: string, issueId: string) => {
     const selectedIssues = get().selectedIssues[sprintId] || [];
     return selectedIssues.some((issue) => issue.id === issueId);
+  },
+
+  // Optimistic update for column change (for drag & drop)
+  updateIssueColumnOptimistic: (issueId: string, columnId: string) => {
+    set((state) => ({
+      issues: state.issues.map((i) =>
+        i.id === issueId ? { ...i, columnId, updatedAt: new Date().toISOString() } : i,
+      ),
+      currentIssue:
+        state.currentIssue?.id === issueId
+          ? { ...state.currentIssue, columnId, updatedAt: new Date().toISOString() }
+          : state.currentIssue,
+    }));
   },
 }));

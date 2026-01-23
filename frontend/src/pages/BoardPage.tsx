@@ -26,7 +26,7 @@ export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { fetchProject, currentProject, isLoading: isProjectLoading } = useProjectStore();
   const { fetchColumns, columns, isLoading: isColumnsLoading, createColumn, reorderColumns, setColumns } = useColumnStore();
-  const { fetchIssuesForBoard, issues: storeIssues, updateIssue } = useIssueStore();
+  const { fetchIssuesForBoard, issues: storeIssues, updateIssue, updateIssueColumnOptimistic } = useIssueStore();
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [activeIssue, setActiveIssue] = useState<IIssue | null>(null);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
@@ -124,31 +124,59 @@ export default function BoardPage() {
       if (over.data.current?.type === "Column") {
         targetColumnId = over.id as string;
       }
-      // Trường hợp 2: Drop lên một issue trong column → lấy column của issue đó
+      // Trường hợp 2: Drop lên một issue trong column → lấy column từ issue data
+      else if (over.data.current?.type === "Issue") {
+        // Use columnId from the issue data if available
+        targetColumnId = over.data.current.columnId || null;
+        
+        // Fallback: Find issue in store and get its columnId
+        if (!targetColumnId) {
+          const overIssue = issues.find((i) => i.id === over.id);
+          targetColumnId = overIssue?.columnId || null;
+        }
+      }
+      // Trường hợp 3: Fallback - over.id có thể là issue ID, tìm trong issues
       else {
         const overIssue = issues.find((i) => i.id === over.id);
         if (overIssue?.columnId) {
           targetColumnId = overIssue.columnId;
+        } else {
+          // Last resort: Check if over.id is a column ID
+          const isColumnId = columns.some((col) => col.id === over.id);
+          if (isColumnId) {
+            targetColumnId = over.id as string;
+          }
         }
       }
 
       if (!targetColumnId) {
-        console.warn("Không tìm thấy column đích khi drop issue", { activeId: active.id, overId: over.id });
+        console.warn("Không tìm thấy column đích khi drop issue", {
+          activeId: active.id,
+          overId: over.id,
+          overData: over.data.current,
+          availableColumns: columns.map((c) => c.id),
+        });
         toast.warn("Không thể di chuyển issue: không xác định được cột đích");
         return;
       }
 
       const issue = issues.find((i) => i.id === activeIssueId);
-      if (!issue) return;
+      if (!issue) {
+        console.warn("Không tìm thấy issue với ID:", activeIssueId);
+        return;
+      }
 
       if (issue.columnId !== targetColumnId) {
-        try {
-          await updateIssue(projectId, activeIssueId, { columnId: targetColumnId });
-          toast.success("Di chuyển issue thành công");
-        } catch (error) {
+        // CRITICAL: Optimistic UI update - update local state immediately
+        updateIssueColumnOptimistic(activeIssueId, targetColumnId);
+
+        // Then persist to backend in background
+        updateIssue(projectId, activeIssueId, { columnId: targetColumnId }).catch((error) => {
           console.error("Failed to update issue column:", error);
           toast.error("Không thể di chuyển issue");
-        }
+          // Revert optimistic update on error
+          updateIssueColumnOptimistic(activeIssueId, issue.columnId);
+        });
       }
     }
   };

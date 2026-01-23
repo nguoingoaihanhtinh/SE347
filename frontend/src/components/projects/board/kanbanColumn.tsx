@@ -25,6 +25,11 @@ const SortableIssue = ({
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: issue.id,
+    data: {
+      type: "Issue",
+      issue,
+      columnId: columnId || (issue as IIssue).columnId,
+    },
   });
 
   const style: CSSProperties = {
