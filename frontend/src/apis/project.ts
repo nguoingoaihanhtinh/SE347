@@ -33,7 +33,11 @@ export const projects = {
     description?: string | null;
     access: "public" | "private";
     type: "scrum" | "kanban";
-  }) => api.post<ResponseApi<IProject>>("/projects", projectData, config),
+  }) => {
+    // console.log("🔵 [project API] POST /projects with data:", projectData);
+    // console.log("🔵 [project API] Config:", config);
+    return api.post<ResponseApi<IProject>>("/projects", projectData, config);
+  },
 
   update: (projectId: string, projectData: Partial<IProject>) =>
     api.put<ResponseApi<IProject>>(`/projects/${projectId}`, projectData, config),

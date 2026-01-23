@@ -12,6 +12,7 @@ export class ProjectRepository {
     if (mongoFilter.ownerId) {
       mongoFilter.ownerId = new ObjectId(mongoFilter.ownerId);
     }
+    // access filter is already a string, no need to convert
     const data = await db.collection(this.collectionName).find(mongoFilter).skip(skip).limit(limit).toArray();
 
     const total = await db.collection(this.collectionName).countDocuments(mongoFilter);

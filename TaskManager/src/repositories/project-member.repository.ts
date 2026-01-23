@@ -117,13 +117,18 @@ class ProjectMemberRepository {
   async findByProjectAndUser(projectId: string, userId: string): Promise<ProjectMember | null> {
     console.log("🔍 Finding member - Project ID:", projectId, "User ID:", userId);
     const collection = await this.getCollection();
-    const member = await collection.findOne({ projectId, userId });
+    const member = await collection.findOne({ 
+      projectId: new ObjectId(projectId), 
+      userId: new ObjectId(userId) 
+    });
     console.log("🔍 Found member:", member);
     if (!member) return null;
 
     return {
       ...member,
       id: member._id?.toString(),
+      projectId: member.projectId?.toString() || member.projectId,
+      userId: member.userId?.toString() || member.userId,
     };
   }
 
@@ -240,6 +245,17 @@ class ProjectMemberRepository {
   async getUserRole(projectId: string, userId: string): Promise<TeamMemberRole | null> {
     const member = await this.findByProjectAndUser(projectId, userId);
     return member ? member.role : null;
+  }
+
+  async findByUser(userId: string): Promise<ProjectMember[]> {
+    const collection = await this.getCollection();
+    const members = await collection.find({ userId: new ObjectId(userId) }).toArray();
+    return members.map((member) => ({
+      ...member,
+      id: member._id?.toString(),
+      projectId: member.projectId?.toString() || member.projectId,
+      userId: member.userId?.toString() || member.userId,
+    }));
   }
 }
 

@@ -14,6 +14,9 @@ export interface IProject {
   columns?: IColumn[];
 }
 
+// Type for creating a project (without ownerId, as backend sets it from req.user.userId)
+export type CreateProjectParams = Omit<IProject, "id" | "createdAt" | "updatedAt" | "ownerId">;
+
 export interface IColumn {
   id: string;
   name: string;

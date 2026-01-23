@@ -40,7 +40,12 @@ const getUserFromStorage = (): User | null => {
   const userStr = localStorage.getItem("user") || sessionStorage.getItem("user");
   if (!userStr) return null;
   try {
-    return JSON.parse(userStr);
+    const user = JSON.parse(userStr);
+    // Normalize: map _id to id if needed
+    if (user._id && !user.id) {
+      return { ...user, id: user._id };
+    }
+    return user;
   } catch {
     return null;
   }
@@ -115,7 +120,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Token is set in httpOnly cookie, NOT in response body
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const responseData = (res as any)?.data;
-      console.log("🔍 Login Response Structure:", JSON.stringify(responseData, null, 2));
+      // console.log("🔍 Login Response Structure:", JSON.stringify(responseData, null, 2));
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const userFromLogin = responseData?.data?.user;
@@ -129,21 +134,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       
       // Save token flag to appropriate storage based on remember me
       saveToStorage("token", storageFlag, remember);
-      console.log(`✅ Login Success - Token Saved to ${remember ? "localStorage" : "sessionStorage"}:`, storageFlag.substring(0, 20) + "...");
+      // console.log(`✅ Login Success - Token Saved to ${remember ? "localStorage" : "sessionStorage"}:`, storageFlag.substring(0, 20) + "...");
 
       if (!userFromLogin) {
         console.error("❌ Login Failed - No user in response:", responseData);
         throw new Error("No user received from server");
       }
 
+      // Map _id to id if needed (backend now normalizes, but keep as fallback)
+      const normalizedUser = userFromLogin._id && !userFromLogin.id
+        ? { ...userFromLogin, id: userFromLogin._id }
+        : userFromLogin;
+
       // Save user to appropriate storage based on remember me
-      saveToStorage("user", JSON.stringify(userFromLogin), remember);
-      console.log(`✅ Login Success - User Saved to ${remember ? "localStorage" : "sessionStorage"}:`, userFromLogin.email);
+      saveToStorage("user", JSON.stringify(normalizedUser), remember);
+      // console.log(`✅ Login Success - User Saved to ${remember ? "localStorage" : "sessionStorage"}:`, normalizedUser.email);
 
       // CRITICAL: Update state IMMEDIATELY with token and user (synchronous)
       // This ensures isAuthenticated is true before any navigation logic
       set({
-        user: userFromLogin || null,
+        user: normalizedUser || null,
         isAuthenticated: true, // Set to true immediately if token exists
         isLoading: false,
         error: null,
@@ -153,16 +163,22 @@ export const useAuthStore = create<AuthState>((set) => ({
       // If this fails, the error handler will catch it
       try {
         const { data } = await authApi.getCurrentUser();
+        // Map _id to id if needed
+        const verifiedUser = data.data._id && !data.data.id
+          ? { ...data.data, id: data.data._id }
+          : data.data;
         // Update with fresh user data from server
         set({
-          user: data.data,
+          user: verifiedUser,
           isAuthenticated: true,
         });
-        console.log("✅ Login Success - User verified from /me endpoint");
+        // Also update storage
+        saveToStorage("user", JSON.stringify(verifiedUser), remember);
+        // console.log("✅ Login Success - User verified from /me endpoint");
       } catch (verifyError) {
         // If /me fails but we have token, still consider user authenticated
         // The token might be valid but /me endpoint might have issues
-        console.warn("⚠️ Login Warning - /me verification failed, but token is saved:", verifyError);
+        // console.warn("⚠️ Login Warning - /me verification failed, but token is saved:", verifyError);
         // Keep the user from login response
       }
     } catch (error) {
@@ -195,13 +211,23 @@ export const useAuthStore = create<AuthState>((set) => ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const userFromRegister = (res as any)?.data?.data?.user;
 
+      // Normalize user: map _id to id if needed
+      const normalizedRegisterUser = userFromRegister?._id && !userFromRegister?.id
+        ? { ...userFromRegister, id: userFromRegister._id }
+        : userFromRegister;
+
       if (token) localStorage.setItem("token", token);
-      if (userFromRegister) localStorage.setItem("user", JSON.stringify(userFromRegister));
+      if (normalizedRegisterUser) localStorage.setItem("user", JSON.stringify(normalizedRegisterUser));
 
       const { data } = await authApi.getCurrentUser();
+      
+      // Normalize user from /me endpoint
+      const normalizedUser = data.data._id && !data.data.id
+        ? { ...data.data, id: data.data._id }
+        : data.data;
 
       set({
-        user: data.data,
+        user: normalizedUser,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -219,7 +245,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // This ensures user is logged out even if they had "Remember Me" checked
     clearFromStorage("token");
     clearFromStorage("user");
-    console.log("✅ Logout - Cleared all storage (localStorage + sessionStorage)");
+    // console.log("✅ Logout - Cleared all storage (localStorage + sessionStorage)");
     set({ user: null, isAuthenticated: false });
   },
 
@@ -236,12 +262,21 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       const { data } = await authApi.getCurrentUser();
+      
+      // Map _id to id if needed (backend returns _id, frontend expects id)
+      const normalizedUser = data.data._id && !data.data.id
+        ? { ...data.data, id: data.data._id }
+        : data.data;
 
       set({
-        user: data.data,
+        user: normalizedUser,
         isAuthenticated: true,
         isLoading: false,
       });
+      
+      // Also update storage
+      const remember = !!localStorage.getItem("token");
+      saveToStorage("user", JSON.stringify(normalizedUser), remember);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // Only logout if it's a 401 (unauthorized) - token expired or invalid

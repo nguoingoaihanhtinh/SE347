@@ -27,11 +27,11 @@ import activityRoutes from "./activity.route";
 
 const router = Router();
 
-// Public routes
-router.get("/", getProjects);
-
-// Protected routes
+// Protected routes - All project routes require authentication
 router.use(authenticate);
+
+// Get projects for current user (filtered by membership)
+router.get("/", getProjects);
 // Project member routes
 router.get("/:projectId/members", getProjectMembers);
 router.get("/:projectId/stats", getProjectStats);

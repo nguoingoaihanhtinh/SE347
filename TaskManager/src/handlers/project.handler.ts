@@ -9,7 +9,14 @@ import { updateProjectSchema } from "@/dtos/project/UpdateProject.dto";
 
 export async function getProjects(req: Request, res: Response) {
   const { page, limit } = req.query;
-  const result = await ProjectService.findAll(_.toInteger(page) || 1, _.toInteger(limit) || 10);
+  const currentUserId = req.user!.userId;
+  const currentUserRole = req.user!.role;
+  const result = await ProjectService.findAll(
+    _.toInteger(page) || 1, 
+    _.toInteger(limit) || 10,
+    currentUserId,
+    currentUserRole
+  );
   res.status(200).json({ success: true, ...result });
 }
 

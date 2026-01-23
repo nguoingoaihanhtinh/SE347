@@ -8,30 +8,47 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
-// Add token to header if available
-// api.interceptors.request.use(
-//   (config) => {
-//     const token = localStorage.getItem("token");
-//     if (token) {
-//       config.headers.Authorization = `Bearer ${token}`;
-//       // Debug: Log when token is attached (only in development and not for auth endpoints)
-//       if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
-//         console.log(`[API] Request to ${config.url} with auth token`);
-//       }
-//     } else if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
-//       // Only warn for non-auth endpoints when token is missing
-//       console.warn(`[API] Request to ${config.url} WITHOUT auth token`);
-//     }
-//     return config;
-//   },
-//   (error) => {
-//     return Promise.reject(error);
-//   },
-// );
-// Handle errors from server
-api.interceptors.response.use(
-  (response) => response,
+
+// Request interceptor for debugging
+api.interceptors.request.use(
+  (config) => {
+    if (import.meta.env.DEV) {
+      // console.log(`🔵 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+      //   data: config.data,
+      //   headers: config.headers,
+      //   withCredentials: config.withCredentials,
+      // });
+    }
+    return config;
+  },
   (error) => {
+    console.error("❌ [API Request Error]:", error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for debugging and error handling
+api.interceptors.response.use(
+  (response) => {
+    if (import.meta.env.DEV) {
+      // console.log(`✅ [API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+      //   status: response.status,
+      //   data: response.data,
+      // });
+    }
+    return response;
+  },
+  (error) => {
+    if (import.meta.env.DEV) {
+      // console.error(`❌ [API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
+      //   status: error.response?.status,
+      //   statusText: error.response?.statusText,
+      //   data: error.response?.data,
+      //   message: error.message,
+      // });
+    }
+    
+    // Handle 401 Unauthorized
     if (error.response?.status === 401) {
       const isAuthPage = ["/login", "/register", "/forgot-password"].includes(window.location.pathname);
 
@@ -48,8 +65,9 @@ api.interceptors.response.use(
         }, 100);
       }
     }
+    
     return Promise.reject(error);
-  },
+  }
 );
 
 export interface ResponseApi<T> {
