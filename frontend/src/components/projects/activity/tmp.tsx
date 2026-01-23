@@ -1,17 +1,24 @@
-import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { useActivityStore } from "../../../stores/activityStore";
+import React from "react";
 import { Clock, RefreshCw, Activity } from "lucide-react";
-import { formatRelative } from "date-fns";
-import { vi } from "date-fns/locale";
 
-interface IssueActivitySectionProps {
-  issueId: string;
+// Mock data structure
+interface ActivityChange {
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
 }
 
-// ── ActivityItem (copy UI đẹp từ tmp, nhưng dùng props activity từ store) ──
-const ActivityItem = ({ activity }: { activity: any }) => {
-  // tạm dùng any để không đụng type, sau này bạn có thể thay bằng type thật
+interface ActivityData {
+  id: string;
+  user_name: string;
+  action_type: string;
+  created_at: string;
+  changes?: ActivityChange[];
+  entity_name?: string;
+}
+
+// Activity Item Component với spacing cải thiện
+const ActivityItem = ({ activity }: { activity: ActivityData }) => {
   const getActionText = () => {
     switch (activity.action_type) {
       case "update":
@@ -39,6 +46,7 @@ const ActivityItem = ({ activity }: { activity: any }) => {
     const now = new Date();
     const date = new Date(dateString);
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+
     if (diff < 60) return "vừa xong";
     if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
     if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
@@ -49,6 +57,7 @@ const ActivityItem = ({ activity }: { activity: any }) => {
     <div className="group relative">
       {/* Timeline line */}
       <div className="absolute left-5 top-12 bottom-0 w-0.5 bg-gray-200 group-last:hidden" />
+
       <div className="flex gap-4 pb-6">
         {/* Avatar */}
         <div className="flex-shrink-0 relative z-10">
@@ -56,6 +65,7 @@ const ActivityItem = ({ activity }: { activity: any }) => {
             {activity.user_name?.charAt(0).toUpperCase() || "A"}
           </div>
         </div>
+
         {/* Content */}
         <div className="flex-1 min-w-0 pt-1">
           <div className="flex items-start justify-between gap-3 mb-2">
@@ -70,13 +80,14 @@ const ActivityItem = ({ activity }: { activity: any }) => {
               <span>{formatTime(activity.created_at)}</span>
             </div>
           </div>
+
           {/* Changes */}
           {activity.changes && activity.changes.length > 0 && (
             <div className="mt-3 space-y-2">
-              {activity.changes.map((change: any, idx: number) => (
+              {activity.changes.map((change, idx) => (
                 <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-gray-700 min-w-[80px]">{change.field || "—"}:</span>
+                    <span className="font-medium text-gray-700 min-w-[80px]">{change.field}:</span>
                     <div className="flex items-center gap-2 flex-1">
                       {change.old_value && (
                         <>
@@ -99,7 +110,7 @@ const ActivityItem = ({ activity }: { activity: any }) => {
                             : "bg-blue-100 text-blue-700"
                         }`}
                       >
-                        {change.new_value || "trống"}
+                        {change.new_value}
                       </span>
                     </div>
                   </div>
@@ -113,39 +124,41 @@ const ActivityItem = ({ activity }: { activity: any }) => {
   );
 };
 
-// ── Main Component ──
-const IssueActivitySection = ({ issueId }: IssueActivitySectionProps) => {
-  const { projectId } = useParams<{ projectId: string }>();
-  const { activities, lastUpdated, fetchProjectActivities, refetchImmediately } = useActivityStore();
+// Main Component
+const ImprovedIssueActivitySection = () => {
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const issueActivities = useMemo(() => {
-    return activities
-      .filter((activity) => {
-        const matchesIssue = activity.issue_id && activity.issue_id === issueId;
-        return matchesIssue;
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [activities, issueId]);
-
-  // Auto-fetch (giữ nguyên useMemo như file cũ)
-  useMemo(() => {
-    if (projectId) {
-      fetchProjectActivities(projectId);
-    }
-  }, [fetchProjectActivities, projectId]);
+  // Mock activities với static dates
+  const activities: ActivityData[] = [
+    {
+      id: "1",
+      user_name: "John Doe",
+      action_type: "update",
+      created_at: "2026-01-23T10:48:00Z",
+      changes: [{ field: "priority", old_value: "low", new_value: "critical" }],
+    },
+    {
+      id: "2",
+      user_name: "Anonymous",
+      action_type: "update",
+      created_at: "2026-01-23T10:45:00Z",
+      changes: [{ field: "priority", old_value: "medium", new_value: "low" }],
+    },
+    {
+      id: "3",
+      user_name: "John Doe",
+      action_type: "update",
+      created_at: "2026-01-23T10:32:00Z",
+      changes: [{ field: "status", old_value: "todo", new_value: "in_progress" }],
+    },
+  ];
 
   const handleRefresh = () => {
-    if (projectId) {
-      setIsRefreshing(true);
-      refetchImmediately(projectId);
-      // Giả lập delay để thấy spin (có thể bỏ nếu không cần)
-      setTimeout(() => setIsRefreshing(false), 1000);
-    }
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 1000);
   };
 
-  if (issueActivities.length === 0) {
+  if (activities.length === 0) {
     return (
       <div className="border-t border-gray-200 pt-6">
         <div className="text-center py-12 px-4">
@@ -158,10 +171,9 @@ const IssueActivitySection = ({ issueId }: IssueActivitySectionProps) => {
           </p>
           <button
             onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className="w-4 h-4" />
             Làm mới
           </button>
         </div>
@@ -177,25 +189,20 @@ const IssueActivitySection = ({ issueId }: IssueActivitySectionProps) => {
           <Activity className="w-5 h-5 text-gray-600" />
           Hoạt động của issue
         </h3>
-        <div className="flex items-center gap-4">
-          {lastUpdated && (
-            <span className="text-xs text-gray-500">{formatRelative(lastUpdated, new Date(), { locale: vi })}</span>
-          )}
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            Làm mới
-          </button>
-        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+          Làm mới
+        </button>
       </div>
 
-      {/* List */}
+      {/* Activity List */}
       <div className="max-h-[500px] overflow-y-auto px-1">
         <div className="space-y-0">
-          {issueActivities.map((activity) => (
+          {activities.map((activity) => (
             <ActivityItem key={activity.id} activity={activity} />
           ))}
         </div>
@@ -204,4 +211,4 @@ const IssueActivitySection = ({ issueId }: IssueActivitySectionProps) => {
   );
 };
 
-export default IssueActivitySection;
+export default ImprovedIssueActivitySection;

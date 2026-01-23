@@ -10,6 +10,7 @@ import ProjectLayout from "../layouts/ProjectLayout";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
+import AcceptInvitationPage from "../pages/AcceptInvitationPage";
 import ProjectsPage from "../pages/ProjectsPage";
 import ProfilePage from "../pages/ProfilePage";
 import MyTasksPage from "../pages/MyTasksPage";
@@ -49,6 +50,8 @@ export default function MainRoutes() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          {/* ✅ Accept Invitation - Public route that redirects to login if needed */}
+          <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
 
           {/* Protected Routes - User Layout (Dashboard) */}
           <Route

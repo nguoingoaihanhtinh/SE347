@@ -1,20 +1,22 @@
 export type TeamMemberRole = "owner" | "admin" | "member" | "viewer";
 export type MemberStatus = "active" | "pending_invite" | "pending_request";
 
-export interface IProjectMember {
+export interface ProjectMember {
   id: string;
   projectId: string;
   userId: string;
+  teamIds: string[];
   role: TeamMemberRole;
   isPending: boolean; // Deprecated: Use status instead
   status?: MemberStatus; // New: 'active' | 'pending_invite' | 'pending_request'
   createdAt: string;
   updatedAt: string;
   user?: {
-    id: string;
+    _id: string;
     email: string;
-    fullName: string;
-    avatar: string | null;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
   };
   project?: {
     id: string;
@@ -24,14 +26,17 @@ export interface IProjectMember {
   };
 }
 
-export interface InviteMemberParams {
-  email: string;
+export interface ProjectInvitation {
+  id: string;
+  projectId: string;
+  inviterUserId: string;
+  inviteeEmail: string;
   role: TeamMemberRole;
-}
-
-export interface UpdateMemberRoleParams {
-  userId: string;
-  role: TeamMemberRole;
+  token: string;
+  status: "pending" | "accepted" | "declined" | "expired";
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProjectMemberStats {
@@ -41,4 +46,12 @@ export interface ProjectMemberStats {
   memberCount: number;
   viewerCount: number;
   pendingInvitations: number;
+}
+
+export interface InvitationDetails {
+  projectId: string;
+  projectName: string;
+  inviterName: string;
+  role: TeamMemberRole;
+  expiresAt: string;
 }

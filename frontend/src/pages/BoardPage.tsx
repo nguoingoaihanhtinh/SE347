@@ -20,6 +20,7 @@ import { KanbanColumn } from "../components/projects/board/kanbanColumn";
 import NewColumnPlaceholder from "@/components/projects/board/newColumnPlaceholder";
 import IssueCard from "@/components/projects/board/issueCard";
 import type { IIssue } from "../types/issue";
+import { toast } from "react-toastify";
 
 export default function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -84,20 +85,18 @@ export default function BoardPage() {
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveIssue(null);
     setActiveId(null);
+
     const { active, over } = event;
     if (!over || active.id === over.id || !projectId) return;
 
-    // Xác định loại drag: column hay issue
     const isDraggingColumn = columns.some((col) => col.id === active.id);
 
     if (isDraggingColumn) {
-      // Xử lý drag column
+      // Xử lý drag column (giữ nguyên logic cũ)
       const activeColumnId = active.id as string;
       const overColumnId = over.id as string;
-
       const currentIndex = columns.findIndex((col) => col.id === activeColumnId);
       const overIndex = columns.findIndex((col) => col.id === overColumnId);
-
       if (currentIndex === -1 || overIndex === -1) return;
 
       // Update local state immediately for instant UI feedback
@@ -116,18 +115,39 @@ export default function BoardPage() {
         fetchColumns(projectId);
       });
     } else {
-      // Xử lý drag issue
+      // Xử lý drag issue → tìm đúng column đích
       const activeIssueId = active.id as string;
-      const overColumnId = over.id as string;
+
+      let targetColumnId: string | null = null;
+
+      // Trường hợp 1: Drop trực tiếp vào column (vùng trống hoặc header)
+      if (over.data.current?.type === "Column") {
+        targetColumnId = over.id as string;
+      }
+      // Trường hợp 2: Drop lên một issue trong column → lấy column của issue đó
+      else {
+        const overIssue = issues.find((i) => i.id === over.id);
+        if (overIssue?.columnId) {
+          targetColumnId = overIssue.columnId;
+        }
+      }
+
+      if (!targetColumnId) {
+        console.warn("Không tìm thấy column đích khi drop issue", { activeId: active.id, overId: over.id });
+        toast.warn("Không thể di chuyển issue: không xác định được cột đích");
+        return;
+      }
 
       const issue = issues.find((i) => i.id === activeIssueId);
       if (!issue) return;
 
-      if (issue.columnId !== overColumnId) {
+      if (issue.columnId !== targetColumnId) {
         try {
-          await updateIssue(projectId, activeIssueId, { columnId: overColumnId });
+          await updateIssue(projectId, activeIssueId, { columnId: targetColumnId });
+          toast.success("Di chuyển issue thành công");
         } catch (error) {
-          console.error("Failed to update issue:", error);
+          console.error("Failed to update issue column:", error);
+          toast.error("Không thể di chuyển issue");
         }
       }
     }
@@ -135,7 +155,6 @@ export default function BoardPage() {
 
   const handleCreateColumn = async (name: string, description: string = "") => {
     if (!projectId || !name.trim()) return;
-
     try {
       await createColumn(projectId, {
         name: name.trim(),
@@ -249,7 +268,6 @@ export default function BoardPage() {
                 activeId={activeId as string | null}
               />
             ))}
-
             {isCreatingColumn && (
               <NewColumnPlaceholder onCancel={handleCancelCreateColumn} onSubmit={handleCreateColumn} />
             )}

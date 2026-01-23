@@ -30,7 +30,9 @@ export const verifyToken = (token: string): JWTPayload => {
       });
     }
 
+    console.log("Verifying token:", token); // Debugging log
     const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+    console.log("Decoded token payload:", decoded); // Debugging log
     return decoded;
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {

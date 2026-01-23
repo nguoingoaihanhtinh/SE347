@@ -173,9 +173,11 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
         };
 
         // Ensure the issue has all required fields with defaults
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const newIssueAny = newIssue as any;
         const normalizedIssue: IIssue = {
           ...newIssue,
-          id: newIssue.id || newIssue._id || "",
+          id: newIssue.id || newIssueAny._id || "",
           createdAt: normalizeDate(newIssue.createdAt) || new Date().toISOString(),
           updatedAt: normalizeDate(newIssue.updatedAt) || new Date().toISOString(),
           attachments: newIssue.attachments || [],

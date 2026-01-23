@@ -46,7 +46,7 @@ class ProjectMemberService {
   private hasPermission(
     requesterRole: TeamMemberRole,
     targetRole: TeamMemberRole,
-    action: "invite" | "remove" | "update"
+    action: "invite" | "remove" | "update",
   ): boolean {
     const requesterLevel = this.roleHierarchy[requesterRole];
     const targetLevel = this.roleHierarchy[targetRole];
@@ -70,7 +70,7 @@ class ProjectMemberService {
   }
 
   async inviteMember(
-    input: InviteMemberInput
+    input: InviteMemberInput,
   ): Promise<{ success: boolean; message: string; invitation?: ProjectInvitation }> {
     const { projectId, inviterUserId, inviteeEmail, role } = input;
 
@@ -91,7 +91,7 @@ class ProjectMemberService {
 
       const existingInvitation = await projectInvitationRepository.findPendingByProjectAndEmail(
         projectId,
-        inviteeEmail
+        inviteeEmail,
       );
       if (existingInvitation) {
         throw new BadRequestError({ message: "User already has a pending invitation for this project" });
@@ -123,7 +123,7 @@ class ProjectMemberService {
         `${inviter.firstName} ${inviter.lastName}`,
         project.name,
         role,
-        invitationLink
+        invitationLink,
       );
 
       if (!emailSent) {
@@ -143,7 +143,7 @@ class ProjectMemberService {
   }
 
   async acceptInvitation(
-    input: AcceptInvitationInput
+    input: AcceptInvitationInput,
   ): Promise<{ success: boolean; message: string; member?: ProjectMemberWithDetails }> {
     const { token, userId } = input;
 
@@ -221,7 +221,7 @@ class ProjectMemberService {
   }
 
   async updateMemberRole(
-    input: UpdateMemberRoleInput
+    input: UpdateMemberRoleInput,
   ): Promise<{ success: boolean; message: string; member?: ProjectMemberWithDetails }> {
     const { projectId, requesterId, memberId, newRole } = input;
 
@@ -269,7 +269,7 @@ class ProjectMemberService {
   async removeMember(
     projectId: string,
     requesterId: string,
-    memberId: string
+    memberId: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       const project = await projectRepository.findOne({ id: projectId });
@@ -370,7 +370,7 @@ class ProjectMemberService {
   async cancelInvitation(
     projectId: string,
     requesterId: string,
-    invitationId: string
+    invitationId: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       const requester = await projectMemberRepository.findByProjectAndUser(projectId, requesterId);
@@ -609,6 +609,37 @@ class ProjectMemberService {
       logger.error("Error updating member status:", error);
       throw error;
     }
+  }
+
+  async getInvitationDetails(token: string): Promise<{
+    projectName: string;
+    inviterName: string;
+    role: TeamMemberRole;
+    expiresAt: Date;
+  }> {
+    const invitation = await projectInvitationRepository.findByToken(token);
+
+    if (!invitation) {
+      throw new NotFoundError({ message: "Invalid or expired invitation" });
+    }
+
+    if (invitation.status !== "pending") {
+      throw new BadRequestError({ message: "Invitation has already been processed" });
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      throw new BadRequestError({ message: "Invitation has expired" });
+    }
+
+    const project = await projectRepository.findOne({ id: invitation.projectId.toString() });
+    const inviter = await userRepository.findOne({ userId: invitation.inviterUserId.toString() });
+
+    return {
+      projectName: project?.name || "Unknown Project",
+      inviterName: `${inviter?.firstName} ${inviter?.lastName}`,
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+    };
   }
 }
 

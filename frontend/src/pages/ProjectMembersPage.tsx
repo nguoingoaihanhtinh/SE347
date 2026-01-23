@@ -8,7 +8,7 @@ import { useAuthStore } from "../stores/authStore";
 import { extractErrorMessage } from "../types/api";
 import AddMemberModal from "../components/modals/AddMemberModal";
 import { UserPlus, Loader2, Check, X, Bell, XCircle } from "lucide-react";
-import type { IProjectMember } from "../types/projectMember";
+import type { ProjectMember } from "../types/projectMember";
 
 type TabType = "active" | "pending";
 
@@ -16,7 +16,7 @@ export default function ProjectMembersPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { currentProject } = useProjectStore();
   const { user } = useAuthStore();
-  const [members, setMembers] = useState<IProjectMember[]>([]);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
@@ -147,25 +147,26 @@ export default function ProjectMembersPage() {
     }
   };
 
-  const renderUserCell = (member: IProjectMember) => {
+  const renderUserCell = (member: ProjectMember) => {
     if (member.user) {
+      const fullName = `${member.user.firstName} ${member.user.lastName}`;
       return (
         <>
           {member.user.avatar ? (
             <img
               src={member.user.avatar}
-              alt={member.user.fullName}
+              alt={fullName}
               className="w-10 h-10 rounded-full object-cover"
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
               <span className="text-blue-600 font-medium text-sm">
-                {member.user.fullName.charAt(0).toUpperCase()}
+                {fullName.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
           <div>
-            <p className="text-sm font-medium text-gray-900">{member.user.fullName}</p>
+            <p className="text-sm font-medium text-gray-900">{fullName}</p>
             <p className="text-sm text-gray-500">{member.user.email}</p>
           </div>
         </>
@@ -288,7 +289,7 @@ export default function ProjectMembersPage() {
                                   {request.user ? (
                                     <>
                                       <p className="text-sm font-medium text-gray-900 truncate">
-                                        {request.user.fullName}
+                                        {`${request.user.firstName} ${request.user.lastName}`}
                                       </p>
                                       <p className="text-xs text-gray-500 mt-1">{request.user.email}</p>
                                     </>
