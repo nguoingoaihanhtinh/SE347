@@ -1,52 +1,27 @@
 // src/pages/MyTasksPage.tsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuthStore } from "../stores/authStore";
-import { useProjectStore } from "../stores/projectStore";
 import { issues } from "../apis/issue";
 import type { IIssue } from "../types/issue";
 
 export default function MyTasksPage() {
-  const { user } = useAuthStore();
-  const { projects, fetchProjects } = useProjectStore();
   const [myIssues, setMyIssues] = useState<IIssue[]>([]);
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all projects first, then fetch issues for each project
   useEffect(() => {
     const loadMyTasks = async () => {
-      if (!user?.id) return;
-
       setIsLoadingAll(true);
       try {
-        // Fetch all projects user has access to
-        await fetchProjects();
+        const response = await issues.myTasks({ page: 1, limit: 200 });
 
-        // Fetch issues from all projects where user is assigned
-        const allIssues: IIssue[] = [];
-        for (const project of projects) {
-          try {
-            // Fetch issues for this project with assigneeId filter
-            const response = await issues.list({
-              projectId: project.id,
-              assigneeId: user.id,
-              page: 1,
-              limit: 100, // Get all issues
-            });
-            
-            if (response.data.success && Array.isArray(response.data.data)) {
-              allIssues.push(...response.data.data);
-            } else if (response.data.success && response.data.data?.data) {
-              allIssues.push(...response.data.data.data);
-            }
-          } catch (err) {
-            // Skip projects where user doesn't have access
-            // console.warn(`Failed to fetch issues for project ${project.id}:`, err);
-          }
+        if (response.data.success && Array.isArray(response.data.data)) {
+          setMyIssues(response.data.data);
+        } else if (response.data.success && response.data.data?.data) {
+          setMyIssues(response.data.data.data);
+        } else {
+          setMyIssues([]);
         }
-
-        setMyIssues(allIssues);
         setError(null);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to load tasks";
@@ -57,16 +32,9 @@ export default function MyTasksPage() {
       }
     };
 
-    if (projects.length > 0) {
-      loadMyTasks();
-    } else {
-      // First load: fetch projects
-      fetchProjects().then(() => {
-        // Projects will trigger the effect again
-      });
-    }
+    loadMyTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, projects.length]);
+  }, []);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -116,11 +84,6 @@ export default function MyTasksPage() {
           </svg>
         );
     }
-  };
-
-  const getProjectName = (projectId: string) => {
-    const project = projects.find((p) => p.id === projectId);
-    return project?.name || "Unknown Project";
   };
 
   if (isLoadingAll) {
@@ -194,7 +157,7 @@ export default function MyTasksPage() {
           {myIssues.map((issue) => (
             <Link
               key={issue.id}
-              to={`/projects/${issue.projectId}/board`}
+              to={`/project/${issue.projectId}/board`}
               className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md hover:border-blue-300 transition-all"
             >
               <div className="flex items-start justify-between">
@@ -217,7 +180,7 @@ export default function MyTasksPage() {
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                       </svg>
-                      {getProjectName(issue.projectId)}
+                      Project: {issue.projectId}
                     </span>
                     {issue.dueDateTo && (
                       <span className="flex items-center gap-1">
@@ -231,7 +194,7 @@ export default function MyTasksPage() {
                 </div>
                 <div className="ml-4 flex-shrink-0">
                   <Link
-                    to={`/projects/${issue.projectId}/board`}
+                    to={`/project/${issue.projectId}/board`}
                     className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >

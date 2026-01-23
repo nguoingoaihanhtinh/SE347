@@ -56,30 +56,29 @@ function SidebarItem({ item, isActive, isCollapsed }: SidebarItemProps) {
 
 const navItems: NavItem[] = [
   {
-    label: "All Projects",
-    path: "/",
+    label: "Projects",
+    path: "/projects",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
       </svg>
     ),
   },
   {
-    label: "My Tasks",
-    path: "/tasks",
+    label: "My Work",
+    path: "/my-tasks",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    label: "Overview",
+    path: "/dashboard",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>
     ),
   },
@@ -143,7 +142,9 @@ export default function UserLayout({ children, title = "" }: UserLayoutProps) {
         {/* Navigation */}
         <nav className={`flex-1 py-4 space-y-1 overflow-visible ${isCollapsed ? "px-2" : "px-3"} ${isCollapsed ? "flex flex-col items-center" : ""}`}>
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path || (item.path === "/" && location.pathname === "/projects");
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === "/projects" && location.pathname === "/");
             return <SidebarItem key={item.path} item={item} isActive={isActive} isCollapsed={isCollapsed} />;
           })}
         </nav>
@@ -168,7 +169,7 @@ export default function UserLayout({ children, title = "" }: UserLayoutProps) {
             >
               <div className="hidden sm:flex flex-col items-start">
                 <span className="text-sm font-semibold text-slate-900">
-                  {user?.firstName} {user?.lastName}
+                  {user?.fullName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "User"}
                 </span>
                 <div className="flex items-center gap-1">
                   <svg

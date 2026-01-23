@@ -48,7 +48,7 @@ export default function AdminRoute({ children }: AdminRouteProps) {
       // Check admin role - if not admin, redirect to user dashboard
       if (user.role !== "admin" && user.role !== "super_admin") {
         // Automatically redirect non-admin users to user dashboard
-        return <Navigate to="/" replace />;
+        return <Navigate to="/dashboard" replace />;
       }
       // Authorized admin - render children
       return <>{children}</>;

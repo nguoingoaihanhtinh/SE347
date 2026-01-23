@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { BadRequestError } from "@/utils/errors";
 import validate from "@/utils/validate";
 import IssueService from "@/services/issue.service";
+import ProjectService from "@/services/project.service";
 import { createIssueSchema } from "@/dtos/issue/CreateIssue.dto";
 import { updateIssueSchema } from "@/dtos/issue/UpdateIssue.dto";
 
@@ -24,6 +25,7 @@ function parseDateFields(data: any) {
 export async function getIssues(req: Request, res: Response) {
   let projectId = req.params.projectId || req.query.projectId;
   const columnId = req.query.columnId;
+  const assigneeId = req.query.assigneeId as string | undefined;
 
   if (!projectId && !columnId) {
     throw new BadRequestError({ message: "Either projectId or columnId is required" });
@@ -32,9 +34,33 @@ export async function getIssues(req: Request, res: Response) {
   const filters: any = {};
   if (projectId) filters.projectId = projectId;
   if (columnId) filters.columnId = columnId as string;
+  if (assigneeId) filters.assigneeId = assigneeId;
+
+  // Permission check:
+  // - Allow viewing if project is public OR user is a member (enforced by ProjectService)
+  // - For column-only query, the repository still requires auth, but we can't validate project here reliably
+  if (projectId && req.user?.userId) {
+    await ProjectService.findOneById(projectId as string, req.user.userId, req.user.role);
+  }
 
   const { page, limit } = req.query;
   const result = await IssueService.findAll(filters, _.toInteger(page) || 1, _.toInteger(limit) || 10);
+  res.status(200).json({ success: true, ...result });
+}
+
+// Jira-like: aggregated tasks assigned to the current logged-in user
+export async function getMyTasks(req: Request, res: Response) {
+  if (!req.user?.userId) {
+    throw new BadRequestError({ message: "Authentication required" });
+  }
+
+  const { page, limit } = req.query;
+  const result = await IssueService.findAll(
+    { assigneeId: req.user.userId },
+    _.toInteger(page) || 1,
+    _.toInteger(limit) || 50,
+  );
+
   res.status(200).json({ success: true, ...result });
 }
 

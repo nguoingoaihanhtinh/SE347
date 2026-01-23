@@ -9,6 +9,8 @@ export interface IProject {
   access: "public" | "private";
   type: "scrum" | "kanban";
   ownerId: string;
+  // Relationship of current logged-in user to this project (computed by backend)
+  relationship?: "owner" | "member" | "public";
   createdAt: string;
   updatedAt: string;
   columns?: IColumn[];

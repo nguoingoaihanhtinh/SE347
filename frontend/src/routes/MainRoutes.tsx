@@ -1,5 +1,5 @@
 // src/routes/MainRoutes.tsx
-import { BrowserRouter, Route, Routes, Outlet } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router-dom";
 import ThemeProvider from "../providers/ThemeProvider";
 import PageNotFound from "../layouts/PageNotFound";
 import AdminLayout from "../layouts/AdminLayout";
@@ -13,6 +13,7 @@ import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ProjectsPage from "../pages/ProjectsPage";
 import ProfilePage from "../pages/ProfilePage";
 import MyTasksPage from "../pages/MyTasksPage";
+import ManagerDashboard from "../pages/ManagerDashboard";
 import UserManagementPage from "../pages/admin/UserManagementPage";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminProjectPage from "../pages/admin/AdminProjectPage";
@@ -55,13 +56,14 @@ export default function MainRoutes() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<ProjectsPage />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<ManagerDashboard />} />
             <Route path="projects" element={<ProjectsPage />} />
-            <Route path="tasks" element={<MyTasksPage />} />
+            <Route path="my-tasks" element={<MyTasksPage />} />
             <Route path="profile" element={<ProfilePage />} />
 
             {/* Project Board - Nested in Project Layout */}
-            <Route path="projects/:projectId" element={<ProjectLayoutWrapper />}>
+            <Route path="project/:projectId" element={<ProjectLayoutWrapper />}>
               <Route path="board" element={<BoardPage />} />
               <Route path="backlog" element={<BacklogPage />} />
             </Route>

@@ -30,7 +30,9 @@ export const useProjectStore = create<ProjectState>((set) => ({
   fetchProjects: async () => {
     try {
       set({ isLoading: true, error: null });
-      const response = await projects.list();
+      // IMPORTANT: load a large page so "My Projects" doesn't miss newly created items
+      // (backend defaults to page=1, limit=10)
+      const response = await projects.list({ page: 1, limit: 1000 });
 
       // console.log("Projects API Response:", response);
 

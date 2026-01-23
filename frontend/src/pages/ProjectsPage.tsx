@@ -31,25 +31,39 @@ export default function ProjectsPage() {
   const filteredProjects = useMemo(() => {
     if (!user) return projects;
 
+    // Sort priority for "All":
+    // 1) owner, 2) member, 3) public (not involved)
+    const sorted = [...projects].sort((a, b) => {
+      const rank = (p: typeof a) => {
+        if (p.relationship === "owner") return 0;
+        if (p.relationship === "member") return 1;
+        return 2;
+      };
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      // newest first as tie-breaker
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
     switch (filter) {
       case "my":
-        // Show only projects where user is owner
-        return projects.filter((p) => p.ownerId === user.id);
+        return sorted.filter((p) => p.relationship === "owner" || p.ownerId === user.id);
       case "public":
-        // Show only public projects
-        return projects.filter((p) => p.access === "public");
+        return sorted.filter((p) => p.access === "public");
       case "all":
       default:
-        return projects;
+        return sorted;
     }
   }, [projects, filter, user]);
 
   // Get user role in project
   const getUserRole = (project: typeof projects[0]): "Owner" | "Member" | "Public" => {
     if (!user) return "Public";
-    if (project.ownerId === user.id) return "Owner";
+    if (project.relationship === "owner" || project.ownerId === user.id) return "Owner";
+    if (project.relationship === "member") return "Member";
     if (project.access === "public") return "Public";
-    return "Member";
+    return "Public";
   };
 
   if (isLoading) {
@@ -77,56 +91,55 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Create Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">All Projects</h1>
-          <p className="text-sm text-slate-600 mt-1">Quản lý và tạo mới dự án của bạn</p>
+      {/* Filter Tabs and Create Project Button - Same Row */}
+      <div className="flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              filter === "all"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            All ({projects.length})
+          </button>
+          <button
+            onClick={() => setFilter("my")}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              filter === "my"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            My Projects ({projects.filter((p) => p.relationship === "owner" || p.ownerId === user?.id).length})
+          </button>
+          <button
+            onClick={() => setFilter("public")}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              filter === "public"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Public ({projects.filter((p) => p.access === "public").length})
+          </button>
         </div>
-        <Button
+
+        {/* Create Project Button - Style like "Add User" */}
+        <button
           onClick={() => setIsCreateModalOpen(true)}
-          variant="primary"
+          className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus-visible:outline-none"
         >
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg className="w-5 h-5 text-indigo-600 group-hover:text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          Create Project
-        </Button>
+          <span className="text-indigo-600 font-semibold whitespace-nowrap group-hover:text-indigo-700 text-sm">
+            New Project
+          </span>
+        </button>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-gray-200">
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            filter === "all"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          All ({projects.length})
-        </button>
-        <button
-          onClick={() => setFilter("my")}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            filter === "my"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          My Projects ({projects.filter((p) => p.ownerId === user?.id).length})
-        </button>
-        <button
-          onClick={() => setFilter("public")}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            filter === "public"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Public ({projects.filter((p) => p.access === "public").length})
-        </button>
-      </div>
 
       {/* Error Message */}
       {error && (
@@ -188,7 +201,7 @@ export default function ProjectsPage() {
             return (
             <div key={project.id} className="block group">
               <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all duration-200 h-full flex flex-col">
-                <Link to={`/projects/${project.id}/board`} className="flex-1">
+                <Link to={`/project/${project.id}/board`} className="flex-1">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -230,7 +243,7 @@ export default function ProjectsPage() {
                   {/* Quick Actions */}
                   <div className="flex gap-2">
                     <Link
-                      to={`/projects/${project.id}/board`}
+                      to={`/project/${project.id}/board`}
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -240,7 +253,7 @@ export default function ProjectsPage() {
                       Board
                     </Link>
                     <Link
-                      to={`/projects/${project.id}/backlog`}
+                      to={`/project/${project.id}/backlog`}
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >

@@ -18,7 +18,7 @@ interface ChangeLog {
 type UpdatableIssueField = keyof UpdateIssueInput;
 
 export class IssueService {
-  async findAll(filters: { projectId?: string; columnId?: string }, page: number, limit: number) {
+  async findAll(filters: { projectId?: string; columnId?: string; assigneeId?: string }, page: number, limit: number) {
     return IssueRepository.findAll(filters, page, limit);
   }
 
