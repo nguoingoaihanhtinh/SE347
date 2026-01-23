@@ -188,12 +188,38 @@ export const sprintApi = {
 
 // Admin API
 export interface SystemStats {
-  totalUsers: number;
-  totalProjects: number;
-  totalIssues: number;
-  activeIssues: number;
-  totalSprints: number;
-  activeSprints: number;
+  counts: {
+    totalUsers: number;
+    totalProjects: number;
+    totalIssues: number;
+    activeIssues: number;
+    totalSprints: number;
+    activeSprints: number;
+  };
+  trends: {
+    usersTrend: number;
+    projectsTrend: number;
+    activeIssuesTrend: number;
+  };
+  analytics: {
+    userGrowth: Array<{ month: string; count: number }>;
+    weeklyGrowth?: Array<{ week: string; name: string; count: number }>;
+    projectDistribution: Array<{ name: string; value: number }>;
+    issueAgeBuckets?: Array<{ bucket: string; openCount: number; closedCount: number }>;
+    resolutionStats: {
+      avgDays: number;
+      trend: Array<{ date: string; avgDays: number }>;
+      trendPercentage: number | null;
+    };
+    latestProjects: Array<{
+      id: string;
+      name: string;
+      key: string;
+      type: "scrum" | "kanban";
+      createdAt: string;
+      ownerName: string;
+    }>;
+  };
 }
 
 export interface AdminProject {
@@ -214,11 +240,28 @@ export interface AdminProject {
   updatedAt: string;
 }
 
-export const adminApi = {
-  getStats: () => api.get<ApiResponse<SystemStats>>("/admin/stats"),
+// Admin Stats Response - Backend returns direct format: { success, counts, trends, analytics }
+export interface AdminStatsResponse {
+  success: boolean;
+  counts: SystemStats["counts"];
+  trends: SystemStats["trends"];
+  analytics: SystemStats["analytics"];
+}
 
-  getProjects: (params?: { page?: number; limit?: number; search?: string }) =>
-    api.get<PaginatedResponse<AdminProject[]>>("/admin/projects", { params }),
+export const adminApi = {
+  // GET /api/admin/stats - Get system statistics
+  // Backend returns: { success, counts, trends, analytics } (NOT wrapped in data)
+  getStats: () => api.get<AdminStatsResponse>("/admin/stats"),
+
+  // GET /api/admin/projects - Get all projects (admin only)
+  getProjects: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    type?: "scrum" | "kanban";
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }) => api.get<PaginatedResponse<AdminProject[]>>("/admin/projects", { params }),
 };
 
 // Comment API

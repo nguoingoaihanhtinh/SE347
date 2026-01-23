@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { activityService } from "../apis/activity";
 import type { IActivity } from "../types/activity";
+import { extractErrorMessage } from "../types/api";
 
 interface ActivityState {
   activities: IActivity[];
@@ -51,7 +52,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         throw new Error("Failed to fetch activities");
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to fetch activities";
+      const errorMessage = extractErrorMessage(error);
       console.error("Fetch activities failed:", errorMessage);
       set({ error: errorMessage, isLoading: false });
     }

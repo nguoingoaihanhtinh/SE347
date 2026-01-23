@@ -8,6 +8,7 @@ import type { IProject } from "../../types/project";
 import { useProjectStore } from "../../stores/projectStore";
 import Modal from "../ui/modal/Modal";
 import { Dropdown, type MenuProps } from "antd";
+import { extractErrorMessage } from "../../types/api";
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -103,9 +104,7 @@ const CreateProjectModal = ({ isOpen, onClose, isEditing = false, initialProject
     } catch (error) {
       console.error("Error creating/updating project:", error);
       toast.error(
-        `Failed to ${isEditing ? "update" : "create"} project: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        `Failed to ${isEditing ? "update" : "create"} project: ${extractErrorMessage(error)}`
       );
     } finally {
       setIsLoading(false);

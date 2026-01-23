@@ -2,6 +2,7 @@
 import { toast } from "react-toastify";
 import { useSprintStore } from "../stores/sprintStore";
 import type { ISprint } from "../types/sprint";
+import { extractErrorMessage } from "../types/api";
 
 export const useCreateSprint = () => {
   const { createSprint, fetchSprintsByProject } = useSprintStore();
@@ -15,7 +16,7 @@ export const useCreateSprint = () => {
       return newSprint;
     } catch (error) {
       console.error("Create sprint error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create sprint");
+      toast.error(extractErrorMessage(error));
       throw error;
     }
   };
@@ -34,7 +35,7 @@ export const useUpdateSprint = () => {
       await fetchSprintsByProject(projectId);
     } catch (error) {
       console.error("Update sprint error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to update sprint");
+      toast.error(extractErrorMessage(error));
       throw error;
     }
   };
@@ -54,7 +55,7 @@ export const useDeleteSprint = (onDeleteSuccess?: (deletedSprintId: string) => v
       onDeleteSuccess?.(sprintId);
     } catch (error) {
       console.error("Delete sprint error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to delete sprint");
+      toast.error(extractErrorMessage(error));
       throw error;
     }
   };
@@ -70,7 +71,7 @@ export const useFetchSprints = () => {
       await fetchSprintsByProject(projectId);
     } catch (error) {
       console.error("Fetch sprints error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to fetch sprints");
+      toast.error(extractErrorMessage(error));
       throw error;
     }
   };
@@ -86,7 +87,7 @@ export const useFetchSprint = () => {
       await fetchSprint(projectId, sprintId);
     } catch (error) {
       console.error("Fetch sprint error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to fetch sprint");
+      toast.error(extractErrorMessage(error));
       throw error;
     }
   };

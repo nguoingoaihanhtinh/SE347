@@ -9,7 +9,8 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+
+  login: (email: string, password: string, remember?: boolean) => Promise<void>;
   register: (
     firstName: string,
     lastName: string,
@@ -24,36 +25,155 @@ interface AuthState {
   setAuth: (user: User, token: string) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  error: null,
+// Helper function to get token from storage (checks both localStorage and sessionStorage)
+const getTokenFromStorage = (): string | null => {
+  if (typeof window === "undefined") return null;
+  // Prioritize localStorage (remember me), then sessionStorage (session only)
+  return localStorage.getItem("token") || sessionStorage.getItem("token");
+};
 
-  login: async (email, password) => {
+// Helper function to get user from storage
+const getUserFromStorage = (): User | null => {
+  if (typeof window === "undefined") return null;
+  const userStr = localStorage.getItem("user") || sessionStorage.getItem("user");
+  if (!userStr) return null;
+  try {
+    return JSON.parse(userStr);
+  } catch {
+    return null;
+  }
+};
+
+// Helper function to save to storage based on remember flag
+const saveToStorage = (key: string, value: string, remember: boolean) => {
+  if (remember) {
+    localStorage.setItem(key, value);
+    // Clear from sessionStorage if exists
+    sessionStorage.removeItem(key);
+  } else {
+    sessionStorage.setItem(key, value);
+    // Clear from localStorage if exists
+    localStorage.removeItem(key);
+  }
+};
+
+// Helper function to clear from both storages
+const clearFromStorage = (key: string) => {
+  localStorage.removeItem(key);
+  sessionStorage.removeItem(key);
+};
+
+// Restore user from storage on store initialization (for F5 refresh)
+// CRITICAL: This runs synchronously when the store is created
+const getInitialState = () => {
+  // Check if we're in a browser environment
+  if (typeof window === "undefined") {
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    };
+  }
+
+  const token = getTokenFromStorage();
+  const user = getUserFromStorage();
+
+  // If token exists, set isAuthenticated to true immediately (optimistic restore)
+  // This prevents redirect to login on F5 refresh
+  if (token) {
+    return {
+      user,
+      isAuthenticated: true, // CRITICAL: Set to true if token exists
+      isLoading: false,
+      error: null,
+    };
+  }
+
+  return {
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    error: null,
+  };
+};
+
+export const useAuthStore = create<AuthState>((set) => ({
+  ...getInitialState(),
+
+  // ================= LOGIN =================
+  login: async (email, password, remember = false) => {
     try {
       set({ isLoading: true, error: null });
       const res = await authApi.login(email, password);
-      const token = (res as any)?.data?.data?.token;
-      const userFromLogin = (res as any)?.data?.data?.user;
 
-      if (token) localStorage.setItem("token", token);
-      if (userFromLogin) localStorage.setItem("user", JSON.stringify(userFromLogin));
+      // CRITICAL: Extract user from response IMMEDIATELY
+      // Backend returns: { success: true, data: { user } }
+      // Token is set in httpOnly cookie, NOT in response body
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = (res as any)?.data;
+      console.log("🔍 Login Response Structure:", JSON.stringify(responseData, null, 2));
 
-      const { data } = await authApi.getCurrentUser();
+      const userFromLogin = responseData?.data?.user;
+
+      const token = responseData?.data?.token; // May not exist - backend uses cookie-based auth
+
+      // CRITICAL: Backend uses cookie-based auth (httpOnly cookie)
+      // Token is automatically sent via cookies, we can't access it from JS
+      // We save a flag to storage to track authentication state
+      const storageFlag = token || "cookie-auth-flag";
+
+      // Save token flag to appropriate storage based on remember me
+      saveToStorage("token", storageFlag, remember);
+      console.log(
+        `✅ Login Success - Token Saved to ${remember ? "localStorage" : "sessionStorage"}:`,
+        storageFlag.substring(0, 20) + "...",
+      );
+
+      if (!userFromLogin) {
+        console.error("❌ Login Failed - No user in response:", responseData);
+        throw new Error("No user received from server");
+      }
+
+      // Save user to appropriate storage based on remember me
+      saveToStorage("user", JSON.stringify(userFromLogin), remember);
+      console.log(
+        `✅ Login Success - User Saved to ${remember ? "localStorage" : "sessionStorage"}:`,
+        userFromLogin.email,
+      );
+
+      // CRITICAL: Update state IMMEDIATELY with token and user (synchronous)
+      // This ensures isAuthenticated is true before any navigation logic
       set({
-        user: data.data,
-        isAuthenticated: true,
+        user: userFromLogin || null,
+        isAuthenticated: true, // Set to true immediately if token exists
         isLoading: false,
+        error: null,
       });
 
-      // Check pending invitation sau login (không throw error nếu fail)
-      await handlePendingInvitation().catch((err) => {
-        console.warn("Failed to handle pending invitation:", err);
-      });
+      // Optional: Verify token with /me endpoint (runs in background)
+      // If this fails, the error handler will catch it
+      try {
+        const { data } = await authApi.getCurrentUser();
+        // Update with fresh user data from server
+        set({
+          user: data.data,
+          isAuthenticated: true,
+        });
+        console.log("✅ Login Success - User verified from /me endpoint");
+      } catch (verifyError) {
+        // If /me fails but we have token, still consider user authenticated
+        // The token might be valid but /me endpoint might have issues
+        console.warn("⚠️ Login Warning - /me verification failed, but token is saved:", verifyError);
+        // Keep the user from login response
+      }
     } catch (error) {
       const msg = extractErrorMessage(error);
-      set({ error: msg, isLoading: false, isAuthenticated: false });
+      console.error("❌ Login Failed:", msg);
+      // Clear storage on error (both localStorage and sessionStorage)
+      clearFromStorage("token");
+      clearFromStorage("user");
+      set({ error: msg, isLoading: false, isAuthenticated: false, user: null });
       throw new Error(msg);
     }
   },
@@ -96,18 +216,20 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     authApi.logout().catch(console.error);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("pendingInvitation");
-    localStorage.removeItem("pendingProjectId");
+    // CRITICAL: Clear from BOTH localStorage and sessionStorage
+    // This ensures user is logged out even if they had "Remember Me" checked
+    clearFromStorage("token");
+    clearFromStorage("user");
+    console.log("✅ Logout - Cleared all storage (localStorage + sessionStorage)");
     set({ user: null, isAuthenticated: false });
   },
 
   loadUser: async () => {
     try {
       set({ isLoading: true });
-      const token = localStorage.getItem("token");
 
+      // Check for token in both localStorage and sessionStorage
+      const token = getTokenFromStorage();
       if (!token) {
         console.log("No token found in localStorage");
         set({ user: null, isAuthenticated: false, isLoading: false });
@@ -124,22 +246,17 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error("Failed to load user:", error);
-
-      // CRITICAL FIX: Only clear auth if error is 401 (unauthorized)
-      // Don't clear on network errors or other issues
-      const errorMessage = extractErrorMessage(error);
-      const isUnauthorized =
-        errorMessage.includes("401") || errorMessage.includes("Unauthorized") || errorMessage.includes("Token expired");
-
-      if (isUnauthorized) {
-        console.log("Token invalid/expired, clearing auth");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+      // Only logout if it's a 401 (unauthorized) - token expired or invalid
+      // Don't logout on network errors or other errors (preserve session on F5)
+      const apiError = error as { response?: { status?: number } };
+      if (apiError?.response?.status === 401) {
+        // Token expired or invalid - clear session from both storages
+        clearFromStorage("token");
+        clearFromStorage("user");
         set({ user: null, isAuthenticated: false, isLoading: false });
       } else {
-        console.warn("Non-auth error during loadUser, keeping auth state");
-        // Keep existing auth state, just stop loading
+        // Network error or other error - keep session, just set loading to false
+        // User can still use the app if token is valid
         set({ isLoading: false });
       }
     }
@@ -147,9 +264,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearError: () => set({ error: null }),
 
-  setAuth: (user, token) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+  // ================= SET AUTH (FORGOT PASSWORD, OAUTH...) =================
+  setAuth: (user, token, remember = false) => {
+    saveToStorage("token", token, remember);
+    saveToStorage("user", JSON.stringify(user), remember);
     set({ user, isAuthenticated: true });
   },
 }));
