@@ -7,10 +7,11 @@ export class IssueRepository {
 
   async getNextIssueNumber(projectId: string): Promise<number> {
     const db = await connectMongo();
+    // ✅ SỬA: sort theo _id (ObjectId có timestamp) thay vì key (string)
     const latest = await db
       .collection(this.collectionName)
       .find({ projectId: new ObjectId(projectId) })
-      .sort({ key: -1 })
+      .sort({ _id: -1 }) // hoặc createdAt: -1 nếu bạn đảm bảo createdAt luôn chính xác
       .limit(1)
       .toArray();
 
@@ -134,7 +135,6 @@ export class IssueRepository {
     const updateDoc: any = { updatedAt: new Date() };
 
     const objectIdFields = ["columnId", "sprintId", "assigneeId", "parentId", "teamId", "creatorId", "reporterId"];
-
     const dateFields = ["dueDateFrom", "dueDateTo", "completedAt"];
 
     for (const key in updateData) {

@@ -19,6 +19,7 @@ import {
   useMediaQuery,
   Slide,
   alpha,
+  Button,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import FolderIcon from "@mui/icons-material/Folder";
@@ -29,8 +30,11 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import CloseIcon from "@mui/icons-material/Close";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import IssueDetail from "../components/projects/IssueDetail";
-import { useParams, useNavigate } from "react-router-dom"; // Thêm useNavigate
+
+import { useParams, useNavigate } from "react-router-dom";
+import InviteMemberModal from "@/components/projects/modals/InviteMemberModal";
 
 /* ================= CONTEXT ================= */
 interface LayoutContextType {
@@ -45,7 +49,7 @@ export const LayoutContext = createContext<LayoutContextType>({
 /* ================= TYPES ================= */
 interface ProjectNavItem {
   label: string;
-  path: string; // relative path, ví dụ: "board", "backlog"
+  path: string;
   icon?: React.ReactNode;
 }
 
@@ -81,11 +85,12 @@ export default function ProjectLayout({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { projectId } = useParams<{ projectId: string }>();
-  const navigate = useNavigate(); // Thêm useNavigate
+  const navigate = useNavigate();
 
   const [drawerOpen, setDrawerOpen] = useState(!isMobile);
   const [issueDetailOpen, setIssueDetailOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   const items = navItems?.length ? navItems : defaultNav;
 
@@ -170,15 +175,36 @@ export default function ProjectLayout({
         >
           {/* HEADER */}
           <AppBar position="sticky" color="transparent" elevation={0}>
-            <Toolbar sx={{ height: 64 }}>
-              {isMobile && (
-                <IconButton onClick={toggleDrawer}>
-                  <MenuIcon />
-                </IconButton>
-              )}
-              <Typography variant="h6" color="primary" sx={{ ml: 2 }}>
-                {projectName || "Project"}
-              </Typography>
+            <Toolbar sx={{ height: 64, justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                {isMobile && (
+                  <IconButton onClick={toggleDrawer}>
+                    <MenuIcon />
+                  </IconButton>
+                )}
+                <Typography variant="h6" color="primary" sx={{ ml: 2 }}>
+                  {projectName || "Project"}
+                </Typography>
+              </Box>
+
+              {/* Invite Member Button */}
+              <Button
+                variant="contained"
+                startIcon={<PersonAddIcon />}
+                onClick={() => setInviteModalOpen(true)}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                  px: 3,
+                  fontWeight: 600,
+                  boxShadow: 2,
+                  "&:hover": {
+                    boxShadow: 4,
+                  },
+                }}
+              >
+                {isMobile ? "Mời" : "Mời thành viên"}
+              </Button>
             </Toolbar>
             {breadcrumb.length > 0 && (
               <Box px={3} pb={1}>
@@ -254,6 +280,18 @@ export default function ProjectLayout({
             )}
           </Box>
         </Slide>
+
+        {/* ========== INVITE MEMBER MODAL ========== */}
+        <InviteMemberModal
+          isOpen={inviteModalOpen}
+          onClose={() => setInviteModalOpen(false)}
+          projectId={projectId || ""}
+          projectName={projectName || ""}
+          onInviteSuccess={() => {
+            console.log("Member invited successfully");
+            // Có thể refetch project members nếu cần
+          }}
+        />
       </Box>
     </LayoutContext.Provider>
   );

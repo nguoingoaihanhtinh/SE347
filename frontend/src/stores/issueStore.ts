@@ -97,16 +97,19 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await issues.create(issueData.projectId, issueData);
-      if (response.data.success && response.data.data) {
-        const newIssue = response.data.data;
-        set((state) => ({
-          issues: [...state.issues, newIssue],
-          isLoading: false,
-        }));
-        return newIssue;
-      } else {
-        throw new Error(response.data.message || "Failed to create issue");
+
+      const newIssue = response.data.issue || response.data.data || response.data;
+
+      if (!newIssue || !newIssue.id) {
+        throw new Error("Không nhận được dữ liệu issue từ server");
       }
+
+      set((state) => ({
+        issues: [...state.issues, newIssue],
+        isLoading: false,
+      }));
+
+      return newIssue;
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
       set({ error: errorMessage, isLoading: false });

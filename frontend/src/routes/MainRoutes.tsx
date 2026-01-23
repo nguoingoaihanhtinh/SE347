@@ -10,6 +10,7 @@ import ProjectLayoutWrapper from "../components/ProjectLayoutWrapper";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
+import AcceptInvitationPage from "../pages/AcceptInvitationPage";
 import ProjectsPage from "../pages/ProjectsPage";
 import ProfilePage from "../pages/ProfilePage";
 import UserManagementPage from "../pages/admin/UserManagementPage";
@@ -44,6 +45,9 @@ export default function MainRoutes() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+          {/* ✅ Accept Invitation - Public route that redirects to login if needed */}
+          <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
 
           {/* Protected Routes - Default Layout */}
           <Route

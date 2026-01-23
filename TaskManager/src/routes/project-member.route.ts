@@ -1,4 +1,3 @@
-// src/routes/project-member.route.ts
 import { Router } from "express";
 import { authenticate } from "@/middlewares/auth.middleware";
 import {

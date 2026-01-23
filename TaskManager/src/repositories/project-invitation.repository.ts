@@ -50,7 +50,11 @@ class ProjectInvitationRepository {
 
   async findByToken(token: string): Promise<ProjectInvitation | null> {
     const collection = await this.getCollection();
+    console.log("Searching for token:", token); // Debugging log
     const invitation = await collection.findOne({ token });
+    if (!invitation) {
+      console.error("Token not found or expired:", token);
+    }
     return invitation ? this.mapInvitation(invitation) : null;
   }
 
@@ -82,7 +86,7 @@ class ProjectInvitationRepository {
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(invitationId) },
       { $set: { status, updatedAt: new Date() } },
-      { returnDocument: "after" }
+      { returnDocument: "after" },
     );
     return result ? this.mapInvitation(result) : null;
   }

@@ -8,27 +8,34 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
-// Add token to header if available
-// api.interceptors.request.use(
-//   (config) => {
-//     const token = localStorage.getItem("token");
-//     if (token) {
-//       config.headers.Authorization = `Bearer ${token}`;
-//       // Debug: Log when token is attached (only in development and not for auth endpoints)
-//       if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
-//         console.log(`[API] Request to ${config.url} with auth token`);
-//       }
-//     } else if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
-//       // Only warn for non-auth endpoints when token is missing
-//       console.warn(`[API] Request to ${config.url} WITHOUT auth token`);
-//     }
-//     return config;
-//   },
-//   (error) => {
-//     return Promise.reject(error);
-//   },
-// );
-// Handle errors from server
+
+// ✅ HYBRID AUTH: Support both Cookie and Token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+
+    // Nếu có token, gửi qua Authorization header
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+
+      if (import.meta.env.DEV && !config.url?.includes("/auth/login") && !config.url?.includes("/auth/register")) {
+        console.log(`[API] 🔑 Request to ${config.url} with Bearer token`);
+      }
+    } else {
+      // Không có token, dùng cookie (withCredentials: true)
+      if (import.meta.env.DEV && !config.url?.includes("/auth/")) {
+        console.log(`[API] 🍪 Request to ${config.url} with cookie auth`);
+      }
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// ✅ FIXED: Chỉ redirect khi thực sự unauthorized
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -37,8 +44,8 @@ api.interceptors.response.use(
 
       if (!isAuthPage) {
         console.warn("401 Unauthorized - clearing token and redirecting to login");
-        // localStorage.removeItem("token");
-        // localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
 
         // Prevent infinite redirect loops
         setTimeout(() => {
@@ -53,6 +60,7 @@ api.interceptors.response.use(
 );
 
 export interface ResponseApi<T> {
+  issue: import("e:/Hoc/SE347/frontend/src/types/issue").IIssue;
   success: boolean;
   status_code: number;
   status: string;
@@ -73,7 +81,6 @@ export interface Pagination {
   total_pages: number;
 }
 
-// For paginated API responses where pagination is at root level
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T;
@@ -92,7 +99,7 @@ export interface Project {
   updatedAt: string;
 }
 
-// Auth API (GIỮ NGUYÊN)
+// Auth API
 export const authApi = {
   login: (email: string, password: string) => api.post<AuthResponse>("/auth/login", { email, password }),
 
@@ -130,16 +137,13 @@ export const authApi = {
   logout: () => api.post("/auth/logout"),
 };
 
-// User API (Admin)
+// User API
 export const userApi = {
-  // GET /api/users - Get all users (with optional search/pagination)
   getAll: (params?: { search?: string; page?: number; limit?: number; exclude?: string }) =>
     api.get<PaginatedResponse<User[]>>("/users", { params }),
 
-  // GET /api/users/:userId - Get user by ID
   getById: (userId: string) => api.get<ApiResponse<User>>(`/users/${userId}`),
 
-  // POST /api/users - Create user (admin only)
   create: (data: {
     email: string;
     fullName: string;
@@ -149,50 +153,40 @@ export const userApi = {
     isEmailVerified?: boolean;
   }) => api.post<ApiResponse<User>>("/users", data),
 
-  // PUT /api/users/profile - Update own profile
   updateProfile: (data: Partial<User>) => api.put<ApiResponse<User>>("/users/profile", data),
 
-  // PUT /api/users/:userId - Update user (admin only)
   updateUser: (userId: string, data: Partial<User>) => api.put<ApiResponse<User>>(`/users/${userId}`, data),
 
-  // DELETE /api/users/:userId - Delete user (admin only)
   delete: (userId: string) => api.delete(`/users/${userId}`),
 };
 
 // Project API
 export const projectApi = {
-  // GET /api/projects - Get all projects
   getAll: (params?: { page?: number; limit?: number; search?: string; type?: string }) =>
     api.get<PaginatedResponse<Project[]>>("/projects", { params }),
 
-  // GET /api/projects/:projectId - Get project by ID
   getById: (projectId: string) => api.get<ApiResponse<Project>>(`/projects/${projectId}`),
 
-  // POST /api/projects - Create project
   create: (data: Partial<Project>) => api.post<ApiResponse<Project>>("/projects", data),
 
-  // PUT /api/projects/:projectId - Update project
   update: (projectId: string, data: Partial<Project>) => api.put<ApiResponse<Project>>(`/projects/${projectId}`, data),
 
-  // DELETE /api/projects/:projectId - Delete project
   delete: (projectId: string) => api.delete(`/projects/${projectId}`),
 };
 
-// Issue API (for dashboard stats)
+// Issue API
 export const issueApi = {
-  // GET /api/issues - Get all issues (requires projectId or columnId in backend, but we'll try without for total count)
   getAll: (params?: { page?: number; limit?: number; projectId?: string; columnId?: string }) =>
     api.get<PaginatedResponse<unknown[]>>("/issues", { params }),
 };
 
-// Sprint API (for dashboard stats)
+// Sprint API
 export const sprintApi = {
-  // GET /api/sprints - Get all sprints
   getAll: (params?: { page?: number; limit?: number; projectId?: string }) =>
     api.get<PaginatedResponse<unknown[]>>("/sprints", { params }),
 };
 
-// Admin API - System Statistics Interface
+// Admin API
 export interface SystemStats {
   counts: {
     totalUsers: number;
@@ -228,7 +222,6 @@ export interface SystemStats {
   };
 }
 
-// Admin Project Interface (for admin project management)
 export interface AdminProject {
   id: string;
   name: string;
@@ -261,18 +254,17 @@ export const adminApi = {
   getStats: () => api.get<AdminStatsResponse>("/admin/stats"),
 
   // GET /api/admin/projects - Get all projects (admin only)
-  getProjects: (params?: { 
-    page?: number; 
-    limit?: number; 
-    search?: string; 
+  getProjects: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
     type?: "scrum" | "kanban";
     sortBy?: string;
     sortOrder?: "asc" | "desc";
-  }) =>
-    api.get<PaginatedResponse<AdminProject[]>>("/admin/projects", { params }),
+  }) => api.get<PaginatedResponse<AdminProject[]>>("/admin/projects", { params }),
 };
 
-// Comment API (GIỮ NGUYÊN)
+// Comment API
 export const commentApi = {
   getByIssue: (issueId: string) => api.get<ApiResponse<Comment[]>>("/comments", { params: { issueId } }),
 

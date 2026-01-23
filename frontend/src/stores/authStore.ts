@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { authApi } from "../lib/api";
+import { memberApi } from "../apis/member";
 import type { User } from "../types";
 import { extractErrorMessage } from "../types/api";
 
@@ -18,12 +19,9 @@ interface AuthState {
     confirmPassword: string,
     otp: string,
   ) => Promise<void>;
-
   logout: () => void;
   loadUser: () => Promise<void>;
   clearError: () => void;
-
-  // ✅ dùng cho forgot-password / social-login
   setAuth: (user: User, token: string) => void;
 }
 
@@ -80,7 +78,7 @@ const getInitialState = () => {
 
   const token = getTokenFromStorage();
   const user = getUserFromStorage();
-  
+
   // If token exists, set isAuthenticated to true immediately (optimistic restore)
   // This prevents redirect to login on F5 refresh
   if (token) {
@@ -91,7 +89,7 @@ const getInitialState = () => {
       error: null,
     };
   }
-  
+
   return {
     user: null,
     isAuthenticated: false,
@@ -107,7 +105,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password, remember = false) => {
     try {
       set({ isLoading: true, error: null });
-
       const res = await authApi.login(email, password);
 
       // CRITICAL: Extract user from response IMMEDIATELY
@@ -116,20 +113,22 @@ export const useAuthStore = create<AuthState>((set) => ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const responseData = (res as any)?.data;
       console.log("🔍 Login Response Structure:", JSON.stringify(responseData, null, 2));
-      
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const userFromLogin = responseData?.data?.user;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const token = responseData?.data?.token; // May not exist - backend uses cookie-based auth
 
       // CRITICAL: Backend uses cookie-based auth (httpOnly cookie)
       // Token is automatically sent via cookies, we can't access it from JS
       // We save a flag to storage to track authentication state
       const storageFlag = token || "cookie-auth-flag";
-      
+
       // Save token flag to appropriate storage based on remember me
       saveToStorage("token", storageFlag, remember);
-      console.log(`✅ Login Success - Token Saved to ${remember ? "localStorage" : "sessionStorage"}:`, storageFlag.substring(0, 20) + "...");
+      console.log(
+        `✅ Login Success - Token Saved to ${remember ? "localStorage" : "sessionStorage"}:`,
+        storageFlag.substring(0, 20) + "...",
+      );
 
       if (!userFromLogin) {
         console.error("❌ Login Failed - No user in response:", responseData);
@@ -138,7 +137,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       // Save user to appropriate storage based on remember me
       saveToStorage("user", JSON.stringify(userFromLogin), remember);
-      console.log(`✅ Login Success - User Saved to ${remember ? "localStorage" : "sessionStorage"}:`, userFromLogin.email);
+      console.log(
+        `✅ Login Success - User Saved to ${remember ? "localStorage" : "sessionStorage"}:`,
+        userFromLogin.email,
+      );
 
       // CRITICAL: Update state IMMEDIATELY with token and user (synchronous)
       // This ensures isAuthenticated is true before any navigation logic
@@ -176,11 +178,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  // ================= REGISTER =================
   register: async (firstName, lastName, email, password, confirmPassword, otp) => {
     try {
       set({ isLoading: true, error: null });
-
       const res = await authApi.register({
         firstName,
         lastName,
@@ -190,20 +190,22 @@ export const useAuthStore = create<AuthState>((set) => ({
         otp,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const token = (res as any)?.data?.data?.token;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const userFromRegister = (res as any)?.data?.data?.user;
 
       if (token) localStorage.setItem("token", token);
       if (userFromRegister) localStorage.setItem("user", JSON.stringify(userFromRegister));
 
       const { data } = await authApi.getCurrentUser();
-
       set({
         user: data.data,
         isAuthenticated: true,
         isLoading: false,
+      });
+
+      // Check pending invitation sau register (không throw error nếu fail)
+      await handlePendingInvitation().catch((err) => {
+        console.warn("Failed to handle pending invitation:", err);
       });
     } catch (error) {
       const msg = extractErrorMessage(error);
@@ -212,7 +214,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  // ================= LOGOUT =================
   logout: () => {
     authApi.logout().catch(console.error);
     // CRITICAL: Clear from BOTH localStorage and sessionStorage
@@ -223,7 +224,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, isAuthenticated: false });
   },
 
-  // ================= LOAD USER =================
   loadUser: async () => {
     try {
       set({ isLoading: true });
@@ -231,18 +231,20 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Check for token in both localStorage and sessionStorage
       const token = getTokenFromStorage();
       if (!token) {
+        console.log("No token found in localStorage");
         set({ user: null, isAuthenticated: false, isLoading: false });
         return;
       }
 
+      console.log("Token found, fetching current user...");
       const { data } = await authApi.getCurrentUser();
 
+      console.log("User loaded successfully:", data.data);
       set({
         user: data.data,
         isAuthenticated: true,
         isLoading: false,
       });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // Only logout if it's a 401 (unauthorized) - token expired or invalid
       // Don't logout on network errors or other errors (preserve session on F5)
@@ -269,3 +271,19 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user, isAuthenticated: true });
   },
 }));
+
+async function handlePendingInvitation() {
+  const pendingToken = localStorage.getItem("pendingInvitation");
+
+  if (pendingToken) {
+    try {
+      console.log("DEBUG: Gửi accept invitation với token:", pendingToken);
+      await memberApi.acceptInvitation(pendingToken);
+      localStorage.removeItem("pendingInvitation");
+      console.log("✅ Accept invitation thành công!");
+    } catch (error) {
+      console.error("❌ Accept invitation fail:", error);
+      // Don't throw error, just log it
+    }
+  }
+}

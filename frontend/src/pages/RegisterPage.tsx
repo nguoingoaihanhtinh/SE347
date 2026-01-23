@@ -23,7 +23,6 @@ const schema = z
       if (!/[a-z]/.test(val)) missing.push("chữ thường");
       if (!/[0-9]/.test(val)) missing.push("số");
       if (!/[^A-Za-z0-9]/.test(val)) missing.push("ký tự đặc biệt");
-      
       if (missing.length > 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -32,10 +31,7 @@ const schema = z
       }
     }),
     confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
-    otp: z
-      .string()
-      .length(6, "Mã OTP phải có 6 số")
-      .regex(/^\d+$/, "Mã OTP chỉ chứa số"),
+    otp: z.string().length(6, "Mã OTP phải có 6 số").regex(/^\d+$/, "Mã OTP chỉ chứa số").optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Mật khẩu không khớp",
@@ -47,6 +43,7 @@ type FormValues = z.infer<typeof schema>;
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register: registerUser } = useAuthStore();
+
   const [formError, setFormError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
@@ -79,7 +76,6 @@ export default function RegisterPage() {
         setOtpError("Vui lòng nhập email hợp lệ");
         return;
       }
-
       setSendingOtp(true);
       await authApi.sendOtp(emailValue);
       setOtpSent(true);
@@ -98,6 +94,7 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (values: FormValues) => {
+    console.log("SUBMIT FORM", values);
     try {
       setFormError(null);
       await registerUser(
@@ -106,18 +103,14 @@ export default function RegisterPage() {
         values.email,
         values.password,
         values.confirmPassword,
-        values.otp
+        values.otp || "", // otp optional, gửi rỗng nếu không có
       );
-      
-      // Get the registered user from store (register has already set it)
+
       const registeredUser = useAuthStore.getState().user;
-      
-      // ROLE-BASED REDIRECTION (same as login)
+
       if (registeredUser?.role === "admin" || registeredUser?.role === "super_admin") {
-        // Admin users go to Admin Panel
         navigate("/admin");
       } else {
-        // Regular users go to dashboard
         navigate("/");
       }
     } catch (error: unknown) {
@@ -130,12 +123,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center overflow-hidden py-12 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100"
-    >
-      <div className="w-[90%] h-full max-w-5xl flex rounded-3xl overflow-hidden bg-white/85 backdrop-blur-md" style={{ boxShadow: '0 0 50px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255,255,255,0.08)' }}>
+    <div className="fixed inset-0 flex items-center justify-center overflow-hidden py-12 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100">
+      <div
+        className="w-[90%] h-full max-w-5xl flex rounded-3xl overflow-hidden bg-white/85 backdrop-blur-md"
+        style={{ boxShadow: "0 0 50px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255,255,255,0.08)" }}
+      >
         <AuthBanner subtitle="Quản lý dự án, sprint và issue trong một nền tảng." />
-
         <AuthFormContainer
           title="Đăng ký"
           subtitle="Tạo tài khoản để đồng bộ hóa công việc của bạn."
@@ -143,10 +136,19 @@ export default function RegisterPage() {
         >
           <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-2 gap-2">
-              <InputField autoComplete="given-name" placeholder="Họ" error={errors.firstName?.message} {...register("firstName")} />
-              <InputField autoComplete="family-name" placeholder="Tên" error={errors.lastName?.message} {...register("lastName")} />
+              <InputField
+                autoComplete="given-name"
+                placeholder="Họ"
+                error={errors.firstName?.message}
+                {...register("firstName")}
+              />
+              <InputField
+                autoComplete="family-name"
+                placeholder="Tên"
+                error={errors.lastName?.message}
+                {...register("lastName")}
+              />
             </div>
-
             <div>
               <div className="flex gap-2">
                 <div className="flex-1">
@@ -171,7 +173,6 @@ export default function RegisterPage() {
               </div>
               {otpError && <p className="mt-0.5 text-xs text-red-600">{otpError}</p>}
             </div>
-
             {otpSent && (
               <InputField
                 type="text"
@@ -181,7 +182,6 @@ export default function RegisterPage() {
                 {...register("otp")}
               />
             )}
-
             <InputField
               type="password"
               autoComplete="new-password"
@@ -196,9 +196,7 @@ export default function RegisterPage() {
               error={errors.confirmPassword?.message}
               {...register("confirmPassword")}
             />
-
             {formError && <p className="text-xs text-red-600 mt-1">{formError}</p>}
-
             <Button type="submit" className="w-full mt-4" size="md" isLoading={isSubmitting}>
               Tạo tài khoản
             </Button>
@@ -208,4 +206,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
