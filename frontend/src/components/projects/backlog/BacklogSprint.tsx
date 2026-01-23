@@ -9,7 +9,8 @@ import type { IColumn } from "../../../types/project";
 import IssueCard from "./IssueCard";
 import QuickCreateIssue from "./QuickCreateIssue";
 import { useIssueStore } from "../../../stores/issueStore";
-// import { useDeleteSprint } from "../../../hooks/useSprint";
+import { useUpdateSprint } from "../../../hooks/useSprint";
+import { useNavigate } from "react-router-dom";
 import { formatSprintDate } from "../../../modules/utils/date";
 import { statusOptions } from "../../../constants/list";
 import CreateIssueModal from "../../modals/CreateIssueModal";
@@ -30,7 +31,8 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
     data: { type: "Sprint", sprint },
   });
   const { selectedIssues, setSelectedIssues, clearSelectedIssues } = useIssueStore();
-  // const { deleteSprint } = useDeleteSprint();
+  const { updateSprint } = useUpdateSprint();
+  const navigate = useNavigate();
   const [isOpenButtonMenu, setIsOpenButtonMenu] = useState(false);
   const [isCreateIssueModalOpen, setIsCreateIssueModalOpen] = useState(false);
   const [isEditSprintModalOpen, setIsEditSprintModalOpen] = useState(false);
@@ -211,6 +213,26 @@ const BacklogSprint = ({ sprint, projectId, columns, isDragging, overItemId }: B
           {sprint.issues.length} items • {estimate} pts
         </div>
         <div className="flex items-center space-x-2">
+          {sprint.id !== "backlog" && (
+            <button
+              onClick={async () => {
+                const nowIso = new Date().toISOString();
+                try {
+                  await updateSprint(projectId, sprint.id, {
+                    dateStarted: nowIso,
+                    // keep existing end date; if it's in the past, caller should update it via Edit Sprint
+                  });
+                  navigate(`/project/${projectId}/board`);
+                } catch {
+                  // errors are already toasted by hook
+                }
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-emerald-600 hover:bg-emerald-50 rounded-md border border-emerald-200 transition-colors"
+            >
+              Start Sprint
+            </button>
+          )}
+
           {sprint.id !== "backlog" && (
             <button
               onClick={() => setIsEditSprintModalOpen(true)}

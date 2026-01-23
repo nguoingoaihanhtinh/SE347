@@ -82,6 +82,14 @@ const CreateSprintModal = ({
     }
   }, [isEditing, initialSprint, reset]);
 
+  // Debug validation errors
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      // eslint-disable-next-line no-console
+      console.log("[CreateSprintModal] Validation errors:", errors);
+    }
+  }, [errors]);
+
   const onSubmit = handleSubmit(async (data: SprintFormData) => {
     setIsLoading(true);
 
@@ -127,9 +135,10 @@ const CreateSprintModal = ({
       buttonContent={isLoading ? "Loading..." : isEditing ? "Update Sprint" : "Create Sprint"}
       onSubmit={onSubmit}
       isLoadingButton={isLoading}
+      formId="create-sprint-form"
     >
-      <div className="p-4">
-        <form className="space-y-4">
+      <div className="p-2">
+        <form id="create-sprint-form" className="space-y-4" onSubmit={onSubmit}>
           <div>
             <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
               Sprint Name <span className="text-red-500">*</span>

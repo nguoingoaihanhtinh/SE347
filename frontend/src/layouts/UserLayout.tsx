@@ -142,9 +142,11 @@ export default function UserLayout({ children, title = "" }: UserLayoutProps) {
         {/* Navigation */}
         <nav className={`flex-1 py-4 space-y-1 overflow-visible ${isCollapsed ? "px-2" : "px-3"} ${isCollapsed ? "flex flex-col items-center" : ""}`}>
           {navItems.map((item) => {
+            // Enhanced active detection: exact match or starts with (for nested routes)
             const isActive =
               location.pathname === item.path ||
-              (item.path === "/projects" && location.pathname === "/");
+              location.pathname.startsWith(`${item.path}/`) ||
+              (item.path === "/projects" && (location.pathname === "/" || location.pathname.startsWith("/project/")));
             return <SidebarItem key={item.path} item={item} isActive={isActive} isCollapsed={isCollapsed} />;
           })}
         </nav>
@@ -214,7 +216,7 @@ export default function UserLayout({ children, title = "" }: UserLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-white p-6">
+        <main className="flex-1 overflow-y-auto bg-white">
           {children}
         </main>
       </div>

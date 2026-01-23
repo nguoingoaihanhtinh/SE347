@@ -48,6 +48,25 @@ export async function getIssues(req: Request, res: Response) {
   res.status(200).json({ success: true, ...result });
 }
 
+// Board-specific issues loading:
+// - Kanban: all project issues
+// - Scrum: only issues belonging to the currently active sprint
+export async function getIssuesForBoard(req: Request, res: Response) {
+  const projectId = req.params.projectId as string | undefined;
+  if (!projectId) {
+    throw new BadRequestError({ message: "projectId is required for board issues" });
+  }
+
+  const { page, limit } = req.query;
+  const result = await IssueService.findForBoard(
+    projectId,
+    _.toInteger(page) || 1,
+    _.toInteger(limit) || 50,
+  );
+
+  res.status(200).json({ success: true, ...result });
+}
+
 // Jira-like: aggregated tasks assigned to the current logged-in user
 export async function getMyTasks(req: Request, res: Response) {
   if (!req.user?.userId) {

@@ -110,14 +110,16 @@ export class ProjectService {
     // even if they are not a project member
     if (currentUserId && currentUserRole) {
       const isSuperAdmin = currentUserRole === "super_admin";
+      const isOwner = project.ownerId.toString() === currentUserId.toString();
       const isMember = await projectMemberRepository.findByProjectAndUser(id, currentUserId);
       const isPublicProject = project.access === "public";
       
       // Allow access if:
+      // - user is the project owner, OR
       // - project is public (any authenticated user can view), OR
       // - user is a project member, OR
       // - user is super_admin (for audit)
-      if (!isPublicProject && !isMember && !isSuperAdmin) {
+      if (!isOwner && !isPublicProject && !isMember && !isSuperAdmin) {
         throw new ForbiddenError({
           message: "You do not have permission to view this project. You must be a project member or a Super Admin.",
         });

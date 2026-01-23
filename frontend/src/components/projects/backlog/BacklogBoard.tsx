@@ -273,12 +273,8 @@ const BacklogBoard = ({ projectId }: BacklogBoardProps) => {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full flex-col gap-4">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="p-2 text-2xl font-bold text-gray-700">{currentProject?.name || "Project"} Backlog</h1>
-            <p className="px-2 text-sm text-gray-500">Manage your project backlog and sprints</p>
-          </div>
           <CreateSprintButton projectId={projectId} />
         </div>
 

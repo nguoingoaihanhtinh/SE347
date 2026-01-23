@@ -6,7 +6,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import UserLayout from "../layouts/UserLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AdminRoute from "./AdminRoute";
-import ProjectLayoutWrapper from "../components/ProjectLayoutWrapper";
+import ProjectLayout from "../layouts/ProjectLayout";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
@@ -14,6 +14,8 @@ import ProjectsPage from "../pages/ProjectsPage";
 import ProfilePage from "../pages/ProfilePage";
 import MyTasksPage from "../pages/MyTasksPage";
 import ManagerDashboard from "../pages/ManagerDashboard";
+import ProjectMembersPage from "../pages/ProjectMembersPage";
+import ProjectSettingsPage from "../pages/ProjectSettingsPage";
 import UserManagementPage from "../pages/admin/UserManagementPage";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminProjectPage from "../pages/admin/AdminProjectPage";
@@ -63,9 +65,12 @@ export default function MainRoutes() {
             <Route path="profile" element={<ProfilePage />} />
 
             {/* Project Board - Nested in Project Layout */}
-            <Route path="project/:projectId" element={<ProjectLayoutWrapper />}>
+            <Route path="project/:projectId" element={<ProjectLayout />}>
+              <Route index element={<Navigate to="board" replace />} />
               <Route path="board" element={<BoardPage />} />
               <Route path="backlog" element={<BacklogPage />} />
+              <Route path="members" element={<ProjectMembersPage />} />
+              <Route path="settings" element={<ProjectSettingsPage />} />
             </Route>
 
             <Route path="*" element={<PageNotFound />} />

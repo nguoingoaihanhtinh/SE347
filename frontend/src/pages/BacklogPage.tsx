@@ -45,14 +45,7 @@ export default function BacklogPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4 pb-28">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Backlog</h1>
-          <p className="text-sm text-slate-600">Manage your project backlog and sprints</p>
-        </div>
-      </div>
-
+    <div className="h-full w-full overflow-y-auto px-4 pb-10">
       <BacklogBoard projectId={projectId} />
     </div>
   );

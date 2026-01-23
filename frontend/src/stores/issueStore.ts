@@ -11,6 +11,11 @@ interface IssueState {
   selectedIssues: Record<string, IIssue[]>;
   selectedIssueId: string | null;
   fetchIssuesByProject: (projectId: string) => Promise<void>;
+  fetchIssuesForBoard: (projectId: string) => Promise<{
+    hasActiveSprint: boolean;
+    mode: "kanban" | "scrum";
+    activeSprintName?: string;
+  }>;
   fetchIssuesByColumn: (columnId: string, projectId: string) => Promise<void>;
   fetchIssue: (projectId: string, issueId: string) => Promise<void>;
   createIssue: (data: CreateIssueParams) => Promise<IIssue>;
@@ -50,6 +55,53 @@ export const useIssueStore = create<IssueState>()((set, get) => ({
       } else {
         throw new Error("Invalid issues data format");
       }
+    } catch (error) {
+      const msg = extractErrorMessage(error);
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
+    }
+  },
+
+  fetchIssuesForBoard: async (projectId) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await issues.board(projectId, { page: 1, limit: 50 });
+      const payload = response.data as {
+        success: boolean;
+        data: IIssue[];
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          total_pages: number;
+        };
+        meta?: {
+          mode: "kanban" | "scrum";
+          hasActiveSprint: boolean;
+          activeSprintId?: string;
+          activeSprintName?: string;
+        };
+      };
+
+      if (payload.success && Array.isArray(payload.data)) {
+        set({
+          issues: payload.data,
+          isLoading: false,
+        });
+      } else {
+        throw new Error("Invalid issues data format");
+      }
+
+      const meta = payload.meta || {
+        hasActiveSprint: true,
+        mode: "kanban" as const,
+      };
+
+      return {
+        hasActiveSprint: meta.hasActiveSprint,
+        mode: meta.mode,
+        activeSprintName: meta.activeSprintName,
+      };
     } catch (error) {
       const msg = extractErrorMessage(error);
       set({ error: msg, isLoading: false });
