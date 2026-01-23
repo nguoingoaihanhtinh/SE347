@@ -133,24 +133,27 @@ async function migrate(db: Db) {
   await db.collection("permissions").createIndex({ key: 1 }, { unique: true });
 
   // Project Members
+  // Create collection without strict schema validation to allow camelCase fields
+  // Schema validation was causing issues with camelCase field names
   await db.createCollection("project_members", {
     validator: {
       $jsonSchema: {
         bsonType: "object",
-        required: ["project_id", "user_id", "role", "is_pending", "created_at", "updated_at"],
+        required: ["projectId", "userId", "role"],
         properties: {
-          project_id: { bsonType: "objectId" },
-          user_id: { bsonType: "objectId" },
-          role: { enum: ["admin", "member", "viewer"] },
-          is_pending: { bsonType: "bool" },
-          team_ids: { bsonType: "array" },
-          created_at: { bsonType: "date" },
-          updated_at: { bsonType: "date" },
+          projectId: { bsonType: ["objectId", "string"] },
+          userId: { bsonType: ["objectId", "string"] },
+          role: { enum: ["owner", "admin", "member", "viewer"] },
+          isPending: { bsonType: "bool" },
+          status: { enum: ["active", "pending_invite", "pending_request"] },
+          teamIds: { bsonType: "array" },
+          createdAt: { bsonType: "date" },
+          updatedAt: { bsonType: "date" },
         },
       },
     },
   });
-  await db.collection("project_members").createIndex({ project_id: 1, user_id: 1 }, { unique: true });
+  await db.collection("project_members").createIndex({ projectId: 1, userId: 1 }, { unique: true });
 
   // Comments
   await db.createCollection("comments", {

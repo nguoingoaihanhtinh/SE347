@@ -5,6 +5,7 @@ import { Project } from "@/models/project.model";
 import ActivityService from "@/services/activity.service";
 import { ActivityAction } from "@/enums";
 import projectMemberRepository from "@/repositories/project-member.repository";
+import userRepository from "@/repositories/user.repository";
 import validationService from "@/services/validation.service";
 import { connectMongo } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
@@ -135,6 +136,25 @@ export class ProjectService {
     return project;
   }
 
+  async searchByKey(key: string, currentUserId?: string): Promise<{ name: string; ownerName: string; key: string; access: string } | null> {
+    const project = await projectRepository.findOne({ key });
+    if (!project) return null;
+
+    // Only return private projects (public projects are visible in list)
+    if (project.access !== "private") return null;
+
+    // Get owner info
+    const owner = await userRepository.findOne({ userId: project.ownerId.toString() });
+    const ownerName = owner ? `${owner.firstName || ""} ${owner.lastName || ""}`.trim() || owner.email : "Unknown";
+
+    return {
+      name: project.name,
+      ownerName,
+      key: project.key,
+      access: project.access,
+    };
+  }
+
   async create(projectData: Omit<Project, "id" | "createdAt" | "updatedAt">) {
     const existing = await projectRepository.findOne({ key: projectData.key });
     if (existing) throw new BadRequestError({ message: `Project key "${projectData.key}" already exists` });
@@ -153,6 +173,7 @@ export class ProjectService {
         teamIds: [],
         role: "owner",
         isPending: false,
+        status: "active",
         createdAt: new Date(),
         updatedAt: new Date(),
       });

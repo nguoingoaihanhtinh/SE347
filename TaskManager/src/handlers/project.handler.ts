@@ -58,3 +58,25 @@ export async function deleteProject(req: Request, res: Response) {
   await ProjectService.delete(id, currentUserId, currentUserRole);
   res.status(200).json({ success: true });
 }
+
+export async function searchProjectByKey(req: Request, res: Response) {
+  const { key } = req.query;
+  
+  if (!key || typeof key !== "string") {
+    throw new BadRequestError({ message: "Project key is required" });
+  }
+
+  const project = await ProjectService.searchByKey(key, req.user!.userId);
+  
+  if (!project) {
+    return res.status(404).json({
+      success: false,
+      message: "Project not found",
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: project,
+  });
+}

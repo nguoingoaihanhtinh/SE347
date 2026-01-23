@@ -22,6 +22,36 @@ export async function getUsers(req: Request, res: Response) {
   });
 }
 
+export async function searchUsers(req: Request, res: Response) {
+  const { query } = req.query;
+  
+  if (!query || typeof query !== "string") {
+    throw new BadRequestError({ message: "Query parameter is required" });
+  }
+
+  const { data: users } = await UserService.findAll({
+    page: 1,
+    limit: 20,
+    search: query,
+  });
+
+  // Return minimal user info (id, name, email, avatar, role) - exclude admin users
+  const minimalUsers = users
+    .filter((user: any) => user.role !== "admin" && user.role !== "super_admin")
+    .map((user: any) => ({
+      id: user.id || user._id?.toString(),
+      email: user.email,
+      fullName: user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      avatar: user.avatar || null,
+      role: user.role || "user",
+    }));
+
+  res.status(200).json({
+    success: true,
+    data: minimalUsers,
+  });
+}
+
 export async function getUserById(req: Request, res: Response) {
   const id = req.params.id;
 

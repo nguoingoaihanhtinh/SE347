@@ -40,8 +40,17 @@ export class ProjectRepository {
   async findOne(filter: { id?: string; key?: string }) {
     const db = await connectMongo();
     const mongoFilter: any = {};
-    if (filter.id) mongoFilter._id = new ObjectId(filter.id);
-    if (filter.key) mongoFilter.key = filter.key;
+    if (filter.id) {
+      // Validate that id is a valid ObjectId before converting
+      if (ObjectId.isValid(filter.id)) {
+        mongoFilter._id = new ObjectId(filter.id);
+      } else {
+        throw new Error(`Invalid project ID format: ${filter.id}`);
+      }
+    }
+    if (filter.key) {
+      mongoFilter.key = filter.key;
+    }
     const doc = await db.collection(this.collectionName).findOne(mongoFilter);
     if (!doc) return null;
     return {

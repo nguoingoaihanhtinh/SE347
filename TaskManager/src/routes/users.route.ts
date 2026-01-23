@@ -5,6 +5,7 @@ import {
   getUserById,
   getUserProfile,
   getUsers,
+  searchUsers,
   updateUser,
   updateUserProfile,
 } from "@/handlers/users.handler";
@@ -16,6 +17,8 @@ const router = Router();
 router.get("/profile", authenticate, getUserProfile);
 router.put("/profile", authenticate, updateUserProfile);
 router.delete("/profile", authenticate, deleteUserProfile);
+// Search users by email (authenticated)
+router.get("/search", authenticate, searchUsers);
 // Public routes (no auth)
 router.get("/", getUsers);
 router.get("/:id", getUserById);
